@@ -208,6 +208,8 @@ struct WorkoutView: View {
                         setDots(group.sets, current: active.row.id)
                     }
 
+                    coachCard(group.ex, setIndex: index - 1)
+
                     VStack(spacing: 14) {
                         let unit = group.ex.effectiveLoadType.valueLabel(for: active.row.weight)
                         valueRow(label: unit,
@@ -244,6 +246,40 @@ struct WorkoutView: View {
             }
             .symbolRenderingMode(.multicolor)
             .background(Color(.systemGroupedBackground))
+        }
+    }
+
+    /// The coach's target for this exercise, plus a nudge after each set when it looked easy or hard.
+    @ViewBuilder
+    private func coachCard(_ ex: Exercise, setIndex: Int) -> some View {
+        let db = store.db
+        if let session = db.sessions.first(where: { $0.isOpen && !$0.isRun }) {
+            let a = db.liftAdvice(for: ex, deload: session.deload ?? false, today: session.slotDate)
+            let tip = db.liveTip(sessionId: session.id, ex: ex)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline) {
+                    Label("Shoot for \(a.target(forSet: setIndex))", systemImage: a.icon)
+                        .font(.headline).labelStyle(CoachLabelStyle())
+                    Spacer()
+                    if setIndex == 0, let range = a.range { Text(range).font(.subheadline).foregroundStyle(.secondary) }
+                }
+                Text([a.why, a.trend].compactMap { $0 }.joined(separator: " · "))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                if let tip, store.canEdit {
+                    Button {
+                        store.mutate { $0.shiftSets(tip.setIds, ex: ex, steps: tip.steps) }
+                    } label: {
+                        Label(tip.text, systemImage: tip.steps > 0 ? "arrow.up" : "arrow.down")
+                            .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered).tint(tip.steps > 0 ? Theme.lift : Theme.warning)
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .animation(.snappy, value: tip?.text)
         }
     }
 
@@ -332,8 +368,16 @@ struct WorkoutView: View {
                     }
                 } header: {
                     HStack {
-                        Text(g.ex.name).font(.headline).foregroundStyle(.primary).textCase(nil)
-                        if g.isDone { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.lift) }
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Text(g.ex.name).font(.headline).foregroundStyle(.primary)
+                                if g.isDone { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.lift) }
+                            }
+                            let a = store.db.liftAdvice(for: g.ex, deload: session.deload ?? false, today: session.slotDate)
+                            Label(a.target + (a.range.map { "  ·  \($0)" } ?? ""), systemImage: a.icon)
+                                .font(.caption).labelStyle(CoachLabelStyle())
+                        }
+                        .textCase(nil)
                         Spacer()
                         if store.canEdit { exerciseMenu(g.ex, session: session, index: i, count: groups.count) }
                     }

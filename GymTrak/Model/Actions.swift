@@ -10,6 +10,8 @@ struct StartOptions {
     var deload = false
     var weekNumber: Int? = nil
     var scheduledDate: String? = nil
+    /// Set loads/reps from the coach instead of copying last time.
+    var coach = false
 }
 
 extension Snapshot {
@@ -62,6 +64,9 @@ extension Snapshot {
         if let resumable { return resumable.id }
 
         let sessionId = newID()
+        let advice = options.coach
+            ? Dictionary(uniqueKeysWithValues: exercises(of: day.id).map { ($0.id, liftAdvice(for: $0, deload: options.deload, today: scheduled)) })
+            : [:]
         for ex in exercises(of: day.id) {
             let all = ex.rows
             // Deload drops the last set, but only where there are 3+ to drop from.
@@ -73,6 +78,9 @@ extension Snapshot {
             scheduledDate: options.scheduledDate, dayNameSnapshot: day.name, focusSnapshot: day.focus,
             startedAt: now, finishedAt: nil, durationSec: nil, updatedAt: now, type: .lift,
             weekNumber: options.weekNumber, deload: options.deload ? true : nil))
+        for ex in exercises(of: day.id) {
+            if let a = advice[ex.id] { applyCoach(sessionId: sessionId, ex: ex, advice: a, now: now) }
+        }
         return sessionId
     }
 

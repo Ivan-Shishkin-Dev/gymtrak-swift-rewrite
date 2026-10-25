@@ -134,3 +134,144 @@ struct SessionTests {
         #expect(back.sets == snap.sets)
     }
 }
+
+struct CoachTests {
+    let bench = Exercise(id: "b", dayId: 1, order: 0, name: "Bench", sets: 2, weight: "200 lb", reps: "× 6",
+                         setRows: [SetRow(weight: "200 lb", reps: "× 6"), SetRow(weight: "200 lb", reps: "× 6")],
+                         loadType: .weight, updatedAt: 0)
+
+    /// A snapshot with finished sessions; each entry is the reps done per set (target 6 at 200 lb).
+    func db(_ history: [[Int]], start: String = "2026-10-01", weight: String = "200 lb") -> Snapshot {
+        var s = Snapshot(days: [Day(id: 1, name: "Upper", focus: "")], exercises: [bench], programWeeks: [])
+        for (n, reps) in history.enumerated() {
+            let id = "s\(n)"
+            let date = DateKey.addDays(start, n * 3)
+            s.sessions.append(Session(id: id, dayId: 1, date: date, startedAt: Double(n) * 1e6,
+                                      finishedAt: Double(n) * 1e6 + 1, updatedAt: 0, type: .lift))
+            for (i, r) in reps.enumerated() {
+                s.sets.append(WorkoutSet(id: "\(id)-\(i)", sessionId: id, exerciseId: "b", exerciseName: "Bench", setIndex: i,
+                                         weight: weight, reps: "× \(r)", targetWeight: weight, targetReps: "× 6",
+                                         completedAt: 1, updatedAt: 0))
+            }
+        }
+        return s
+    }
+
+    var today: String { "2026-10-20" }
+
+    @Test func noHistoryKeepsWeight() {
+        let a = db([]).liftAdvice(for: bench, today: today)
+        #expect(a.kind == .new && a.steps == 0 && a.target == "200 lb × 6")
+    }
+
+    @Test func hitEveryRepAddsOneIncrement() {
+        let a = db([[6, 6]], start: "2026-10-18").liftAdvice(for: bench, today: today)
+        #expect(a.kind == .push && a.target == "205 lb × 6" && a.range == "200–205 lb")
+    }
+
+    @Test func crushingItJumpsTwo() {
+        let a = db([[8, 6]], start: "2026-10-18").liftAdvice(for: bench, today: today)
+        #expect(a.kind == .bigPush && a.target == "210 lb × 6")
+    }
+
+    @Test func nearMissHoldsAndRestoresRepGoal() {
+        let a = db([[6, 5]], start: "2026-10-18").liftAdvice(for: bench, today: today)
+        #expect(a.kind == .reps && a.steps == 0 && a.reps == [6, 6])
+    }
+
+    @Test func missingTwiceBacksOff() {
+        let a = db([[4, 4], [4, 3]], start: "2026-10-15").liftAdvice(for: bench, today: today)
+        #expect(a.kind == .backoff && a.steps == -2 && a.target == "190 lb × 6")
+    }
+
+    @Test func deloadDropsAboutTenPercent() {
+        let a = db([[6, 6]], start: "2026-10-18").liftAdvice(for: bench, deload: true, today: today)
+        #expect(a.kind == .deload && a.target == "180 lb × 6")
+    }
+
+    @Test func longBreakHolds() {
+        let a = db([[6, 6]], start: "2026-09-01").liftAdvice(for: bench, today: today)
+        #expect(a.kind == .hold && a.steps == 0)
+    }
+
+    @Test func startAppliesCoachTargets() {
+        var s = db([[6, 6]], start: "2026-10-18")
+        s.exercises[0].setRows = [SetRow(weight: "200 lb", reps: "× 6"), SetRow(weight: "200 lb", reps: "× 6")]
+        let id = s.startSession(day: s.days[0], options: StartOptions(scheduledDate: today, coach: true))
+        #expect(s.sets(of: id).map(\.weight) == ["205 lb", "205 lb"])
+    }
+
+    @Test func liveTipSuggestsAddingAfterEasySet() {
+        var s = db([])
+        let id = s.startSession(day: s.days[0])
+        let first = s.sets(of: id).sorted { $0.setIndex < $1.setIndex }[0]
+        s.updateSetLoad(first.id, weight: "200 lb", reps: "× 8")
+        s.toggleSet(first.id)
+        let tip = s.liveTip(sessionId: id, ex: bench)
+        #expect(tip?.steps == 1)
+        s.shiftSets(tip!.setIds, ex: bench, steps: 1)
+        #expect(s.liveTip(sessionId: id, ex: bench) == nil) // applied — no repeat nudge
+    }
+
+    @Test func coachJumpsAreRealistic() {
+        let plates = Exercise(id: "p", dayId: 1, order: 0, name: "Press", sets: 1, weight: "4 pl + 35", reps: "× 5",
+                              loadType: .plates, updatedAt: 0)
+        #expect(coachShift("4 pl + 35", ex: plates, steps: 1) == "5 pl")
+        #expect(coachShift("5 pl", ex: plates, steps: -1) == "4 pl + 35")
+        let stack = Exercise(id: "m", dayId: 1, order: 0, name: "Pec Dec", sets: 1, weight: "210 lb", reps: "× 6",
+                             loadType: .machine, updatedAt: 0)
+        #expect(coachShift("210 lb", ex: stack, steps: 1) == "220 lb")
+        #expect(coachShift("14", ex: stack, steps: 1) == "15")
+    }
+
+    /// Sessions given as (weight, reps per set), oldest first.
+    func dbW(_ history: [(String, [Int])], start: String = "2026-10-10") -> Snapshot {
+        var s = db([])
+        for (n, (w, reps)) in history.enumerated() {
+            let one = db([reps], start: DateKey.addDays(start, n * 3), weight: w)
+            var sess = one.sessions[0]; sess.id = "w\(n)"; sess.startedAt = Double(n) * 1e6; sess.finishedAt = Double(n) * 1e6 + 1
+            s.sessions.append(sess)
+            s.sets += one.sets.map { var x = $0; x.id = "w\(n)-\(x.setIndex)"; x.sessionId = sess.id; return x }
+        }
+        s.exercises[0].setRows = [SetRow(weight: history.last!.0, reps: "× 6"), SetRow(weight: history.last!.0, reps: "× 6")]
+        return s
+    }
+
+    @Test func dipThenBackToBest() {
+        // 135 → 125 (nailed it) → go straight back to 135.
+        let s = dbW([("135 lb", [6, 6]), ("125 lb", [6, 6])])
+        let a = s.liftAdvice(for: s.exercises[0], today: today)
+        #expect(a.target == "135 lb × 6" && a.why.contains("Back to"))
+    }
+
+    @Test func machineSwitchStartsFresh() {
+        // 200 lb, missed twice… then a new machine at 90 lb: no "missed twice" back-off from old history.
+        let s = dbW([("200 lb", [4, 4]), ("200 lb", [4, 3]), ("90 lb", [5, 6])])
+        let a = s.liftAdvice(for: s.exercises[0], today: today)
+        #expect(a.kind == .hold && a.target == "90 lb × 6" && a.why.contains("New setup"))
+        let b = dbW([("200 lb", [6, 6]), ("90 lb", [6, 6])])
+        #expect(b.liftAdvice(for: b.exercises[0], today: today).target == "95 lb × 6")
+    }
+
+    @Test func runAdviceWithoutDataUsesPlan() {
+        let rx = makeRun(.easy, minutes: 30, timing: .standalone)
+        let a = RunCoach.advice(rx, date: today, deload: false, schedule: nil, runs: [])
+        #expect(a.target == "30 min" && a.range == "25–35 min")
+    }
+
+    @Test func runAdviceGrowsWhenHeartRateStayedInZone() {
+        let rx = makeRun(.easy, minutes: 30, timing: .standalone)
+        let last = RunActivity(id: "r", source: .strava, name: "Run", date: "2026-10-18", start: DateKey.date("2026-10-18"),
+                               minutes: 40, miles: 4, avgHR: Double(rx.hrZoneMax - 5))
+        let a = RunCoach.advice(rx, date: today, deload: false, schedule: nil, runs: [last])
+        #expect(a.target == "45 min" && a.pace == "9:51–10:09 /mi")
+    }
+
+    @Test func runAdviceHoldsWhenHeartRateRanHigh() {
+        let rx = makeRun(.easy, minutes: 30, timing: .standalone)
+        let last = RunActivity(id: "r", source: .strava, name: "Run", date: "2026-10-18", start: DateKey.date("2026-10-18"),
+                               minutes: 40, miles: 4, avgHR: Double(rx.hrZoneMax + 15))
+        let a = RunCoach.advice(rx, date: today, deload: false, schedule: nil, runs: [last])
+        #expect(a.target == "40 min" && a.pace == "10:15–10:30 /mi")
+    }
+}
