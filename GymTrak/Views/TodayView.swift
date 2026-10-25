@@ -21,8 +21,7 @@ struct TodayView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle(DateKey.dow(today).label)
-            .navigationSubtitle(DateKey.label(todayKey, "MMMM d"))
+            .topLeftTitle(DateKey.dow(today).label, subtitle: DateKey.label(todayKey, "MMMM d"))
             .toolbar { ToolbarItem(placement: .topBarTrailing) { SettingsButton() } }
             .navigationDestination(for: String.self) { DayScreen(date: $0) }
             .refreshable { await connections.refresh() }

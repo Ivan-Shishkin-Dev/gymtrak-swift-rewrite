@@ -41,7 +41,7 @@ struct HistoryView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("History")
+            .topLeftTitle("History")
             .navigationDestination(for: String.self) { SessionDetailView(sessionId: $0) }
             .toolbar { ToolbarItem(placement: .topBarTrailing) { SettingsButton() } }
             .refreshable { await connections.refresh() }

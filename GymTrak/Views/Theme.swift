@@ -135,3 +135,25 @@ struct LogoView: View {
             .overlay(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous).strokeBorder(.white.opacity(0.08)))
     }
 }
+
+extension View {
+    /// Puts the screen's big title in the top-left of the nav bar row (beside the trailing buttons)
+    /// instead of a large title underneath, so the top of the screen isn't empty.
+    func topLeftTitle(_ title: String, subtitle: String? = nil) -> some View {
+        navigationTitle(title)                      // still used for the back button
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(removing: .title)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(title).font(.system(size: 30, weight: .bold)).lineLimit(1).fixedSize()
+                        if let subtitle {
+                            Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1).fixedSize()
+                        }
+                    }
+                    .accessibilityAddTraits(.isHeader)
+                }
+                .sharedBackgroundVisibility(.hidden)
+            }
+    }
+}

@@ -53,13 +53,11 @@ struct PlanView: View {
                     }
                 }
             }
-            .navigationTitle("Plan")
+            .topLeftTitle("Plan")
             .navigationDestination(for: Int.self) { DayDetailView(dayId: $0) }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { EditButton() }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { nav.showSettings = true } label: { Image(systemName: "gearshape") }
-                }
+                ToolbarItem(placement: .topBarTrailing) { EditButton() }
+                ToolbarItem(placement: .topBarTrailing) { SettingsButton() }
             }
             .confirmationDialog("Delete \(confirmDelete?.name ?? "day")?", isPresented: Binding(
                 get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }), titleVisibility: .visible) {
