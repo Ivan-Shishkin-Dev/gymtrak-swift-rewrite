@@ -449,3 +449,82 @@ struct SpotifyAuthTests {
         #expect(state.playback == nil)
     }
 }
+
+@Suite struct HistoryTests {
+    func snap() -> Snapshot {
+        var s = Snapshot(days: [Day(id: 1, name: "Upper A", focus: "")],
+                         exercises: [Exercise(id: "b", dayId: 1, order: 0, name: "Bench", sets: 2, weight: "200 lb", reps: "× 6",
+                                              loadType: .weight, updatedAt: 0),
+                                     Exercise(id: "p", dayId: 1, order: 1, name: "Leg Press", sets: 1, weight: "5 pl + 30", reps: "× 10",
+                                              loadType: .plates, updatedAt: 0),
+                                     Exercise(id: "c", dayId: 1, order: 2, name: "Curl", sets: 1, weight: "12", reps: "× 8",
+                                              loadType: .machine, updatedAt: 0)],
+                         programWeeks: [])
+        for (n, (date, bench)) in [("2026-10-01", "180 lb"), ("2026-10-08", "190 lb"), ("2026-10-15", "200 lb")].enumerated() {
+            let id = "s\(n)"
+            s.sessions.append(Session(id: id, dayId: 1, date: date, startedAt: Double(n), finishedAt: Double(n) + 1,
+                                      durationSec: 3000, updatedAt: 0, type: .lift))
+            s.sets += [
+                WorkoutSet(id: "\(id)-b0", sessionId: id, exerciseId: "b", exerciseName: "Bench", setIndex: 0,
+                           weight: bench, reps: "× 6", completedAt: 1, updatedAt: 0),
+                WorkoutSet(id: "\(id)-b1", sessionId: id, exerciseId: "b", exerciseName: "Bench", setIndex: 1,
+                           weight: bench, reps: "× 6", completedAt: 1, updatedAt: 0),
+                WorkoutSet(id: "\(id)-p0", sessionId: id, exerciseId: "p", exerciseName: "Leg Press", setIndex: 0,
+                           weight: "5 pl + 30", reps: "× 10", completedAt: 1, updatedAt: 0),
+                WorkoutSet(id: "\(id)-c0", sessionId: id, exerciseId: "c", exerciseName: "Curl", setIndex: 0,
+                           weight: "12", reps: "× 8", completedAt: 1, updatedAt: 0),
+                WorkoutSet(id: "\(id)-x", sessionId: id, exerciseId: "b", exerciseName: "Bench", setIndex: 2,
+                           weight: "500 lb", reps: "× 6", completedAt: nil, updatedAt: 0), // never done
+            ]
+        }
+        return s
+    }
+
+    func run(_ date: String, _ mi: Double, _ min: Double) -> RunActivity {
+        RunActivity(id: date, source: .strava, name: "Morning Run", date: date, start: DateKey.date(date), minutes: min, miles: mi)
+    }
+
+    @Test func poundsCountDoneSetsInPoundsOnly() {
+        let s = snap()
+        // 200×6×2 + 255×10; pin curl and the undone 500 lb set don't count.
+        #expect(s.sessionPounds("s2") == 2400 + 2550)
+        #expect(setPounds("12", type: .machine) == nil)
+        #expect(setPounds("90 lb", type: .machine) == 90)
+    }
+
+    @Test func historyMergesLiftsAndRunsNewestFirst() {
+        let h = snap().historyEntries(synced: [run("2026-10-10", 3.1, 30)])
+        #expect(h.map(\.date) == ["2026-10-15", "2026-10-10", "2026-10-08", "2026-10-01"])
+        #expect(h[0].title == "Upper A" && h[0].detail == "4 sets · 4,950 lb · 50 min")
+        #expect(h[1].kind == .run && h[1].detail == "3.1 mi · 30 min · 9:41 /mi")
+    }
+
+    @Test func statsAndFacts() {
+        let st = snap().lifetimeStats(synced: [run("2026-10-10", 6.2, 60), run("2026-10-12", 3, 30)])
+        #expect(st.workouts == 3 && st.sets == 12 && st.runs == 2)
+        #expect(st.heaviestName == "Leg Press" && st.heaviestLb == 255)
+        #expect(st.improved?.name == "Bench" && st.improved?.from == 180 && st.improved?.to == 200)
+        let facts = historyFacts(st)
+        #expect(facts.first == "You've moved 14,490 lb. That's 1.1 elephants.")
+        #expect(facts.contains("Bench is up 11% since Oct 1."))
+        #expect(facts.contains("9.2 mi run. 3.0 5Ks."))
+        #expect(facts.contains("Longest run: 6.2 mi."))
+    }
+
+    @Test func runawayRunTimerFallsBackToPlan() {
+        var s = snap()
+        let log = RunLog(label: .easy, dow: .mon, plannedMin: 30, hrZoneMin: 130, hrZoneMax: 150, hrHardCap: 170,
+                         strides: false, actualMin: 2817, actualMi: 3)
+        s.sessions.append(Session(id: "r", dayId: 0, date: "2026-10-05", startedAt: 0, finishedAt: 1, updatedAt: 0, type: .run, run: log))
+        #expect(s.allRuns(synced: []).first?.minutes == 30)
+    }
+
+    @Test func noFactsWhenEmpty() {
+        #expect(historyFacts(LifetimeStats()).isEmpty)
+    }
+
+    @Test func factPicksBiggestThing() {
+        var st = LifetimeStats(); st.pounds = 26_000
+        #expect(historyFacts(st).first == "You've moved 26,000 lb. That's 1.0 school bus.")
+    }
+}

@@ -54,6 +54,9 @@ struct RootView: View {
             Tab("Today", systemImage: "house.fill") {
                 TodayView().safeAreaInset(edge: .bottom) { dock }
             }
+            Tab("History", systemImage: "clock.arrow.circlepath") {
+                HistoryView().safeAreaInset(edge: .bottom) { dock }
+            }
             Tab("Plan", systemImage: "list.bullet.rectangle") {
                 PlanView().safeAreaInset(edge: .bottom) { dock }
             }

@@ -13,6 +13,7 @@
 		26B12830260B17C5B489D3BF /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A770C3F2D54C20078AF11BE7 /* LoadingView.swift */; };
 		28FC0A684EB65AC538EDFC98 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 096BDA360A99C6D009AE0D55 /* Models.swift */; };
 		2EF0F19D95DBBDCB8FEB8CCE /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED9FEFA66FBE1F68F31AC163 /* Store.swift */; };
+		33E5035E30FF178A9A7D74AB /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 606F69DCA4E0A99FD79CBBF8 /* HistoryView.swift */; };
 		34FABD8E26490FD6B57AFE04 /* GymTrakApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4836D52C7BF3E488E905D2BC /* GymTrakApp.swift */; };
 		4923A5649468C60FAA651017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4BBD71E83D7AFD52D2D19AEE /* Assets.xcassets */; };
 		4F7ECD4E12365318CCB01CF6 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF44F70C7C73332C3A04906 /* ScheduleView.swift */; };
@@ -32,6 +33,7 @@
 		EA0256E15D2441B3F38DAA8F /* WorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFCB9EEFE0143092E1947D78 /* WorkoutView.swift */; };
 		EA31231E8B82BAF970D8E4BF /* Spotify.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7567A3CD8CDF775E5CBFEBF /* Spotify.swift */; };
 		EBE666927999FDF3B05C694A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D8A0D2492763D47E688E900 /* SettingsView.swift */; };
+		ECA0A82C19DB1B7611954759 /* History.swift in Sources */ = {isa = PBXBuildFile; fileRef = 088A12350F45C9B5EF322CC8 /* History.swift */; };
 		F5190E67C991966105BC9732 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1FD75C622FE7E2FE81AC08 /* Theme.swift */; };
 		F8E0067000377DE50E54E7A2 /* Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9852C57291AC247289AFB11 /* Actions.swift */; };
 /* End PBXBuildFile section */
@@ -47,6 +49,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		088A12350F45C9B5EF322CC8 /* History.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = History.swift; sourceTree = "<group>"; };
 		096BDA360A99C6D009AE0D55 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		1620B02920BEF199C502331B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1B932A3E85D616E9BB52ACB6 /* MediaBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaBar.swift; sourceTree = "<group>"; };
@@ -60,6 +63,7 @@
 		4A1FD75C622FE7E2FE81AC08 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		4BBD71E83D7AFD52D2D19AEE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5C5A2741915293CDDE1B7DFA /* PlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanView.swift; sourceTree = "<group>"; };
+		606F69DCA4E0A99FD79CBBF8 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		8D8A0D2492763D47E688E900 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9684EC3870EF7C69871D5B8E /* RestBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestBar.swift; sourceTree = "<group>"; };
 		972035EEB2C47A17E43327D8 /* Coach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Coach.swift; sourceTree = "<group>"; };
@@ -76,7 +80,7 @@
 		ED9FEFA66FBE1F68F31AC163 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		F0BE589482F4E09EF006D1D7 /* GymTrak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GymTrak.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F7567A3CD8CDF775E5CBFEBF /* Spotify.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spotify.swift; sourceTree = "<group>"; };
-		"TEMP_F9D35FAD-A05D-4EA7-BF6E-CB3D38D1A24E" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_176038C1-0BBC-4D82-B36B-CDEAC559C8A9" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -115,6 +119,7 @@
 			children = (
 				B9852C57291AC247289AFB11 /* Actions.swift */,
 				972035EEB2C47A17E43327D8 /* Coach.swift */,
+				088A12350F45C9B5EF322CC8 /* History.swift */,
 				EB1A96275B820FD5C193DC82 /* Load.swift */,
 				096BDA360A99C6D009AE0D55 /* Models.swift */,
 				B4A76751019FB132D5513D1F /* Program.swift */,
@@ -157,6 +162,7 @@
 			isa = PBXGroup;
 			children = (
 				B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */,
+				606F69DCA4E0A99FD79CBBF8 /* HistoryView.swift */,
 				2DA5A37017F06901DB8C32FE /* LoadEditorSheet.swift */,
 				A770C3F2D54C20078AF11BE7 /* LoadingView.swift */,
 				1B932A3E85D616E9BB52ACB6 /* MediaBar.swift */,
@@ -174,10 +180,10 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		"TEMP_BC9BA784-E782-472A-9B00-93FCF3378D7B" /* gymtrak-swift-rewrite */ = {
+		"TEMP_9EDE3A94-DDE7-489E-A4AF-6FB4EBB97045" /* gymtrak-swift-rewrite */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_F9D35FAD-A05D-4EA7-BF6E-CB3D38D1A24E" /* Config.xcconfig */,
+				"TEMP_176038C1-0BBC-4D82-B36B-CDEAC559C8A9" /* Config.xcconfig */,
 			);
 			path = "gymtrak-swift-rewrite";
 			sourceTree = "<group>";
@@ -293,6 +299,8 @@
 				91AE3BD2ABADBDDA60B0CEB3 /* Connections.swift in Sources */,
 				1722343CEFEA463C858BC97F /* ExerciseHistoryView.swift in Sources */,
 				34FABD8E26490FD6B57AFE04 /* GymTrakApp.swift in Sources */,
+				ECA0A82C19DB1B7611954759 /* History.swift in Sources */,
+				33E5035E30FF178A9A7D74AB /* HistoryView.swift in Sources */,
 				688F959739EB02D5DFE1647C /* Load.swift in Sources */,
 				CEF8CA53CA813215ACDB514B /* LoadEditorSheet.swift in Sources */,
 				26B12830260B17C5B489D3BF /* LoadingView.swift in Sources */,
@@ -487,7 +495,7 @@
 		};
 		C51B4C3A1A037D7EDB9E81F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_F9D35FAD-A05D-4EA7-BF6E-CB3D38D1A24E" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_176038C1-0BBC-4D82-B36B-CDEAC559C8A9" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -506,7 +514,7 @@
 		};
 		DE1DAE831E7778559F295B52 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_F9D35FAD-A05D-4EA7-BF6E-CB3D38D1A24E" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_176038C1-0BBC-4D82-B36B-CDEAC559C8A9" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
