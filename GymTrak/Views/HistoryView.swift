@@ -1,129 +1,54 @@
 import SwiftUI
 
-/// Every finished workout and run, with lifetime totals and a few fun facts on top.
+/// Every finished workout and run, with lifetime totals on top.
 struct HistoryView: View {
     @Environment(Store.self) private var store
     @Environment(Connections.self) private var connections
-    /// Advances every time History opens, so a different fact leads each visit.
-    @AppStorage("gt_fact_index") private var factIndex = 0
-    @State private var showAllFacts = false
 
     var body: some View {
         let db = store.db
         let entries = db.historyEntries(synced: connections.runs)
-        let stats = db.lifetimeStats(synced: connections.runs)
-        let facts = historyFacts(stats)
+        let s = db.lifetimeStats(synced: connections.runs)
 
         NavigationStack {
-            List {
-                if entries.isEmpty {
-                    ContentUnavailableView("No workouts yet.", systemImage: "clock.arrow.circlepath")
-                        .listRowBackground(Color.clear)
-                } else {
-                    Section { totals(stats) }
-                    if !facts.isEmpty {
-                        Section {
-                            factCard(facts[((factIndex % facts.count) + facts.count) % facts.count])
-                        } header: {
-                            HStack {
-                                Text("Fun Fact")
-                                Spacer()
-                                Button("All \(facts.count)") { showAllFacts = true }
-                                    .font(.subheadline.weight(.semibold)).textCase(nil)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    if entries.isEmpty {
+                        Text("No workouts yet.").foregroundStyle(Page.secondary).padding(.top, 20)
+                    } else {
+                        VStack(alignment: .leading, spacing: 0) {
+                            PropertyRow(icon: "dumbbell", label: "Workouts") { Text("\(s.workouts)") }
+                            PropertyRow(icon: "scalemass", label: "Moved") { Text(s.pounds > 0 ? fmtPounds(s.pounds) : "—") }
+                            PropertyRow(icon: "figure.run", label: "Runs") { Text("\(s.runs)") }
+                            PropertyRow(icon: "location", label: "Distance") { Text(s.runMiles > 0 ? String(format: "%.1f mi", s.runMiles) : "—") }
+                            if let avg = s.avgWorkoutMinutes {
+                                PropertyRow(icon: "clock", label: "Avg workout") { Text("\(Int(avg.rounded())) min") }
+                            }
+                            if let h = s.heaviest {
+                                PropertyRow(icon: "trophy", label: "Heaviest") { Text("\(h.name), \(fmtNum(h.lb)) lb") }
+                            }
+                        }
+                        ForEach(months(entries), id: \.title) { month in
+                            PageSection(month.title, trailing: { Text("\(month.entries.count)") }) {
+                                VStack(spacing: 0) {
+                                    ForEach(month.entries) { e in
+                                        HistoryRow(entry: e)
+                                        if e.id != month.entries.last?.id { Rectangle().fill(Page.divider).frame(height: 1) }
+                                    }
+                                }
                             }
                         }
                     }
-                    ForEach(months(entries), id: \.title) { month in
-                        Section(month.title) {
-                            ForEach(month.entries) { row($0) }
-                        }
-                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .padding(.bottom, 110)
             }
-            .listStyle(.insetGrouped)
+            .background(Page.bg)
             .topLeftTitle("History")
-            .navigationDestination(for: String.self) { SessionDetailView(sessionId: $0) }
             .toolbar { ToolbarItem(placement: .topBarTrailing) { SettingsButton() } }
+            .navigationDestination(for: SessionRef.self) { SessionDetailView(sessionId: $0.id) }
             .refreshable { await connections.refresh() }
-            .onAppear { factIndex += 1 }
-            .sheet(isPresented: $showAllFacts) {
-                NavigationStack { AllFactsView(facts: facts) }
-                    .presentationDetents([.medium, .large])
-            }
-        }
-    }
-
-    /// One fact, big. Tap for the next.
-    private func factCard(_ fact: Fact) -> some View {
-        Button {
-            withAnimation(.snappy) { factIndex += 1 }
-        } label: {
-            HStack(alignment: .top, spacing: 12) {
-                IconBadge(systemName: fact.icon, color: fact.kind == .run ? Theme.run : Theme.lift, size: 36)
-                Text(fact.text)
-                    .font(.title3.weight(.semibold))
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentTransition(.opacity)
-                    .id(fact.text)
-                    .transition(.opacity)
-            }
-            .padding(.vertical, 6)
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("Shows another fact")
-    }
-
-    // MARK: Totals
-
-    private func totals(_ s: LifetimeStats) -> some View {
-        Grid(horizontalSpacing: 12, verticalSpacing: 14) {
-            GridRow {
-                stat("\(s.workouts)", "Workouts", "dumbbell.fill", Theme.lift)
-                stat(s.pounds > 0 ? fmtPounds(s.pounds) : "—", "Moved", "scalemass.fill", Theme.lift)
-            }
-            GridRow {
-                stat("\(s.runs)", "Runs", "figure.run", Theme.run)
-                stat(s.runMiles > 0 ? String(format: "%.1f mi", s.runMiles) : "—", "Distance", "map.fill", Theme.run)
-            }
-        }
-        .padding(.vertical, 6)
-    }
-
-    private func stat(_ value: String, _ label: String, _ icon: String, _ color: Color) -> some View {
-        HStack(spacing: 10) {
-            IconBadge(systemName: icon, color: color, size: 32)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(value).font(.number(20)).lineLimit(1).minimumScaleFactor(0.7)
-                Text(label).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-    }
-
-    // MARK: Rows
-
-    @ViewBuilder
-    private func row(_ e: HistoryEntry) -> some View {
-        switch e.kind {
-        case .lift(let id):
-            NavigationLink(value: id) { rowLabel(e, icon: "dumbbell.fill", color: Theme.lift) }
-        case .run:
-            rowLabel(e, icon: "figure.run", color: Theme.run)
-        }
-    }
-
-    private func rowLabel(_ e: HistoryEntry, icon: String, color: Color) -> some View {
-        HStack(spacing: 12) {
-            IconBadge(systemName: icon, color: color)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(e.title)
-                Text(e.detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer(minLength: 4)
-            Text(DateKey.label(e.date, "MMM d")).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
         }
     }
 
@@ -144,35 +69,7 @@ struct HistoryView: View {
     }
 }
 
-/// Every fact, grouped.
-struct AllFactsView: View {
-    let facts: [Fact]
-    @Environment(\.dismiss) private var dismiss
-
-    private let groups: [(Fact.Kind, String)] = [(.lift, "Lifting"), (.run, "Running"), (.time, "Time"), (.you, "You")]
-
-    var body: some View {
-        List {
-            ForEach(groups, id: \.1) { kind, title in
-                let items = facts.filter { $0.kind == kind }
-                if !items.isEmpty {
-                    Section(title) {
-                        ForEach(items, id: \.self) { f in
-                            Label { Text(f.text) } icon: {
-                                Image(systemName: f.icon).foregroundStyle(kind == .run ? Theme.run : Theme.lift)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .navigationTitle("Fun Facts")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-    }
-}
-
-/// One finished workout: every exercise and the sets you did, with PRs marked.
+/// One finished workout as a page: totals, then every exercise's sets, PRs marked.
 struct SessionDetailView: View {
     let sessionId: String
     @Environment(Store.self) private var store
@@ -186,39 +83,46 @@ struct SessionDetailView: View {
             let order = done.sorted { ($0.completedAt ?? 0, $0.setIndex) < ($1.completedAt ?? 0, $1.setIndex) }
                 .map(\.exerciseName).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
             let lb = db.sessionPounds(sessionId)
+            let title = session.dayNameSnapshot ?? db.day(session.dayId)?.name ?? "Workout"
 
-            List {
-                Section {
-                    LabeledContent("Sets", value: "\(done.count)")
-                    if lb > 0 { LabeledContent("Moved", value: fmtPounds(lb)) }
-                    if let d = session.durationSec, d >= 60 { LabeledContent("Time", value: "\(Int((d / 60).rounded())) min") }
-                }
-                ForEach(order, id: \.self) { name in
-                    Section {
-                        ForEach(groups[name, default: []].sorted { $0.setIndex < $1.setIndex }) { st in
-                            HStack {
-                                Text("Set \(st.setIndex + 1)").foregroundStyle(.secondary)
-                                Spacer()
-                                Text([st.weight, st.reps].filter { !$0.isEmpty }.joined(separator: " "))
-                                    .font(.number(17)).monospacedDigit()
-                            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(title).font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text).padding(.bottom, 10)
+                        PropertyRow(icon: "calendar", label: "Date") { Text(DateKey.label(session.slotDate, "EEEE, MMMM d")) }
+                        PropertyRow(icon: "number", label: "Sets") { Text("\(done.count)") }
+                        if lb > 0 { PropertyRow(icon: "scalemass", label: "Moved") { Text(fmtPounds(lb)) } }
+                        if let d = session.durationSec, d >= 60, d < 4 * 3600 {
+                            PropertyRow(icon: "clock", label: "Time") { Text("\(Int((d / 60).rounded())) min") }
                         }
-                    } header: {
-                        HStack(spacing: 6) {
-                            Text(name)
-                            if prNames.contains(name) {
-                                Image(systemName: "trophy.fill").foregroundStyle(Theme.lift).accessibilityLabel("PR")
+                        if !prNames.isEmpty {
+                            PropertyRow(icon: "trophy", label: "PRs") { Text(prNames.sorted().joined(separator: ", ")) }
+                        }
+                    }
+                    if done.isEmpty { Text("Nothing logged.").foregroundStyle(Page.secondary) }
+                    ForEach(order, id: \.self) { name in
+                        PageSection(name, trailing: { if prNames.contains(name) { Image(systemName: "trophy") } }) {
+                            VStack(spacing: 0) {
+                                ForEach(groups[name, default: []].sorted { $0.setIndex < $1.setIndex }) { st in
+                                    HStack {
+                                        Text("Set \(st.setIndex + 1)").foregroundStyle(Page.secondary)
+                                        Spacer()
+                                        Text([st.weight, st.reps].filter { !$0.isEmpty }.joined(separator: " "))
+                                            .monospacedDigit().foregroundStyle(Page.text)
+                                    }
+                                    .padding(.vertical, 6)
+                                }
                             }
                         }
                     }
                 }
-                if done.isEmpty {
-                    Text("Nothing logged.").foregroundStyle(.secondary)
-                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 60)
             }
-            .listStyle(.insetGrouped)
-            .navigationTitle(session.dayNameSnapshot ?? db.day(session.dayId)?.name ?? "Workout")
-            .navigationSubtitle(DateKey.label(session.slotDate, "EEEE, MMM d"))
+            .background(Page.bg)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(removing: .title)
         } else {
             ContentUnavailableView("Workout not found", systemImage: "questionmark")
         }

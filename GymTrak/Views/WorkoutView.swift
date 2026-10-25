@@ -396,6 +396,7 @@ struct WorkoutView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .pageBackground()
     }
 
     private func exerciseMenu(_ ex: Exercise, session: Session, index: Int, count: Int) -> some View {

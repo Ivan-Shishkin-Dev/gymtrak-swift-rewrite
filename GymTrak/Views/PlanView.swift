@@ -54,6 +54,7 @@ struct PlanView: View {
                 }
             }
             .topLeftTitle("Plan")
+            .pageBackground()
             .navigationDestination(for: Int.self) { DayDetailView(dayId: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { EditButton() }
@@ -139,6 +140,7 @@ struct DayDetailView: View {
                 }
             }
             .navigationTitle(day.name)
+            .pageBackground()
             .toolbar { EditButton() }
             .onAppear { name = day.name; focus = day.focus }
             .onDisappear(perform: saveDay)
@@ -223,6 +225,7 @@ struct ExerciseEditorView: View {
                 }
             }
             .navigationTitle(ex.name)
+            .pageBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if !showsSets { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }

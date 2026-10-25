@@ -22,6 +22,13 @@ struct RunActivity: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
+/// One day's movement from Apple Health.
+struct DayActivity: Codable, Hashable, Sendable {
+    var steps: Int = 0
+    var calories: Double = 0     // active energy, kcal
+    var miles: Double = 0        // walking + running
+}
+
 /// Strava + Apple Health, merged into one list of runs.
 @MainActor
 @Observable
@@ -31,6 +38,8 @@ final class Connections {
     private(set) var healthConnected = UserDefaults.standard.bool(forKey: "gt_health_on")
     private(set) var lastError: String?
     private(set) var refreshing = false
+    /// Steps, active calories and distance by local date, Monday of last week through today.
+    private(set) var activity: [String: DayActivity] = [:]
 
     var stravaConnected: Bool { Keychain.get("strava") != nil }
 
@@ -64,6 +73,7 @@ final class Connections {
         }
         if healthConnected {
             do { merged += try await healthRuns() } catch { lastError = "Health: \(error.localizedDescription)" }
+            activity = await healthActivity()
         }
         // Same run synced to both: keep the Strava copy (it has the name).
         var seen: [String: RunActivity] = [:]
@@ -204,7 +214,8 @@ final class Connections {
 
     func connectHealth() async {
         guard healthAvailable else { return }
-        let read: Set<HKObjectType> = [HKObjectType.workoutType(), HKQuantityType(.heartRate), HKQuantityType(.distanceWalkingRunning)]
+        let read: Set<HKObjectType> = [HKObjectType.workoutType(), HKQuantityType(.heartRate), HKQuantityType(.distanceWalkingRunning),
+                                       HKQuantityType(.stepCount), HKQuantityType(.activeEnergyBurned)]
         let share: Set<HKSampleType> = [HKObjectType.workoutType()]
         do {
             try await health.requestAuthorization(toShare: share, read: read)
@@ -237,6 +248,29 @@ final class Connections {
             return RunActivity(id: "health-\(w.uuid)", source: .health, name: "Run", date: DateKey.key(w.startDate),
                                start: w.startDate, minutes: w.duration / 60, miles: meters / 1609.344, avgHR: hr)
         }
+    }
+
+    /// Daily sums for steps, active calories and distance, from last Monday to today.
+    private func healthActivity() async -> [String: DayActivity] {
+        let cal = DateKey.calendar
+        let start = cal.date(byAdding: .day, value: -7, to: DateKey.date(DateKey.mondayKey(Date()))) ?? Date()
+        var out: [String: DayActivity] = [:]
+        func sums(_ id: HKQuantityTypeIdentifier, _ unit: HKUnit) async -> [String: Double] {
+            let type = HKQuantityType(id)
+            let query = HKStatisticsCollectionQueryDescriptor(
+                predicate: .quantitySample(type: type, predicate: HKQuery.predicateForSamples(withStart: start, end: nil)),
+                options: .cumulativeSum, anchorDate: start, intervalComponents: DateComponents(day: 1))
+            guard let result = try? await query.result(for: health) else { return [:] }
+            var d: [String: Double] = [:]
+            result.enumerateStatistics(from: start, to: Date()) { stats, _ in
+                if let v = stats.sumQuantity()?.doubleValue(for: unit) { d[DateKey.key(stats.startDate)] = v }
+            }
+            return d
+        }
+        for (k, v) in await sums(.stepCount, .count()) { out[k, default: .init()].steps = Int(v.rounded()) }
+        for (k, v) in await sums(.activeEnergyBurned, .kilocalorie()) { out[k, default: .init()].calories = v }
+        for (k, v) in await sums(.distanceWalkingRunning, .mile()) { out[k, default: .init()].miles = v }
+        return out
     }
 
     /// Save a finished lift to Apple Health as a strength workout.

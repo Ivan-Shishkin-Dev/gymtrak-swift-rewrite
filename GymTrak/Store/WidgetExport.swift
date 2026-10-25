@@ -2,7 +2,7 @@ import Foundation
 import WidgetKit
 
 extension Snapshot {
-    /// The widget summary: the weekly schedule, what's done, the streak, and the facts.
+    /// The widget summary: the weekly schedule, what's done, and the streak.
     func widgetData(runs: [RunActivity], now: Date = Date()) -> WidgetData {
         let runDates = Set(runs.map(\.date))
         let template = scheduleTemplate
@@ -21,11 +21,9 @@ extension Snapshot {
             let run = slot.run!
             return .init(kind: .run, title: run.label.rawValue, detail: "\(run.durationMin) min")
         }
-        let stats = lifetimeStats(synced: runs)
         return WidgetData(slots: slots,
                           doneDates: Array(doneDates.union(runDates)).sorted(),
                           streakWeeks: streakWeeks(today: now, doneExtra: runDates),
-                          facts: historyFacts(stats).map(\.text),
                           updatedAt: now)
     }
 }

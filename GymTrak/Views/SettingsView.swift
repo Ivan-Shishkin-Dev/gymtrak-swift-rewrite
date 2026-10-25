@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var importError: String?
     @State private var coachTick = 0
     @AppStorage(RestTimer.autoKey) private var restAuto = true
+    @AppStorage("gt_name") private var name = "Ivan"
 
     var body: some View {
         NavigationStack {
@@ -29,6 +30,10 @@ struct SettingsView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                Section {
+                    TextField("Name", text: $name)
+                        .textContentType(.givenName)
+                } header: { Text("Your name") } footer: { Text("For the greeting on Today.") }
                 AppearanceSection()
                 connectionsSection
                 Section {
@@ -54,6 +59,7 @@ struct SettingsView: View {
                     Link("GitHub", destination: URL(string: "https://github.com/Ivan-Shishkin-Dev/gymtrak-swift-rewrite")!)
                 }
             }
+            .pageBackground()
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
@@ -224,8 +230,6 @@ private struct NotificationsSection: View {
     @AppStorage(K.missed) private var missed = d.missed
     @AppStorage(K.missedTime) private var missedTime = d.missedTime
     @AppStorage(K.recap) private var recap = d.recap
-    @AppStorage(K.fact) private var fact = d.fact
-    @AppStorage(K.factTime) private var factTime = d.factTime
     @AppStorage(K.rest) private var rest = d.rest
     @State private var denied = false
 
@@ -240,7 +244,6 @@ private struct NotificationsSection: View {
             }
             row("Workout Reminder", "dumbbell.fill", Theme.lift, isOn: $workout, time: $workoutTime)
             row("Not Logged Yet", "exclamationmark.circle.fill", .orange, isOn: $missed, time: $missedTime)
-            row("Daily Fun Fact", "sparkles", .purple, isOn: $fact, time: $factTime)
             Toggle(isOn: $recap) {
                 Label { LabeledContent("Weekly Recap", value: "Sun 7 PM") } icon: { IconBadge(systemName: "chart.bar.fill", color: Theme.run) }
             }
@@ -253,8 +256,8 @@ private struct NotificationsSection: View {
             Text("Training days only. Skipped once you've logged it.")
         }
         .task { denied = await Notifier.isDenied() }
-        .onChange(of: [workout, missed, recap, fact, rest]) { _, new in apply(askIfNeeded: new.contains(true)) }
-        .onChange(of: [workoutTime, missedTime, factTime]) { apply(askIfNeeded: false) }
+        .onChange(of: [workout, missed, recap, rest]) { _, new in apply(askIfNeeded: new.contains(true)) }
+        .onChange(of: [workoutTime, missedTime]) { apply(askIfNeeded: false) }
     }
 
     @ViewBuilder

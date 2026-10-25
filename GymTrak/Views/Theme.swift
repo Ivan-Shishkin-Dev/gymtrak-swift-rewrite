@@ -96,7 +96,8 @@ extension Color {
     }
 }
 
-/// Settings-app style icon: a symbol on a colored rounded square.
+/// Notion-style property icon: a plain gray symbol, no colored tile. `color` is kept so call sites
+/// can still say what the icon is about; only runs keep their tint.
 struct IconBadge: View {
     let systemName: String
     let color: Color
@@ -104,10 +105,113 @@ struct IconBadge: View {
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: size * 0.5, weight: .semibold))
-            .foregroundStyle(color.isLight ? .black : .white)
+            .font(.system(size: size * 0.55, weight: .regular))
+            .foregroundStyle(Page.secondary)
             .frame(width: size, height: size)
-            .background(color.gradient, in: RoundedRectangle(cornerRadius: size * 0.27, style: .continuous))
+    }
+}
+
+// MARK: - Page (Notion-style)
+
+/// Notion's palette: flat page, warm gray text, hairline dividers. Light and dark.
+enum Page {
+    static let bg = Color(light: 0xFFFFFF, dark: 0x191919)
+    static let text = Color(light: 0x37352F, dark: 0xD3D3D3)
+    static let secondary = Color(light: 0x787774, dark: 0x9B9A97)
+    static let tertiary = Color(light: 0xB4B4B0, dark: 0x5A5A5A)
+    static let divider = Color(light: 0xE9E9E7, dark: 0x2F2F2F)
+    static let fill = Color(light: 0xF1F1EF, dark: 0x252525)
+}
+
+extension Color {
+    init(light: UInt32, dark: UInt32) {
+        self.init(UIColor { $0.userInterfaceStyle == .dark ? UIColor(Color(hex: dark)) : UIColor(Color(hex: light)) })
+    }
+}
+
+/// "Label    value" — Notion's property row.
+struct PropertyRow<Value: View>: View {
+    let icon: String
+    let label: String
+    @ViewBuilder var value: Value
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: icon).font(.system(size: 15)).foregroundStyle(Page.secondary).frame(width: 20)
+            Text(label).foregroundStyle(Page.secondary).frame(width: 104, alignment: .leading)
+            value.foregroundStyle(Page.text).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .font(.body)
+        .padding(.vertical, 7)
+    }
+}
+
+/// A page section: heading over a hairline, like a Notion H2.
+struct PageSection<Content: View, Trailing: View>: View {
+    let title: String
+    @ViewBuilder var trailing: Trailing
+    @ViewBuilder var content: Content
+
+    init(_ title: String, @ViewBuilder trailing: () -> Trailing = { EmptyView() }, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.trailing = trailing()
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Rectangle().fill(Page.divider).frame(height: 1).padding(.bottom, 8)
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).font(.title3.weight(.bold)).foregroundStyle(Page.text)
+                Spacer()
+                trailing.font(.subheadline).foregroundStyle(Page.secondary)
+            }
+            content
+        }
+    }
+}
+
+/// Small filter pill.
+struct Chip: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(selected ? .semibold : .regular))
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .foregroundStyle(selected ? Page.bg : Page.text)
+                .background(selected ? Page.text : Page.fill, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// The one strong button on a page: text-colored fill.
+struct PrimaryButton: View {
+    let title: String
+    let icon: String
+    var muted = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.headline)
+                .frame(maxWidth: .infinity).frame(height: 48)
+                .foregroundStyle(muted ? Page.text : Page.bg)
+                .background(muted ? Page.fill : Page.text, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+extension View {
+    /// Flat page background for lists and forms.
+    func pageBackground() -> some View {
+        scrollContentBackground(.hidden).background(Page.bg)
     }
 }
 
@@ -143,6 +247,8 @@ extension View {
         navigationTitle(title)                      // still used for the back button
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(removing: .title)
+            .toolbarBackground(Page.bg, for: .navigationBar)
+            .toolbarBackgroundVisibility(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     VStack(alignment: .leading, spacing: 0) {

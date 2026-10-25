@@ -15,6 +15,7 @@ struct ScheduleView: View {
                 }
             }
         }
+        .pageBackground()
         .navigationTitle("Schedule")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -4,6 +4,8 @@ import SwiftUI
 @MainActor
 @Observable
 final class AppNav {
+    enum Tab: Hashable { case today, history, plan }
+    var tab = Tab.today
     var showWorkout = false
     var showSettings = false
     /// Set right after finishing; opens the finish summary sheet.
@@ -40,14 +42,14 @@ struct RootView: View {
     }
 
     private var tabs: some View {
-        TabView {
-            Tab("Today", systemImage: "house.fill") {
+        TabView(selection: $nav.tab) {
+            Tab("Today", systemImage: "house", value: AppNav.Tab.today) {
                 TodayView().safeAreaInset(edge: .bottom) { dock }
             }
-            Tab("History", systemImage: "clock.arrow.circlepath") {
+            Tab("History", systemImage: "clock.arrow.circlepath", value: AppNav.Tab.history) {
                 HistoryView().safeAreaInset(edge: .bottom) { dock }
             }
-            Tab("Plan", systemImage: "list.bullet.rectangle") {
+            Tab("Plan", systemImage: "list.bullet.rectangle", value: AppNav.Tab.plan) {
                 PlanView().safeAreaInset(edge: .bottom) { dock }
             }
         }

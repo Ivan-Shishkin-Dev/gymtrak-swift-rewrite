@@ -6,28 +6,22 @@ import WidgetKit
 struct Entry: TimelineEntry {
     let date: Date
     let data: WidgetData
-    /// Which fact to show; advances every hour.
-    let factIndex: Int
-    var fact: String? {
-        data.facts.isEmpty ? nil : data.facts[factIndex % data.facts.count]
-    }
 }
 
 struct Provider: TimelineProvider {
-    func placeholder(in context: Context) -> Entry { Entry(date: .now, data: .sample, factIndex: 0) }
+    func placeholder(in context: Context) -> Entry { Entry(date: .now, data: .sample) }
 
     func getSnapshot(in context: Context, completion: @escaping (Entry) -> Void) {
-        completion(Entry(date: .now, data: WidgetData.load() ?? .sample, factIndex: 0))
+        completion(Entry(date: .now, data: WidgetData.load() ?? .sample))
     }
 
-    /// One entry an hour for a day, so the fact rotates and "today" flips at midnight.
+    /// One entry an hour for a day, so "today" flips at midnight.
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
         let data = WidgetData.load() ?? .sample
         let cal = WidgetData.calendar
         let start = cal.dateInterval(of: .hour, for: .now)?.start ?? .now
-        let hourSeed = Int(start.timeIntervalSince1970 / 3600)
         let entries = (0..<24).map { h in
-            Entry(date: h == 0 ? .now : cal.date(byAdding: .hour, value: h, to: start)!, data: data, factIndex: hourSeed + h)
+            Entry(date: h == 0 ? .now : cal.date(byAdding: .hour, value: h, to: start)!, data: data)
         }
         completion(Timeline(entries: entries, policy: .atEnd))
     }
@@ -177,48 +171,6 @@ struct TodayWidget: Widget {
     }
 }
 
-// MARK: - Fun fact
-
-struct FactView: View {
-    @Environment(\.widgetFamily) private var family
-    let entry: Entry
-
-    var body: some View {
-        let text = entry.fact ?? "Log a workout to unlock facts."
-        if family == .accessoryRectangular {
-            VStack(alignment: .leading, spacing: 1) {
-                Label("Fun fact", systemImage: "sparkles").font(.caption.weight(.semibold))
-                Text(text).font(.caption).lineLimit(3)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            VStack(alignment: .leading, spacing: 8) {
-                Label("FUN FACT", systemImage: "sparkles")
-                    .font(.caption2.weight(.bold)).foregroundStyle(.white.opacity(0.55))
-                Text(text)
-                    .font(family == .systemSmall ? .subheadline.weight(.semibold) : .title3.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .minimumScaleFactor(0.75)
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-struct FactWidget: Widget {
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "Fact", provider: Provider()) { entry in
-            FactView(entry: entry)
-                .containerBackground(for: .widget) { Background() }
-                .widgetURL(URL(string: "gymtrak://history"))
-        }
-        .configurationDisplayName("Fun Fact")
-        .description("A new fact about your training every hour.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
-    }
-}
-
 /// Matte black, a touch lighter at the top.
 private struct Background: View {
     var body: some View {
@@ -230,13 +182,11 @@ private struct Background: View {
 struct GymTrakWidgets: WidgetBundle {
     var body: some Widget {
         TodayWidget()
-        FactWidget()
     }
 }
 
 // MARK: - Previews
 
-#Preview("Today small", as: .systemSmall) { TodayWidget() } timeline: { Entry(date: .now, data: .sample, factIndex: 0) }
-#Preview("Today medium", as: .systemMedium) { TodayWidget() } timeline: { Entry(date: .now, data: .sample, factIndex: 0) }
-#Preview("Lock rect", as: .accessoryRectangular) { TodayWidget() } timeline: { Entry(date: .now, data: .sample, factIndex: 0) }
-#Preview("Fact", as: .systemMedium) { FactWidget() } timeline: { Entry(date: .now, data: .sample, factIndex: 0) }
+#Preview("Today small", as: .systemSmall) { TodayWidget() } timeline: { Entry(date: .now, data: .sample) }
+#Preview("Today medium", as: .systemMedium) { TodayWidget() } timeline: { Entry(date: .now, data: .sample) }
+#Preview("Lock rect", as: .accessoryRectangular) { TodayWidget() } timeline: { Entry(date: .now, data: .sample) }

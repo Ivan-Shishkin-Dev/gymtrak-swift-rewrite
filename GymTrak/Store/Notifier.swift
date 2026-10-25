@@ -6,7 +6,6 @@ struct NotificationPrefs: Equatable {
     var workout = true, workoutTime = 7 * 60
     var missed = true, missedTime = 20 * 60
     var recap = true                       // Sunday 7 PM
-    var fact = false, factTime = 12 * 60
     var rest = true
 
     static let recapTime = 19 * 60
@@ -15,7 +14,6 @@ struct NotificationPrefs: Equatable {
         static let workout = "gt_n_workout", workoutTime = "gt_n_workout_time"
         static let missed = "gt_n_missed", missedTime = "gt_n_missed_time"
         static let recap = "gt_n_recap"
-        static let fact = "gt_n_fact", factTime = "gt_n_fact_time"
         static let rest = "gt_n_rest"
     }
 
@@ -27,7 +25,6 @@ struct NotificationPrefs: Equatable {
         return NotificationPrefs(workout: bool(Key.workout, x.workout), workoutTime: int(Key.workoutTime, x.workoutTime),
                                  missed: bool(Key.missed, x.missed), missedTime: int(Key.missedTime, x.missedTime),
                                  recap: bool(Key.recap, x.recap),
-                                 fact: bool(Key.fact, x.fact), factTime: int(Key.factTime, x.factTime),
                                  rest: bool(Key.rest, x.rest))
     }
 }
@@ -68,12 +65,6 @@ enum Notifier {
                     out.append(.init(id: "\(prefix)missed-\(key)", title: "\(slot.title) isn't logged yet",
                                      body: "Still time to keep the week clean.", fireDate: at(day, prefs.missedTime)))
                 }
-            }
-
-            if prefs.fact, !data.facts.isEmpty, at(day, prefs.factTime) > now {
-                let n = cal.ordinality(of: .day, in: .era, for: day) ?? offset
-                out.append(.init(id: "\(prefix)fact-\(key)", title: "Fun fact", body: data.facts[n % data.facts.count],
-                                 fireDate: at(day, prefs.factTime)))
             }
 
             if prefs.recap, DateKey.dow(day) == .sun, at(day, NotificationPrefs.recapTime) > now {

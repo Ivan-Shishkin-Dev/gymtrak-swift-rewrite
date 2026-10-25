@@ -18,7 +18,6 @@ struct WidgetData: Codable, Sendable, Equatable {
     /// Local "yyyy-MM-dd" dates with a finished workout or a synced run.
     var doneDates: [String]
     var streakWeeks: Int
-    var facts: [String]
     var updatedAt: Date
 
     static let appGroup = "group.dev.ivanshishkin.gymtrak"
@@ -86,7 +85,5 @@ struct WidgetData: Codable, Sendable, Equatable {
             Slot(kind: .run, title: "Long Run", detail: "45 min"),
             Slot(kind: .rest, title: "Rest Day", detail: ""),
         ],
-        doneDates: [], streakWeeks: 3,
-        facts: ["You've moved 157k lb. That's about 46 Toyota Camrys."],
-        updatedAt: .now)
+        doneDates: [], streakWeeks: 3, updatedAt: .now)
 }
