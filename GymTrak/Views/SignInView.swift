@@ -6,6 +6,7 @@ struct SignInView: View {
     @Environment(\.openURL) private var openURL
     @State private var email = ""
     @State private var sending = false
+    @State private var remember = Store.rememberMe
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -51,6 +52,9 @@ struct SignInView: View {
                 .onSubmit(send)
                 .padding(.horizontal, 16).frame(height: 52)
                 .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            Toggle(isOn: $remember) { Text("Keep me signed in").font(.subheadline) }
+                .toggleStyle(CheckboxToggleStyle())
+                .onChange(of: remember) { _, v in Store.rememberMe = v }
             Button(action: send) {
                 Group {
                     if sending { ProgressView().tint(.white) } else { Text("Email Me a Link") }
@@ -90,6 +94,24 @@ struct SignInView: View {
             await store.sendLink(to: email)
             sending = false
         }
+    }
+}
+
+/// A round check box, like the iOS Reminders app.
+struct CheckboxToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            HStack(spacing: 10) {
+                Image(systemName: configuration.isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(configuration.isOn ? Theme.lift : .secondary)
+                configuration.label
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: configuration.isOn)
     }
 }
 

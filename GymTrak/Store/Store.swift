@@ -48,7 +48,20 @@ final class Store {
         } else {
             db = seedIfEmpty && (Self.isDemo || supabase == nil) ? seedSnapshot() : Snapshot(programWeeks: [], schema: 2)
         }
-        if let user = supabase?.auth.currentUser { signIn = .signedIn(user.email ?? "Signed in") }
+        if let user = supabase?.auth.currentUser {
+            if Self.rememberMe {
+                signIn = .signedIn(user.email ?? "Signed in")
+            } else {
+                // "Keep me signed in" was off: drop the saved session on a fresh launch.
+                Task { [supabase] in try? await supabase?.auth.signOut() }
+            }
+        }
+    }
+
+    /// "Keep me signed in" — on by default. When off, closing the app signs you out.
+    static var rememberMe: Bool {
+        get { UserDefaults.standard.object(forKey: "gt_remember_me") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "gt_remember_me") }
     }
 
     private static func makeClient() -> SupabaseClient? {
