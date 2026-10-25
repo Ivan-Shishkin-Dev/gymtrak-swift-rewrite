@@ -176,3 +176,30 @@ func fmtClock(_ totalSec: Double) -> String {
     let s = Swift.max(0, Int(totalSec.rounded(.down)))
     return String(format: "%d:%02d", s / 60, s % 60)
 }
+
+// MARK: - Plate breakdown
+
+/// Plate sizes for the breakdown, heaviest first.
+let plateSizes: [Double] = [45, 35, 25, 10, 5, 2.5]
+
+/// Greedy split of extra plate weight, heaviest first: 40 → [35, 5].
+func plateBreakdown(add: Double) -> [Double] {
+    var left = add
+    var out: [Double] = []
+    for size in plateSizes {
+        while left >= size {
+            out.append(size)
+            left -= size
+        }
+    }
+    return out
+}
+
+/// "4 pl + 40" → "4 × 45 + 35 + 5". Plates only; nil for every other load type.
+func plateLine(_ raw: String, type: LoadType) -> String? {
+    guard type == .plates else { return nil }
+    let p = parseLoad(raw, type: .plates)
+    guard let n = p.n else { return nil }
+    let parts = ["\(fmtNum(n)) × 45"] + plateBreakdown(add: p.add ?? 0).map(fmtNum)
+    return parts.joined(separator: " + ")
+}

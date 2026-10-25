@@ -40,6 +40,22 @@ struct LoadGrammarTests {
     }
 }
 
+struct PlateTests {
+    @Test func greedyBreakdown() {
+        #expect(plateBreakdown(add: 40) == [35, 5])
+        #expect(plateBreakdown(add: 60) == [45, 10, 5])
+        #expect(plateBreakdown(add: 2.5) == [2.5])
+        #expect(plateBreakdown(add: 0).isEmpty)
+    }
+
+    @Test func plateLineOnlyForPlates() {
+        #expect(plateLine("4 pl + 40", type: .plates) == "4 × 45 + 35 + 5")
+        #expect(plateLine("4 pl", type: .plates) == "4 × 45")
+        #expect(plateLine("120 lb", type: .machine) == nil)
+        #expect(plateLine("225 lb", type: .weight) == nil)
+    }
+}
+
 struct ProgramTests {
     let week = ProgramWeek(id: 9, phase: "base", startDate: "2026-08-31", isDeload: false,
                            slots: [ProgramSlot(dow: .mon, liftDayId: 1, run: nil)], updatedAt: 1)

@@ -224,6 +224,9 @@ struct WorkoutView: View {
                                  canStep: store.canEdit && group.ex.effectiveLoadType != .free,
                                  onStep: { stepLoad(active.row, ex: group.ex, $0) },
                                  onTap: { loadTarget = SetEdit(row: active.row, ex: group.ex) })
+                        if let line = plateLine(active.row.weight, type: group.ex.effectiveLoadType) {
+                            Text(line).font(.caption).foregroundStyle(.secondary)
+                        }
                         valueRow(label: "Reps",
                                  value: bareReps(active.row.reps).isEmpty ? "—" : bareReps(active.row.reps),
                                  canStep: store.canEdit && (bareReps(active.row.reps).isEmpty || Int(bareReps(active.row.reps)) != nil),
