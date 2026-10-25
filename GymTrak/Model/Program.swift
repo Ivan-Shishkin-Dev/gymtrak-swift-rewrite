@@ -60,6 +60,32 @@ extension ProgramWeek {
     var runMinutes: Int { slots.reduce(0) { $0 + ($1.run?.durationMin ?? 0) } }
 }
 
+extension Snapshot {
+    /// The one weekly schedule that repeats every week (no numbered weeks or deloads — the coach handles load).
+    var scheduleTemplate: ProgramWeek? {
+        let monday = DateKey.mondayKey(Date())
+        return weeks.last { $0.startDate <= monday } ?? weeks.first
+    }
+
+    /// The schedule laid onto the week containing `d`.
+    func scheduleWeek(_ d: Date) -> ProgramWeek? {
+        guard var w = scheduleTemplate else { return nil }
+        w.startDate = DateKey.mondayKey(d)
+        w.isDeload = false
+        return w
+    }
+
+    /// Save the weekly schedule as the only week.
+    mutating func saveSchedule(_ week: ProgramWeek, now: EpochMs = nowMs()) {
+        var w = week
+        w.id = 1
+        w.isDeload = false
+        w.startDate = DateKey.mondayKey(Date())
+        w.updatedAt = now
+        programWeeks = [w]
+    }
+}
+
 /// The program week containing `d`, or nil when it falls outside the program.
 func weekFor(_ weeks: [ProgramWeek], _ d: Date) -> ProgramWeek? {
     let key = DateKey.mondayKey(d)

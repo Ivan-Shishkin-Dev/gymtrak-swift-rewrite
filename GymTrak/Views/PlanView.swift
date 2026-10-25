@@ -38,11 +38,11 @@ struct PlanView: View {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Schedule")
-                                Text(scheduleSummary(db.weeks)).font(.caption).foregroundStyle(.secondary)
+                                Text(scheduleSummary(db.scheduleTemplate)).font(.caption).foregroundStyle(.secondary)
                             }
                         } icon: { IconBadge(systemName: "calendar", color: Theme.run) }
                     }
-                } header: { Text("Program") }
+                }
 
                 let archived = db.sortedDays.filter(\.isArchived)
                 if !archived.isEmpty {
@@ -90,9 +90,11 @@ struct PlanView: View {
         .padding(.vertical, 4)
     }
 
-    private func scheduleSummary(_ weeks: [ProgramWeek]) -> String {
-        guard let first = weeks.first, let last = weeks.last else { return "No program" }
-        return "\(weeks.count) weeks · \(DateKey.label(first.startDate, "MMM d")) – \(DateKey.label(DateKey.addDays(last.startDate, 6), "MMM d"))"
+    private func scheduleSummary(_ week: ProgramWeek?) -> String {
+        guard let week else { return "Not set" }
+        let lifts = week.slots.filter { $0.liftDayId != nil }.count
+        let runs = week.slots.filter { $0.run != nil }.count
+        return "\(lifts) lifts · \(runs) runs a week"
     }
 }
 

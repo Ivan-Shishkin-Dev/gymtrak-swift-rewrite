@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var startMonday = Date()
     @State private var confirmReanchor = false
     @State private var confirmReset = false
+    @State private var coachTick = 0
 
     var body: some View {
         NavigationStack {
@@ -31,13 +32,18 @@ struct SettingsView: View {
                 AppearanceSection()
                 connectionsSection
                 if Store.accountsEnabled { syncSection }
+                Section {
+                    Toggle(isOn: Binding(get: { Coach.autoApply }, set: { Coach.autoApply = $0; coachTick += 1 })) {
+                        Label { Text("Auto-Set Weights") } icon: { IconBadge(systemName: "scope", color: Theme.lift) }
+                    }
+                    .id(coachTick)
+                } header: { Text("Coach") } footer: { Text("Fills each workout with the coach's targets.") }
                 Section("Rest timer") {
                     Stepper(value: Binding(get: { rest.defaultSec }, set: { rest.setDefault($0) }),
                             in: RestTimer.minSec...RestTimer.maxSec, step: 15) {
                         Label { LabeledContent("Default Rest", value: fmtClock(Double(rest.defaultSec))) } icon: { IconBadge(systemName: "timer", color: .orange) }
                     }
                 }
-                programSection
                 dataSection
                 Section("About") {
                                         LabeledContent("Lift days", value: "\(store.db.activeDays.count)")

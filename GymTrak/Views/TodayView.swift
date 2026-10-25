@@ -6,43 +6,32 @@ struct TodayView: View {
     @Environment(Store.self) private var store
     @Environment(AppNav.self) private var nav
     @Environment(Connections.self) private var connections
-    @State private var viewWeekId: Int?
     @State private var selectedDow: Dow?
     @State private var confirmDiscard = false
 
     var body: some View {
         let db = store.db
-        let weeks = db.weeks
         let today = Date()
         let todayKey = DateKey.key(today)
-        let todayWeek = weekFor(weeks, today)
-        // Program not started yet → show its first week rather than an empty screen.
-        let nextWeek = todayWeek == nil ? weeks.first { $0.startDate > todayKey } : nil
-        let homeWeek = todayWeek ?? nextWeek
-        let week = weeks.first { $0.id == viewWeekId } ?? homeWeek
-        let homeDow: Dow = todayWeek != nil ? DateKey.dow(today) : .mon
-        let browsing = week?.id != homeWeek?.id || (selectedDow ?? homeDow) != homeDow
+        let todayDow = DateKey.dow(today)
+        let dow = selectedDow ?? todayDow
 
         NavigationStack {
             List {
-                if let week {
-                    let onTodayWeek = week.id == todayWeek?.id
-                    let dow = selectedDow ?? (onTodayWeek ? DateKey.dow(today) : .mon)
+                if let week = db.scheduleWeek(today) {
                     daySections(week: week, dow: dow, todayKey: todayKey)
-                    weekSection(week, weeks: weeks, onTodayWeek: onTodayWeek,
-                                notStarted: week.id == nextWeek?.id, selected: dow, todayKey: todayKey)
+                    weekSection(week, selected: dow, todayKey: todayKey)
                 } else {
-                    noProgramSection(hasWeeks: !weeks.isEmpty)
+                    noProgramSection()
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Today")
+            .navigationTitle(todayDow.label)
+            .navigationSubtitle(DateKey.label(todayKey, "MMMM d"))
             .toolbar {
-                if browsing {
+                if dow != todayDow {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("Today") {
-                            withAnimation { viewWeekId = nil; selectedDow = nil }
-                        }
+                        Button("Today") { withAnimation { selectedDow = nil } }
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) { SettingsButton() }
@@ -71,7 +60,7 @@ struct TodayView: View {
         Section {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text(isToday ? "Today · \(dow.label)" : "\(dow.label) · \(DateKey.label(date, "MMM d"))")
+                    Text(isToday ? "Today" : "\(dow.label) · \(DateKey.label(date, "MMM d"))")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(onHero.opacity(0.8))
                     Spacer()
@@ -104,17 +93,23 @@ struct TodayView: View {
                 LinearGradient(colors: [heroColor.mix(with: .white, by: 0.12), heroColor.mix(with: .black, by: 0.25)],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
             )
-        } footer: {
-            if week.isDeload { Label(deloadNote, systemImage: "arrow.down.circle").foregroundStyle(Theme.warning) }
         }
 
         if !exercises.isEmpty {
             Section {
                 DisclosureGroup {
                     ForEach(exercises) { ex in
-                        VStack(alignment: .leading, spacing: 2) {
+                        let a = db.liftAdvice(for: ex, today: date)
+                        VStack(alignment: .leading, spacing: 3) {
                             Text(ex.name)
-                            Text(exerciseSummary(ex.rows)).font(.subheadline).foregroundStyle(.secondary)
+                            Label {
+                                Text(a.target).font(.subheadline.weight(.semibold))
+                                + Text(a.range.map { "  \($0)" } ?? "").font(.subheadline).foregroundStyle(.secondary)
+                            } icon: {
+                                Image(systemName: a.icon).foregroundStyle(Theme.lift)
+                            }
+                            .labelStyle(CoachLabelStyle())
+                            Text(a.why).font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 } label: {
@@ -135,10 +130,13 @@ struct TodayView: View {
                          (run.label.isEasy ? " · about \(Zone2.milesLabel(run.durationMin))" : ""))
                         .font(.subheadline).foregroundStyle(.secondary)
                     if let notes = run.notes { Text(notes).font(.subheadline).padding(.top, 4) }
-                    if run.strides { Text("Then \(stridesNote)").font(.subheadline).padding(.top, 4) }
                 }
                 .padding(.vertical, 4)
                 .listRowBackground(Theme.run.opacity(0.14))
+                if connections.run(on: date) == nil {
+                    RunCoachRow(advice: RunCoach.advice(run, date: date, schedule: week, runs: connections.runs))
+                        .listRowBackground(Theme.run.opacity(0.14))
+                }
                 if let done = connections.run(on: date) {
                     Label {
                         VStack(alignment: .leading, spacing: 1) {
@@ -181,8 +179,7 @@ struct TodayView: View {
 
     // MARK: The week
 
-    private func weekSection(_ week: ProgramWeek, weeks: [ProgramWeek], onTodayWeek: Bool,
-                             notStarted: Bool, selected: Dow, todayKey: String) -> some View {
+    private func weekSection(_ week: ProgramWeek, selected: Dow, todayKey: String) -> some View {
         let db = store.db
         let done = db.doneDates.union(connections.runDates)
         return Section {
@@ -227,36 +224,10 @@ struct TodayView: View {
                 .buttonStyle(.plain)
                 .listRowBackground(dow == selected ? Theme.lift.opacity(0.2) : nil)
             }
-        } header: {
-            HStack {
-                Text(onTodayWeek ? "Week \(week.id) of \(weeks.last?.id ?? week.id)"
-                     : notStarted ? "Week \(week.id) · Starts \(DateKey.label(week.startDate, "MMM d"))"
-                     : "Week \(week.id) of \(weeks.last?.id ?? week.id)")
-                Spacer()
-                weekStepper(week, weeks: weeks)
-            }
         }
     }
 
-    private func weekStepper(_ week: ProgramWeek, weeks: [ProgramWeek]) -> some View {
-        HStack(spacing: 18) {
-            ForEach([-1, 1], id: \.self) { dir in
-                let target = weeks.first { $0.id == week.id + dir }
-                Button {
-                    viewWeekId = target?.id
-                    selectedDow = nil
-                } label: {
-                    Image(systemName: dir < 0 ? "chevron.left" : "chevron.right")
-                }
-                .disabled(target == nil)
-                .accessibilityLabel(dir < 0 ? "Previous week" : "Next week")
-            }
-        }
-        .font(.body.weight(.semibold))
-        .textCase(nil)
-    }
-
-    private func noProgramSection(hasWeeks: Bool) -> some View {
+    private func noProgramSection() -> some View {
         Section {
             ForEach(store.db.activeDays) { d in
                 Button {
@@ -268,7 +239,7 @@ struct TodayView: View {
                 .disabled(!store.canEdit)
             }
         } header: {
-            Text(hasWeeks ? "No week scheduled" : "No program yet")
+            Text("No schedule yet")
         } footer: {
             Text("Pick a workout.")
         }
@@ -286,7 +257,7 @@ struct TodayView: View {
 
     private func proceed(_ day: Day, week: ProgramWeek, date: String) {
         store.mutate {
-            $0.startSession(day: day, options: StartOptions(deload: week.isDeload, weekNumber: week.id, scheduledDate: date))
+            $0.startSession(day: day, options: StartOptions(scheduledDate: date, coach: Coach.autoApply))
         }
         nav.showWorkout = true
     }
@@ -307,5 +278,37 @@ struct SettingsButton: View {
             }
         }
         .accessibilityLabel("Settings")
+    }
+}
+
+/// Icon hugging the first line of text.
+struct CoachLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) { configuration.icon; configuration.title }
+    }
+}
+
+/// "Shoot for 40 min" with the range, pace, why, and a few how-to lines.
+struct RunCoachRow: View {
+    let advice: RunAdvice
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Label("Shoot for \(advice.target)", systemImage: "scope").font(.headline).foregroundStyle(Theme.run)
+                Spacer()
+                if let range = advice.range { Text(range).font(.subheadline).foregroundStyle(.secondary) }
+            }
+            if let pace = advice.pace {
+                Label(pace, systemImage: "speedometer").font(.subheadline.weight(.semibold))
+            }
+            Text(advice.why).font(.subheadline).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(advice.cues, id: \.self) { cue in
+                    Label(cue, systemImage: "checkmark").font(.subheadline).labelStyle(CoachLabelStyle())
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
