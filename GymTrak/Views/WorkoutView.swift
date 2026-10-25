@@ -89,7 +89,7 @@ struct WorkoutView: View {
                 VStack(spacing: 0) {
                     if rest.isActive { RestBar() }
                     MediaBar()
-                    if store.canEdit { bottomBar(active: mode == .current ? active : nil, allDone: allDone) }
+                    bottomBar(active: mode == .current ? active : nil, allDone: allDone)
                 }
             }
             .navigationTitle(day.name)
@@ -160,23 +160,21 @@ struct WorkoutView: View {
                 }
             }
         }
-        if store.canEdit {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        let id = store.mutate { $0.addExerciseToSession(session.id, dayId: day.id) }
-                        if let id, let ex = store.db.exercises.first(where: { $0.id == id }) {
-                            mode = .all
-                            startRename(ex)
-                        }
-                    } label: { Label("Add Exercise", systemImage: "plus") }
-                    Button { rest.start() } label: { Label("Rest Timer", systemImage: "timer") }
-                    Divider()
-                    Button(role: .destructive) { confirmDiscard = true } label: {
-                        Label("Discard Workout", systemImage: "trash")
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button {
+                    let id = store.mutate { $0.addExerciseToSession(session.id, dayId: day.id) }
+                    if let id, let ex = store.db.exercises.first(where: { $0.id == id }) {
+                        mode = .all
+                        startRename(ex)
                     }
-                } label: { Image(systemName: "ellipsis.circle") }
-            }
+                } label: { Label("Add Exercise", systemImage: "plus") }
+                Button { rest.start() } label: { Label("Rest Timer", systemImage: "timer") }
+                Divider()
+                Button(role: .destructive) { confirmDiscard = true } label: {
+                    Label("Discard Workout", systemImage: "trash")
+                }
+            } label: { Image(systemName: "ellipsis.circle") }
         }
     }
 
@@ -222,7 +220,7 @@ struct WorkoutView: View {
                         let unit = group.ex.effectiveLoadType.valueLabel(for: active.row.weight)
                         valueRow(label: unit,
                                  value: displayLoad(active.row.weight, unit: unit),
-                                 canStep: store.canEdit && group.ex.effectiveLoadType != .free,
+                                 canStep: group.ex.effectiveLoadType != .free,
                                  onStep: { stepLoad(active.row, ex: group.ex, $0) },
                                  onTap: { loadTarget = SetEdit(row: active.row, ex: group.ex) })
                         if let line = plateLine(active.row.weight, type: group.ex.effectiveLoadType) {
@@ -230,7 +228,7 @@ struct WorkoutView: View {
                         }
                         valueRow(label: "Reps",
                                  value: bareReps(active.row.reps).isEmpty ? "—" : bareReps(active.row.reps),
-                                 canStep: store.canEdit && (bareReps(active.row.reps).isEmpty || Int(bareReps(active.row.reps)) != nil),
+                                 canStep: (bareReps(active.row.reps).isEmpty || Int(bareReps(active.row.reps)) != nil),
                                  onStep: { stepReps(active.row, $0) },
                                  onTap: { repsTarget = SetEdit(row: active.row, ex: group.ex) })
                     }
@@ -277,7 +275,7 @@ struct WorkoutView: View {
                 if let note = a.note {
                     Text(note).font(.subheadline).foregroundStyle(.secondary)
                 }
-                if let tip, store.canEdit {
+                if let tip {
                     Button {
                         store.mutate { $0.shiftSets(tip.setIds, ex: ex, steps: tip.steps) }
                     } label: {
@@ -307,7 +305,7 @@ struct WorkoutView: View {
                         .frame(width: 22, height: 22)
                 }
                 .buttonStyle(.plain)
-                .disabled(!s.isDone || !store.canEdit)
+                .disabled(!s.isDone)
                 .accessibilityLabel(s.isDone ? "Undo set" : s.id == current ? "Current set" : "Set")
             }
         }
@@ -323,14 +321,13 @@ struct WorkoutView: View {
                     Text(value).font(.number(44, weight: .bold)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(.primary)
                     HStack(spacing: 4) {
                         Text(label)
-                        if store.canEdit { Image(systemName: "pencil").imageScale(.small) }
+                        Image(systemName: "pencil").imageScale(.small)
                     }
                     .font(.footnote.weight(.medium)).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
             }
             .buttonStyle(.plain)
-            .disabled(!store.canEdit)
             .accessibilityHint("Tap to type a value")
             stepButton("plus", label: "More \(label.lowercased())", enabled: canStep) { onStep(1) }
         }
@@ -368,15 +365,13 @@ struct WorkoutView: View {
                     ForEach(Array(g.sets.enumerated()), id: \.element.id) { n, st in
                         setRow(st, number: n + 1, ex: g.ex, isActive: st.id == activeId)
                             .swipeActions {
-                                if store.canEdit && g.sets.count > 1 {
+                                if g.sets.count > 1 {
                                     Button("Delete", role: .destructive) { store.mutate { $0.removeSet(st.id) } }
                                 }
                             }
                     }
-                    if store.canEdit {
-                        Button { store.mutate { $0.addSetToSession(session.id, exerciseId: g.ex.id) } } label: {
-                            Label("Add Set", systemImage: "plus")
-                        }
+                    Button { store.mutate { $0.addSetToSession(session.id, exerciseId: g.ex.id) } } label: {
+                        Label("Add Set", systemImage: "plus")
                     }
                 } header: {
                     HStack {
@@ -395,7 +390,7 @@ struct WorkoutView: View {
                         }
                         .buttonStyle(.plain)
                         Spacer()
-                        if store.canEdit { exerciseMenu(g.ex, session: session, index: i, count: groups.count) }
+                        exerciseMenu(g.ex, session: session, index: i, count: groups.count)
                     }
                 }
             }
@@ -430,7 +425,6 @@ struct WorkoutView: View {
                     .foregroundStyle(st.isDone ? Theme.lift : isActive ? Theme.lift : Color(.systemGray3))
             }
             .buttonStyle(.borderless)
-            .disabled(!store.canEdit)
             .accessibilityLabel(st.isDone ? "Mark set \(number) not done" : "Mark set \(number) done")
 
             Text("Set \(number)").foregroundStyle(.secondary).frame(width: 50, alignment: .leading)
@@ -439,13 +433,11 @@ struct WorkoutView: View {
                 .buttonStyle(.borderless)
                 .font(.number(20))
                 .foregroundStyle(st.weight.isEmpty ? .secondary : .primary)
-                .disabled(!store.canEdit)
             Spacer()
             Button(st.reps.isEmpty ? "Reps" : st.reps) { repsTarget = SetEdit(row: st, ex: ex) }
                 .buttonStyle(.borderless)
                 .font(.number(17))
                 .foregroundStyle(.secondary)
-                .disabled(!store.canEdit)
         }
         .padding(.vertical, 4)
         .listRowBackground(isActive ? Theme.lift.opacity(0.12) : nil)
@@ -455,7 +447,6 @@ struct WorkoutView: View {
     // MARK: Actions
 
     private func toggle(_ st: WorkoutSet, ex: Exercise?) {
-        guard store.canEdit else { return }
         let nowDone = store.mutate { $0.toggleSet(st.id) } ?? false
         if nowDone {
             tick += 1

@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		16482615692237C8B250D086 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A02CD47867B3144223D08094 /* Supabase */; };
 		1722343CEFEA463C858BC97F /* ExerciseHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */; };
 		1B9688E4388A591CF9B798B5 /* PlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C5A2741915293CDDE1B7DFA /* PlanView.swift */; };
 		26B12830260B17C5B489D3BF /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A770C3F2D54C20078AF11BE7 /* LoadingView.swift */; };
@@ -21,7 +20,6 @@
 		688F959739EB02D5DFE1647C /* Load.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1A96275B820FD5C193DC82 /* Load.swift */; };
 		702733365E5871A883C67444 /* GymTrakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203CC4A1164B17AB43E1679B /* GymTrakTests.swift */; };
 		86D71F68FB438DAEA933B58C /* Program.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A76751019FB132D5513D1F /* Program.swift */; };
-		8A3B25EEF30B350D6AB720F6 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C85E1EE3AF6C4E833BC29146 /* SignInView.swift */; };
 		91AE3BD2ABADBDDA60B0CEB3 /* Connections.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE59531A26F3C74DB59C5E4C /* Connections.swift */; };
 		A2E79764A56247801C604AFE /* MediaBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B932A3E85D616E9BB52ACB6 /* MediaBar.swift */; };
 		AE24581D11E0946398AE0253 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42768E1AD24129112AA73471 /* RootView.swift */; };
@@ -71,7 +69,6 @@
 		B4A76751019FB132D5513D1F /* Program.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Program.swift; sourceTree = "<group>"; };
 		B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistoryView.swift; sourceTree = "<group>"; };
 		B9852C57291AC247289AFB11 /* Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Actions.swift; sourceTree = "<group>"; };
-		C85E1EE3AF6C4E833BC29146 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		CE59531A26F3C74DB59C5E4C /* Connections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connections.swift; sourceTree = "<group>"; };
 		DBF44F70C7C73332C3A04906 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		DF95B1B11FAD02C2CE23CF95 /* GymTrakTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = GymTrakTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -80,19 +77,8 @@
 		ED9FEFA66FBE1F68F31AC163 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		F0BE589482F4E09EF006D1D7 /* GymTrak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GymTrak.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F7567A3CD8CDF775E5CBFEBF /* Spotify.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spotify.swift; sourceTree = "<group>"; };
-		"TEMP_176038C1-0BBC-4D82-B36B-CDEAC559C8A9" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_51124779-925F-42EF-A5FA-05C954929E92" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFrameworksBuildPhase section */
-		4A429C4DB1AD6432822356CF /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				16482615692237C8B250D086 /* Supabase in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		154457508784105B0131C430 /* GymTrakTests */ = {
@@ -171,7 +157,6 @@
 				42768E1AD24129112AA73471 /* RootView.swift */,
 				DBF44F70C7C73332C3A04906 /* ScheduleView.swift */,
 				8D8A0D2492763D47E688E900 /* SettingsView.swift */,
-				C85E1EE3AF6C4E833BC29146 /* SignInView.swift */,
 				4A1FD75C622FE7E2FE81AC08 /* Theme.swift */,
 				2098609CF3E400CDDC0CC8A4 /* TodayView.swift */,
 				47818A6E2CFB2AD0E263058F /* WorkoutSummaryView.swift */,
@@ -180,10 +165,10 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		"TEMP_9EDE3A94-DDE7-489E-A4AF-6FB4EBB97045" /* gymtrak-swift-rewrite */ = {
+		"TEMP_0D2B9825-68AF-44A1-AED9-37AC6B48E56E" /* gymtrak-swift-rewrite */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_176038C1-0BBC-4D82-B36B-CDEAC559C8A9" /* Config.xcconfig */,
+				"TEMP_51124779-925F-42EF-A5FA-05C954929E92" /* Config.xcconfig */,
 			);
 			path = "gymtrak-swift-rewrite";
 			sourceTree = "<group>";
@@ -197,7 +182,6 @@
 			buildPhases = (
 				D1FDD95CA5B3682E091A8868 /* Sources */,
 				782D92A936E1B230C2DADB8C /* Resources */,
-				4A429C4DB1AD6432822356CF /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -205,7 +189,6 @@
 			);
 			name = GymTrak;
 			packageProductDependencies = (
-				A02CD47867B3144223D08094 /* Supabase */,
 			);
 			productName = GymTrak;
 			productReference = F0BE589482F4E09EF006D1D7 /* GymTrak.app */;
@@ -256,9 +239,6 @@
 			);
 			mainGroup = 7645BBCE4253B17D1D4AA3BF;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				A0637FD85691A6DBE185B34A /* XCRemoteSwiftPackageReference "supabase-swift" */,
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A87128EAA1F7219857ED1F29 /* Products */;
 			projectDirPath = "";
@@ -313,7 +293,6 @@
 				AE24581D11E0946398AE0253 /* RootView.swift in Sources */,
 				4F7ECD4E12365318CCB01CF6 /* ScheduleView.swift in Sources */,
 				EBE666927999FDF3B05C694A /* SettingsView.swift in Sources */,
-				8A3B25EEF30B350D6AB720F6 /* SignInView.swift in Sources */,
 				EA31231E8B82BAF970D8E4BF /* Spotify.swift in Sources */,
 				2EF0F19D95DBBDCB8FEB8CCE /* Store.swift in Sources */,
 				F5190E67C991966105BC9732 /* Theme.swift in Sources */,
@@ -495,7 +474,7 @@
 		};
 		C51B4C3A1A037D7EDB9E81F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_176038C1-0BBC-4D82-B36B-CDEAC559C8A9" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_51124779-925F-42EF-A5FA-05C954929E92" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -514,7 +493,7 @@
 		};
 		DE1DAE831E7778559F295B52 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_176038C1-0BBC-4D82-B36B-CDEAC559C8A9" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_51124779-925F-42EF-A5FA-05C954929E92" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -562,25 +541,6 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		A0637FD85691A6DBE185B34A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/supabase/supabase-swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.55.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		A02CD47867B3144223D08094 /* Supabase */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A0637FD85691A6DBE185B34A /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = Supabase;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 22561923170665BA23873D0C /* Project object */;
 }

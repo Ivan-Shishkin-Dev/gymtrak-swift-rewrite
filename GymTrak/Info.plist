@@ -43,10 +43,6 @@
 	<string>$(STRAVA_CLIENT_ID)</string>
 	<key>StravaClientSecret</key>
 	<string>$(STRAVA_CLIENT_SECRET)</string>
-	<key>SupabaseHost</key>
-	<string>$(SUPABASE_HOST)</string>
-	<key>SupabaseKey</key>
-	<string>$(SUPABASE_KEY)</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

@@ -15,15 +15,12 @@ struct ScheduleView: View {
                 }
             }
         }
-        .disabled(!store.canEdit)
         .navigationTitle("Schedule")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if store.canEdit {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { if let draft { store.mutate { $0.saveSchedule(draft) } } }
-                        .disabled(draft == store.db.scheduleTemplate)
-                }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") { if let draft { store.mutate { $0.saveSchedule(draft) } } }
+                    .disabled(draft == store.db.scheduleTemplate)
             }
         }
         .onAppear { draft = store.db.scheduleTemplate }

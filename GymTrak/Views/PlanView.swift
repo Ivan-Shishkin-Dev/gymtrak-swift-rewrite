@@ -14,23 +14,19 @@ struct PlanView: View {
                     ForEach(db.activeDays) { day in
                         NavigationLink(value: day.id) { dayRow(day) }
                             .swipeActions {
-                                if store.canEdit {
-                                    Button("Delete", role: .destructive) { confirmDelete = day }
-                                    Button("Archive") { store.mutate { $0.archiveDay(day.id, true) } }.tint(Theme.warning)
-                                }
+                                Button("Delete", role: .destructive) { confirmDelete = day }
+                                Button("Archive") { store.mutate { $0.archiveDay(day.id, true) } }.tint(Theme.warning)
                             }
                     }
                     .onMove { from, to in
-                        guard store.canEdit, let i = from.first else { return }
+                        guard let i = from.first else { return }
                         let id = db.activeDays[i].id
                         let steps = to > i ? to - i - 1 : to - i
                         store.mutate { snap in
                             for _ in 0..<abs(steps) { snap.moveDay(id, steps > 0 ? 1 : -1) }
                         }
                     }
-                    if store.canEdit {
-                        Button { store.mutate { $0.addDay() } } label: { Label("Add day", systemImage: "plus") }
-                    }
+                    Button { store.mutate { $0.addDay() } } label: { Label("Add day", systemImage: "plus") }
                 } header: { Text("Lift days") }
 
                 Section {
@@ -51,9 +47,7 @@ struct PlanView: View {
                             HStack {
                                 Text(day.name).foregroundStyle(.secondary)
                                 Spacer()
-                                if store.canEdit {
-                                    Button("Restore") { store.mutate { $0.archiveDay(day.id, false) } }.buttonStyle(.borderless)
-                                }
+                                Button("Restore") { store.mutate { $0.archiveDay(day.id, false) } }.buttonStyle(.borderless)
                             }
                         }
                     }
@@ -62,7 +56,7 @@ struct PlanView: View {
             .navigationTitle("Plan")
             .navigationDestination(for: Int.self) { DayDetailView(dayId: $0) }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { if store.canEdit { EditButton() } }
+                ToolbarItem(placement: .topBarLeading) { EditButton() }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { nav.showSettings = true } label: { Image(systemName: "gearshape") }
                 }
@@ -113,8 +107,8 @@ struct DayDetailView: View {
             let exercises = db.exercises(of: dayId)
             List {
                 Section("Day") {
-                    TextField("Name", text: $name).onSubmit(saveDay).disabled(!store.canEdit)
-                    TextField("Focus", text: $focus).onSubmit(saveDay).disabled(!store.canEdit)
+                    TextField("Name", text: $name).onSubmit(saveDay)
+                    TextField("Focus", text: $focus).onSubmit(saveDay)
                 }
                 Section("Exercises") {
                     ForEach(exercises) { ex in
@@ -143,15 +137,11 @@ struct DayDetailView: View {
                         let steps = to > i ? to - i - 1 : to - i
                         store.mutate { snap in for _ in 0..<abs(steps) { snap.moveExercise(id, steps > 0 ? 1 : -1) } }
                     }
-                    .deleteDisabled(!store.canEdit)
-                    .moveDisabled(!store.canEdit)
-                    if store.canEdit {
-                        Button { store.mutate { $0.addExercise(dayId: dayId) } } label: { Label("Add exercise", systemImage: "plus") }
-                    }
+                    Button { store.mutate { $0.addExercise(dayId: dayId) } } label: { Label("Add exercise", systemImage: "plus") }
                 }
             }
             .navigationTitle(day.name)
-            .toolbar { if store.canEdit { EditButton() } }
+            .toolbar { EditButton() }
             .onAppear { name = day.name; focus = day.focus }
             .onDisappear(perform: saveDay)
             .sheet(item: $historyTarget) { ex in
@@ -191,7 +181,6 @@ struct ExerciseEditorView: View {
                 Section("Name") {
                     TextField("Name", text: $name)
                         .onSubmit { commitName() }
-                        .disabled(!store.canEdit)
                 }
                 Section {
                     Picker("Weight type", selection: Binding(get: { ex.effectiveLoadType }, set: { t in
@@ -199,7 +188,6 @@ struct ExerciseEditorView: View {
                     })) {
                         ForEach(LoadType.allCases, id: \.self) { Text($0.label).tag($0) }
                     }
-                    .disabled(!store.canEdit)
                 } footer: { Text(loadTypeHelp(ex.effectiveLoadType)) }
 
                 if showsSets { Section("Sets") {
@@ -212,18 +200,15 @@ struct ExerciseEditorView: View {
                             Button(row.reps.isEmpty ? "Reps" : row.reps) { repsEdit = i }
                                 .buttonStyle(.borderless).foregroundStyle(.secondary)
                         }
-                        .disabled(!store.canEdit)
                     }
                     .onDelete { idx in
                         var r = rows
                         r.remove(atOffsets: idx)
                         if !r.isEmpty { store.mutate { $0.setRows(exerciseId, r) } }
                     }
-                    .deleteDisabled(!store.canEdit || rows.count <= 1)
-                    if store.canEdit {
-                        Button { store.mutate { $0.setRows(exerciseId, rows + [rows.last ?? SetRow(weight: "", reps: "× 6")]) } } label: {
-                            Label("Add Set", systemImage: "plus")
-                        }
+                    .deleteDisabled(rows.count <= 1)
+                    Button { store.mutate { $0.setRows(exerciseId, rows + [rows.last ?? SetRow(weight: "", reps: "× 6")]) } } label: {
+                        Label("Add Set", systemImage: "plus")
                     }
                 } }
                 Section("Workout") {
@@ -238,7 +223,6 @@ struct ExerciseEditorView: View {
                         LabeledContent("Rest", value: fmtClock(Double(ex.restSeconds ?? 180)))
                     }
                 }
-                .disabled(!store.canEdit)
             }
             .navigationTitle(ex.name)
             .navigationBarTitleDisplayMode(.inline)

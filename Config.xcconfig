@@ -1,4 +1,4 @@
-// Shared build settings. Supabase, Strava and Spotify values come from Secrets.xcconfig (gitignored).
+// Shared build settings. Strava and Spotify values come from Secrets.xcconfig (gitignored).
 // Copy Secrets.example.xcconfig to Secrets.xcconfig and fill it in.
 
 // Paid Apple Developer team (Ivan Shishkin). Needed for Apple Health and installing on the iPhone.

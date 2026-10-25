@@ -23,28 +23,17 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            if store.canEdit || store.supabase == nil || !Store.accountsEnabled {
-                tabs
-            } else if !loading {
-                SignInView().transition(.opacity)
-            }
+            tabs
             if loading {
                 LoadingView().transition(.opacity.combined(with: .scale(scale: 1.05)))
             }
         }
         .task {
-            // Show at least one rep, then wait for the first sync — but never more than 5 s.
-            let sync = Task { await store.sync() }
+            // Show one rep of the splash.
             try? await Task.sleep(for: .seconds(1.3))
-            var waited = 1.3
-            while store.syncStatus == .syncing && waited < 5 {
-                try? await Task.sleep(for: .milliseconds(100))
-                waited += 0.1
-            }
             // Launch with -holdLoading to keep the splash up (for tweaking it).
             if ProcessInfo.processInfo.arguments.contains("-holdLoading") { return }
             withAnimation(.easeInOut(duration: 0.4)) { loading = false }
-            await sync.value
             await connections.refresh()
         }
     }
@@ -89,7 +78,7 @@ struct RootView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await store.sync(); await connections.refresh() } }
+            if phase == .active { Task { await connections.refresh() } }
         }
     }
 

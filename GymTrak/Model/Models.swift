@@ -1,7 +1,7 @@
 import Foundation
 
-// Record shapes. They mirror the PWA's zod schemas field for field, so the whole
-// database round-trips through the same Supabase `gt_state` JSON blob.
+// Record shapes. They mirror the old web app's schemas field for field, so its
+// exported data imports as-is.
 // Timestamps are epoch milliseconds (Double), dates are local "yyyy-MM-dd".
 
 typealias EpochMs = Double
@@ -270,7 +270,7 @@ struct WorkoutSet: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
-/// The whole database — the exact shape of the Supabase `gt_state.data` blob.
+/// The whole database, saved as one JSON file (same shape as the old web app's blob, so its backups import).
 struct Snapshot: Codable, Sendable {
     var days: [Day] = []
     var exercises: [Exercise] = []

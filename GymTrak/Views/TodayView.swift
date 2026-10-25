@@ -25,7 +25,7 @@ struct TodayView: View {
             .navigationSubtitle(DateKey.label(todayKey, "MMMM d"))
             .toolbar { ToolbarItem(placement: .topBarTrailing) { SettingsButton() } }
             .navigationDestination(for: String.self) { DayScreen(date: $0) }
-            .refreshable { await store.sync() }
+            .refreshable { await connections.refresh() }
         }
     }
 
@@ -84,7 +84,6 @@ struct TodayView: View {
                 } label: {
                     Label(d.name, systemImage: "play.circle")
                 }
-                .disabled(!store.canEdit)
             }
         } header: {
             Text("No schedule yet")
@@ -246,11 +245,10 @@ struct DaySections: View {
     private func startButton(_ day: Day, week: ProgramWeek, date: String, done: Bool) -> some View {
         let open = store.db.openLift()
         let isOpen = open?.dayId == day.id && open?.slotDate == date
-        let title = !store.canEdit ? "Unlock to Start" : isOpen ? "Resume" : done ? "Do Again" : "Start Workout"
-        let icon = !store.canEdit ? "lock.fill" : isOpen ? "arrow.uturn.forward" : "play.fill"
+        let title = isOpen ? "Resume" : done ? "Do Again" : "Start Workout"
+        let icon = isOpen ? "arrow.uturn.forward" : "play.fill"
         return Button {
-            if !store.canEdit { nav.showSettings = true }
-            else if isOpen { nav.showWorkout = true }
+            if isOpen { nav.showWorkout = true }
             else { start(day, week: week, date: date) }
         } label: {
             Label(title, systemImage: icon)
@@ -316,18 +314,17 @@ struct DaySections: View {
     }
 }
 
-/// Gear button that also shows sync trouble at a glance.
+/// Gear button; turns orange when the last save failed.
 struct SettingsButton: View {
     @Environment(Store.self) private var store
     @Environment(AppNav.self) private var nav
-    @Environment(Connections.self) private var connections
 
     var body: some View {
         Button { nav.showSettings = true } label: {
-            switch store.syncStatus {
-            case .error: Image(systemName: "exclamationmark.icloud").foregroundStyle(Theme.warning)
-            case .syncing: ProgressView()
-            default: Image(systemName: "gearshape")
+            if store.saveError != nil {
+                Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.warning)
+            } else {
+                Image(systemName: "gearshape")
             }
         }
         .accessibilityLabel("Settings")

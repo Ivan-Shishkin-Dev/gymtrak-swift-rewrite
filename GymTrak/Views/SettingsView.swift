@@ -1,7 +1,8 @@
 import SwiftUI
 import AuthenticationServices
+import UniformTypeIdentifiers
 
-/// Account, connections, sync, rest timer, program dates, data backup, and app info.
+/// Appearance, connections, coach, rest timer, data backup, and app info.
 struct SettingsView: View {
     @Environment(Store.self) private var store
     @Environment(RestTimer.self) private var rest
@@ -9,10 +10,8 @@ struct SettingsView: View {
     @Environment(Spotify.self) private var spotify
     @Environment(\.webAuthenticationSession) private var webAuth
     @Environment(\.dismiss) private var dismiss
-    @State private var confirmSignOut = false
-    @State private var startMonday = Date()
-    @State private var confirmReanchor = false
-    @State private var confirmReset = false
+    @State private var importing = false
+    @State private var importError: String?
     @State private var coachTick = 0
     @AppStorage(RestTimer.autoKey) private var restAuto = true
 
@@ -30,10 +29,8 @@ struct SettingsView: View {
                     }
                     .padding(.vertical, 4)
                 }
-                if Store.accountsEnabled { accessSection }
                 AppearanceSection()
                 connectionsSection
-                if Store.accountsEnabled { syncSection }
                 Section {
                     Toggle(isOn: Binding(get: { Coach.autoApply }, set: { Coach.autoApply = $0; coachTick += 1 })) {
                         Label { Text("Auto-Set Weights") } icon: { IconBadge(systemName: "scope", color: Theme.lift) }
@@ -59,27 +56,10 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .onAppear {
-                if let first = store.db.weeks.first { startMonday = DateKey.date(first.startDate) }
-            }
         }
     }
 
     // MARK: Sections
-
-    @ViewBuilder private var accessSection: some View {
-        Section("Account") {
-            if let email = store.email {
-                Label { Text(email) } icon: { IconBadge(systemName: "person.fill", color: Theme.lift) }
-                Button("Sign Out", role: .destructive) { confirmSignOut = true }
-                    .confirmationDialog("Sign out?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-                        Button("Sign Out", role: .destructive) { Task { await store.signOut(); dismiss() } }
-                    } message: { Text("Your data stays in your account.") }
-            } else {
-                Label { Text("Demo mode") } icon: { IconBadge(systemName: "person.fill", color: .gray) }
-            }
-        }
-    }
 
     @ViewBuilder private var connectionsSection: some View {
         Section {
@@ -147,63 +127,25 @@ struct SettingsView: View {
         }
     }
 
-    @ViewBuilder private var syncSection: some View {
-        Section("Sync") {
-            LabeledContent("Status") {
-                switch store.syncStatus {
-                case .offline: Text("Offline")
-                case .idle: Text("Idle")
-                case .syncing: ProgressView()
-                case .synced: Text("Synced").foregroundStyle(Theme.lift)
-                case .error: Text("Error").foregroundStyle(Theme.warning)
-                }
-            }
-            if case .error(let message) = store.syncStatus {
-                Text(message).font(.footnote).foregroundStyle(Theme.warning)
-            }
-            if let last = store.lastSyncedAt {
-                LabeledContent("Last synced", value: last.formatted(date: .omitted, time: .shortened))
-            }
-            Button { Task { await store.sync() } } label: {
-                Label { Text("Sync Now") } icon: { IconBadge(systemName: "arrow.triangle.2.circlepath", color: Theme.run) }
-            }
-            Button("Reset from Cloud", role: .destructive) { confirmReset = true }
-                .confirmationDialog("Use the cloud copy?", isPresented: $confirmReset, titleVisibility: .visible) {
-                    Button("Replace local data", role: .destructive) { Task { await store.forcePull() } }
-                } message: { Text("Unsynced changes are lost.") }
-        }
-    }
-
-    @ViewBuilder private var programSection: some View {
-        Section {
-            if store.db.weeks.isEmpty {
-                Text("No program installed.").foregroundStyle(.secondary)
-            } else {
-                DatePicker(selection: $startMonday, displayedComponents: .date) {
-                    Label { Text("Week 1 Starts") } icon: { IconBadge(systemName: "calendar", color: .red) }
-                }
-                Button("Move Program") { confirmReanchor = true }
-                    .disabled(!store.canEdit)
-                    .confirmationDialog("Re-anchor the program?", isPresented: $confirmReanchor, titleVisibility: .visible) {
-                        Button("Move it") {
-                            store.mutate { $0.setProgramStart(DateKey.mondayKey(startMonday)) }
-                        }
-                    } message: {
-                        Text("Week 1 starts \(DateKey.label(DateKey.mondayKey(startMonday), "MMM d")).")
-                    }
-            }
-        } header: {
-            Text("Program")
-        }
-    }
-
     @ViewBuilder private var dataSection: some View {
         Section {
             if let url = exportURL() {
                 ShareLink(item: url) { Label { Text("Export Backup") } icon: { IconBadge(systemName: "square.and.arrow.up", color: .indigo) } }
             }
+            Button { importing = true } label: {
+                Label { Text("Import Backup") } icon: { IconBadge(systemName: "square.and.arrow.down", color: .indigo) }
+            }
+            .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
+                do { try store.importBackup(from: result.get()); importError = nil }
+                catch { importError = "Not a GymTrak backup." }
+            }
+            if let error = importError ?? store.saveError {
+                Text(error).font(.footnote).foregroundStyle(Theme.warning)
+            }
         } header: {
             Text("Data")
+        } footer: {
+            Text("Saved on this iPhone and in its iCloud Backup. Import replaces everything.")
         }
     }
 

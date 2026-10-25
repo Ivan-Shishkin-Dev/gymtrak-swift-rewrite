@@ -15,8 +15,6 @@ struct GymTrakApp: App {
                 .environment(connections)
                 .environment(spotify)
                 .onOpenURL { url in
-                    // gymtrak://login?code=… from the sign-in email.
-                    if url.host == "login" { Task { await store.handle(url) } }
                     // gymtrak://spotify?code=… when the Spotify sign-in session isn't catching it.
                     if url.host == "spotify" { Task { await spotify.finishSpotify(callback: url) } }
                 }
