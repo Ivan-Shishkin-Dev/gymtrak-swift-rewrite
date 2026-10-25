@@ -15,8 +15,11 @@ final class Store {
     private(set) var lastSyncedAt: Date?
     private(set) var signIn: SignIn = .signedOut
 
-    /// Editing needs an account (or demo mode).
-    var canEdit: Bool { Self.isDemo || isSignedIn }
+    /// Accounts are off until sign-in goes live: the app runs on-device only.
+    static let accountsEnabled = false
+
+    /// Editing needs an account (or demo mode, or accounts switched off).
+    var canEdit: Bool { !Self.accountsEnabled || Self.isDemo || isSignedIn }
     var isSignedIn: Bool { if case .signedIn = signIn { true } else { false } }
     var email: String? { if case .signedIn(let e) = signIn { e } else { nil } }
 
@@ -48,7 +51,10 @@ final class Store {
         } else {
             db = seedIfEmpty && (Self.isDemo || supabase == nil) ? seedSnapshot() : Snapshot(programWeeks: [], schema: 2)
         }
-        if let user = supabase?.auth.currentUser {
+        if !Self.accountsEnabled {
+            // On-device only: first launch pulls the web app's plan once, else uses the seed.
+            if db.days.isEmpty { db = seedSnapshot(); Task { await importLegacyOnce() } }
+        } else if let user = supabase?.auth.currentUser {
             if Self.rememberMe {
                 signIn = .signedIn(user.email ?? "Signed in")
             } else {
@@ -148,6 +154,16 @@ final class Store {
     private func fetchLegacyRow() async -> Snapshot? {
         let rows: [Row]? = try? await supabase!.from("gt_state").select("data,updated_at").eq("id", value: 1).execute().value
         return rows?.first?.data
+    }
+
+    /// Accounts off: copy the web app's public data in once, so the phone starts with your plan.
+    private func importLegacyOnce() async {
+        guard supabase != nil, !UserDefaults.standard.bool(forKey: "gt_legacy_imported") else { save(); return }
+        if let legacy = await fetchLegacyRow() {
+            db = legacy
+            UserDefaults.standard.set(true, forKey: "gt_legacy_imported")
+        }
+        save()
     }
 
     /// Reconcile: adopt the cloud when it's newer, push when this device is.

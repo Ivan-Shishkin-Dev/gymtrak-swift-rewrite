@@ -27,10 +27,10 @@ struct SettingsView: View {
                     }
                     .padding(.vertical, 4)
                 }
-                accessSection
+                if Store.accountsEnabled { accessSection }
                 AppearanceSection()
                 connectionsSection
-                syncSection
+                if Store.accountsEnabled { syncSection }
                 Section("Rest timer") {
                     Stepper(value: Binding(get: { rest.defaultSec }, set: { rest.setDefault($0) }),
                             in: RestTimer.minSec...RestTimer.maxSec, step: 15) {

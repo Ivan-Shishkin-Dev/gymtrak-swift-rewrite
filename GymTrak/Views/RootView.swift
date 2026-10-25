@@ -20,7 +20,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            if store.canEdit || store.supabase == nil {
+            if store.canEdit || store.supabase == nil || !Store.accountsEnabled {
                 tabs
             } else if !loading {
                 SignInView().transition(.opacity)
