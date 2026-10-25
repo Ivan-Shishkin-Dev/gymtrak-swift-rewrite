@@ -4,6 +4,9 @@ import SwiftUI
 struct HistoryView: View {
     @Environment(Store.self) private var store
     @Environment(Connections.self) private var connections
+    /// Advances every time History opens, so a different fact leads each visit.
+    @AppStorage("gt_fact_index") private var factIndex = 0
+    @State private var showAllFacts = false
 
     var body: some View {
         let db = store.db
@@ -19,9 +22,14 @@ struct HistoryView: View {
                 } else {
                     Section { totals(stats) }
                     if !facts.isEmpty {
-                        Section("Facts") {
-                            ForEach(facts, id: \.self) { fact in
-                                Label { Text(fact) } icon: { Image(systemName: "sparkle").foregroundStyle(Theme.lift) }
+                        Section {
+                            factCard(facts[((factIndex % facts.count) + facts.count) % facts.count])
+                        } header: {
+                            HStack {
+                                Text("Fun Fact")
+                                Spacer()
+                                Button("All \(facts.count)") { showAllFacts = true }
+                                    .font(.subheadline.weight(.semibold)).textCase(nil)
                             }
                         }
                     }
@@ -37,7 +45,33 @@ struct HistoryView: View {
             .navigationDestination(for: String.self) { SessionDetailView(sessionId: $0) }
             .toolbar { ToolbarItem(placement: .topBarTrailing) { SettingsButton() } }
             .refreshable { await connections.refresh() }
+            .onAppear { factIndex += 1 }
+            .sheet(isPresented: $showAllFacts) {
+                NavigationStack { AllFactsView(facts: facts) }
+                    .presentationDetents([.medium, .large])
+            }
         }
+    }
+
+    /// One fact, big. Tap for the next.
+    private func factCard(_ fact: Fact) -> some View {
+        Button {
+            withAnimation(.snappy) { factIndex += 1 }
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                IconBadge(systemName: fact.icon, color: fact.kind == .run ? Theme.run : Theme.lift, size: 36)
+                Text(fact.text)
+                    .font(.title3.weight(.semibold))
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentTransition(.opacity)
+                    .id(fact.text)
+                    .transition(.opacity)
+            }
+            .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Shows another fact")
     }
 
     // MARK: Totals
@@ -107,6 +141,34 @@ struct HistoryView: View {
             }
         }
         return out
+    }
+}
+
+/// Every fact, grouped.
+struct AllFactsView: View {
+    let facts: [Fact]
+    @Environment(\.dismiss) private var dismiss
+
+    private let groups: [(Fact.Kind, String)] = [(.lift, "Lifting"), (.run, "Running"), (.time, "Time"), (.you, "You")]
+
+    var body: some View {
+        List {
+            ForEach(groups, id: \.1) { kind, title in
+                let items = facts.filter { $0.kind == kind }
+                if !items.isEmpty {
+                    Section(title) {
+                        ForEach(items, id: \.self) { f in
+                            Label { Text(f.text) } icon: {
+                                Image(systemName: f.icon).foregroundStyle(kind == .run ? Theme.run : Theme.lift)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Fun Facts")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
 }
 

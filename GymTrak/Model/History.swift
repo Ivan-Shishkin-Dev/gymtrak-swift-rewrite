@@ -53,20 +53,34 @@ struct LifetimeStats: Equatable, Sendable {
     var sets = 0
     var reps = 0
     var pounds: Double = 0
+    /// Minutes over workouts with a believable timer (1 min to 4 h).
     var liftMinutes: Double = 0
+    var timedWorkouts = 0
     var runs = 0
     var runMiles: Double = 0
     var runMinutes: Double = 0
     var longestRunMiles: Double = 0
+    /// Fastest pace (min/mi) over runs of a mile or more.
+    var fastestPace: Double?
     var firstDate: String?
+    var daysTrained = 0
+    var weekendDays = 0
     var favoriteDay: Dow?
     var favoriteDayCount = 0
-    var heaviest: (name: String, lb: Double)? { heaviestName.map { ($0, heaviestLb) } }
     var heaviestName: String?
     var heaviestLb: Double = 0
+    var mostSetsName: String?
+    var mostSetsCount = 0
+    var biggestDayLb: Double = 0
+    var biggestDayDate: String?
+    /// Minutes after midnight that timed workouts started.
+    var earliestStart: Int?
+    var latestStart: Int?
+    var prs = 0
     var improved: Improvement?
 
-    var avgWorkoutMinutes: Double? { workouts > 0 && liftMinutes > 0 ? liftMinutes / Double(workouts) : nil }
+    var heaviest: (name: String, lb: Double)? { heaviestName.map { ($0, heaviestLb) } }
+    var avgWorkoutMinutes: Double? { timedWorkouts > 0 ? liftMinutes / Double(timedWorkouts) : nil }
     var avgPace: Double? { runMiles > 0.3 ? runMinutes / runMiles : nil }
 }
 
@@ -123,7 +137,7 @@ extension Snapshot {
         let lifts = finishedLifts.map { s -> HistoryEntry in
             let done = doneSets(s.id)
             let lb = sessionPounds(s.id)
-            var parts = ["\(done.count) sets"]
+            var parts = [done.count == 1 ? "1 set" : "\(done.count) sets"]
             if lb > 0 { parts.append(fmtPounds(lb)) }
             if let d = s.durationSec, d >= 60 { parts.append("\(Int((d / 60).rounded())) min") }
             let title = s.dayNameSnapshot ?? day(s.dayId)?.name ?? "Workout"
@@ -141,20 +155,40 @@ extension Snapshot {
         let lifts = finishedLifts
         s.workouts = lifts.count
         var dayCounts: [Dow: Int] = [:]
+        var setsByName: [String: Int] = [:]
         for l in lifts {
             let done = doneSets(l.id)
             s.sets += done.count
             s.reps += done.reduce(0) { $0 + Int(numericReps($1.0.reps) ?? 0) }
-            s.pounds += sessionPounds(l.id)
-            if let d = l.durationSec, d >= 60, d < 4 * 3600 { s.liftMinutes += d / 60 }
+            let lb = sessionPounds(l.id)
+            s.pounds += lb
+            if lb > s.biggestDayLb { s.biggestDayLb = lb; s.biggestDayDate = l.slotDate }
+            if let d = l.durationSec, d >= 60, d < 4 * 3600 {
+                s.liftMinutes += d / 60
+                s.timedWorkouts += 1
+                // Start time only means something when the timer ran for a real workout.
+                if d >= 600 {
+                    let start = Date(timeIntervalSince1970: l.startedAt / 1000)
+                    let c = DateKey.calendar.dateComponents([.hour, .minute], from: start)
+                    let m = (c.hour ?? 0) * 60 + (c.minute ?? 0)
+                    s.earliestStart = min(s.earliestStart ?? m, m)
+                    s.latestStart = max(s.latestStart ?? m, m)
+                }
+            }
             dayCounts[DateKey.dow(DateKey.date(l.slotDate)), default: 0] += 1
             for (st, lb) in done {
+                setsByName[st.exerciseName, default: 0] += 1
                 if let lb, lb > s.heaviestLb { s.heaviestLb = lb; s.heaviestName = st.exerciseName }
             }
+            s.prs += prs(sessionId: l.id).count
         }
         if let fav = dayCounts.max(by: { ($0.value, -$0.key.index) < ($1.value, -$1.key.index) }) {
             s.favoriteDay = fav.key
             s.favoriteDayCount = fav.value
+        }
+        if let top = setsByName.max(by: { ($0.value, $1.key) < ($1.value, $0.key) }) {
+            s.mostSetsName = top.key
+            s.mostSetsCount = top.value
         }
 
         let runs = allRuns(synced: synced)
@@ -162,7 +196,12 @@ extension Snapshot {
         s.runMiles = runs.reduce(0) { $0 + $1.miles }
         s.runMinutes = runs.reduce(0) { $0 + $1.minutes }
         s.longestRunMiles = runs.map(\.miles).max() ?? 0
-        s.firstDate = (lifts.map(\.slotDate) + runs.map(\.date)).min()
+        s.fastestPace = runs.filter { $0.miles >= 1 }.compactMap(\.paceMinPerMile).min()
+
+        let dates = Set(lifts.map(\.slotDate) + runs.map(\.date))
+        s.daysTrained = dates.count
+        s.weekendDays = dates.filter { [.sat, .sun].contains(DateKey.dow(DateKey.date($0))) }.count
+        s.firstDate = dates.min()
         s.improved = mostImproved()
         return s
     }
@@ -185,57 +224,127 @@ extension Snapshot {
 
 // MARK: - Facts
 
-/// Short, fun lines from the totals. Empty when there's nothing to say yet.
-func historyFacts(_ s: LifetimeStats) -> [String] {
-    var out: [String] = []
+/// One fun fact. `kind` picks the icon and color.
+struct Fact: Hashable, Sendable {
+    enum Kind: Sendable { case lift, run, time, you }
+    var kind: Kind
+    var text: String
 
-    let things: [(String, String, Double)] = [
-        ("blue whale", "blue whales", 300_000),
-        ("Boeing 737", "Boeing 737s", 91_000),
-        ("school bus", "school buses", 25_000),
-        ("elephant", "elephants", 13_000),
-        ("car", "cars", 4_000),
-        ("grand piano", "grand pianos", 1_000),
-    ]
-    if s.pounds >= 1_000, let t = things.first(where: { s.pounds >= $0.2 }) {
-        let n = s.pounds / t.2
-        let count = n < 10 ? String(format: "%.1f", n) : "\(Int(n.rounded()))"
-        out.append("You've moved \(fmtPounds(s.pounds)). That's \(count) \(n >= 0.95 && n < 1.05 ? t.0 : t.1).")
-    }
-
-    if s.runMiles >= 1 {
-        let miles = String(format: "%.1f", s.runMiles)
-        if s.runMiles >= 26.2 {
-            out.append("\(miles) mi run. \(String(format: "%.1f", s.runMiles / 26.2)) marathons.")
-        } else {
-            out.append("\(miles) mi run. \(String(format: "%.1f", s.runMiles / 3.1)) 5Ks.")
+    var icon: String {
+        switch kind {
+        case .lift: "dumbbell.fill"
+        case .run: "figure.run"
+        case .time: "clock.fill"
+        case .you: "star.fill"
         }
     }
+}
 
+/// Reference weights and distances. Rounded public figures, so every fact says "about".
+enum FactRefs {
+    /// (singular, plural, pounds)
+    static let weights: [(String, String, Double)] = [
+        ("concert grand piano", "concert grand pianos", 1_000),        // Steinway Model D ≈ 990 lb
+        ("Toyota Camry", "Toyota Camrys", 3_400),                       // curb weight ≈ 3,300–3,500 lb
+        ("African elephant", "African elephants", 13_000),             // adult bull ≈ 6 t
+        ("school bus", "school buses", 25_000),                         // full-size, empty
+        ("Boeing 737", "Boeing 737s", 91_000),                          // 737-800 empty ≈ 91,300 lb
+        ("space shuttle", "space shuttles", 170_000),                   // orbiter, empty ≈ 172,000 lb
+        ("blue whale", "blue whales", 300_000),                         // largest ≈ 150 short tons
+        ("Statue of Liberty", "Statues of Liberty", 450_000),           // ≈ 225 short tons
+        ("International Space Station", "International Space Stations", 925_000), // ≈ 420,000 kg
+    ]
+    /// (name, miles)
+    static let distances: [(String, Double)] = [
+        ("the Golden Gate Bridge", 1.7),
+        ("a 5K", 3.107),
+        ("Central Park's full loop", 6.1),
+        ("Manhattan, end to end", 13.4),
+        ("the English Channel at its narrowest", 21),
+        ("a marathon", 26.2),
+    ]
+    static let everestMiles = 29_032.0 / 5_280           // ≈ 5.5 mi tall
+    static let nycToLAMiles = 2_790.0                     // driving
+    static let lotrExtendedHours = 706.0 / 60             // 208 + 235 + 263 min
+    static let caloriesPerMile = 100.0                    // common rule of thumb for running
+    static let pizzaSliceCalories = 285.0                 // one slice of a large cheese pizza
+}
+
+/// Every fact the totals support. Each is checked against a threshold so none reads silly.
+func historyFacts(_ s: LifetimeStats) -> [Fact] {
+    var out: [Fact] = []
+    func n(_ x: Double) -> String { x < 10 ? String(format: "%.1f", x) : Int(x.rounded()).formatted() }
+    func mi(_ x: Double) -> String { String(format: "%.1f mi", x) }
+    func day(_ key: String) -> String { DateKey.date(key).formatted(.dateTime.month(.abbreviated).day()) }
+    func clock(_ m: Int) -> String {
+        var c = DateComponents(); c.hour = m / 60; c.minute = m % 60
+        return (DateKey.calendar.date(from: c) ?? Date()).formatted(date: .omitted, time: .shortened)
+    }
+
+    // Lifting: pounds moved vs. real things. One fact per thing you've moved at least once.
+    if s.pounds >= 1_000 {
+        for (one, many, lb) in FactRefs.weights where s.pounds >= lb {
+            let count = s.pounds / lb
+            if count > 2_000 { continue }
+            let name = count < 1.05 ? one : many
+            out.append(Fact(kind: .lift, text: "You've moved \(fmtPounds(s.pounds)). That's about \(n(count)) \(name)."))
+        }
+    }
+    if let h = s.heaviest { out.append(Fact(kind: .lift, text: "Heaviest set: \(h.name), \(fmtNum(h.lb)) lb.")) }
     if let imp = s.improved, imp.pct >= 1 {
-        let since = DateKey.date(imp.since).formatted(.dateTime.month(.abbreviated).day())
-        out.append("\(imp.name) is up \(Int(imp.pct.rounded()))% since \(since).")
+        out.append(Fact(kind: .lift, text: "\(imp.name) is up \(Int(imp.pct.rounded()))% since \(day(imp.since)). \(fmtNum(imp.from)) → \(fmtNum(imp.to)) lb."))
+    }
+    if let name = s.mostSetsName, s.mostSetsCount >= 5 {
+        out.append(Fact(kind: .lift, text: "Most-trained lift: \(name), \(s.mostSetsCount) sets."))
+    }
+    if let date = s.biggestDayDate, s.biggestDayLb > 0 {
+        out.append(Fact(kind: .lift, text: "Biggest day: \(fmtPounds(s.biggestDayLb)) on \(day(date))."))
+    }
+    if s.prs >= 1 { out.append(Fact(kind: .lift, text: "\(s.prs) PRs and counting.")) }
+    if s.sets >= 10 { out.append(Fact(kind: .lift, text: "\(s.sets.formatted()) sets, \(s.reps.formatted()) reps.")) }
+    if s.workouts >= 2, s.pounds > 0 {
+        out.append(Fact(kind: .lift, text: "Average workout moves \(fmtPounds(s.pounds / Double(s.workouts)))."))
     }
 
-    if let h = s.heaviest {
-        out.append("Heaviest set: \(h.name), \(fmtNum(h.lb)) lb.")
+    // Running.
+    if s.runMiles >= 1 {
+        for (name, miles) in FactRefs.distances where s.runMiles >= miles {
+            out.append(Fact(kind: .run, text: "\(mi(s.runMiles)) run. That's \(n(s.runMiles / miles))× \(name)."))
+        }
+        out.append(Fact(kind: .run, text: "Stacked up, your miles are \(n(s.runMiles / FactRefs.everestMiles)) Mount Everests tall."))
+        let pct = s.runMiles / FactRefs.nycToLAMiles * 100
+        out.append(Fact(kind: .run, text: "You're \(pct < 1 ? String(format: "%.2f", pct) : n(pct))% of the way from New York to LA on foot."))
+        let cal = s.runMiles * FactRefs.caloriesPerMile
+        out.append(Fact(kind: .run, text: "Your runs burned roughly \(Int(cal.rounded()).formatted()) calories. About \(n(cal / FactRefs.pizzaSliceCalories)) slices of pizza."))
     }
+    if s.longestRunMiles >= 1 { out.append(Fact(kind: .run, text: "Longest run: \(mi(s.longestRunMiles)).")) }
+    if let p = s.fastestPace { out.append(Fact(kind: .run, text: "Fastest pace: \(fmtPace(p)).")) }
+    if let p = s.avgPace, s.runs >= 2 { out.append(Fact(kind: .run, text: "Average pace: \(fmtPace(p)).")) }
 
-    if let day = s.favoriteDay, s.favoriteDayCount >= 3 {
-        out.append("\(day.label) is your day. \(s.favoriteDayCount) workouts.")
-    }
-
-    if s.longestRunMiles >= 1 {
-        out.append("Longest run: \(String(format: "%.1f", s.longestRunMiles)) mi.")
-    }
-
+    // Time.
     let hours = (s.liftMinutes + s.runMinutes) / 60
     if hours >= 2 {
-        out.append("\(Int(hours.rounded())) hours trained. That's \(Int((hours / 2).rounded())) movies.")
+        out.append(Fact(kind: .time, text: "\(Int(hours.rounded())) hours trained. About \(Int((hours / 2).rounded())) movies' worth."))
     }
+    if hours >= FactRefs.lotrExtendedHours {
+        out.append(Fact(kind: .time, text: "Enough time to watch the extended Lord of the Rings trilogy \(n(hours / FactRefs.lotrExtendedHours))×."))
+    }
+    if let avg = s.avgWorkoutMinutes { out.append(Fact(kind: .time, text: "Average workout: \(Int(avg.rounded())) min.")) }
+    if let e = s.earliestStart { out.append(Fact(kind: .time, text: "Earliest start: \(clock(e)).")) }
+    if let l = s.latestStart, l != s.earliestStart { out.append(Fact(kind: .time, text: "Latest start: \(clock(l)).")) }
 
-    if s.reps >= 100 {
-        out.append("\(s.reps.formatted()) reps logged.")
+    // You.
+    if let first = s.firstDate {
+        let days = DateKey.calendar.dateComponents([.day], from: DateKey.date(first), to: Date()).day ?? 0
+        if days >= 1 { out.append(Fact(kind: .you, text: "First logged workout: \(day(first)). \(days) days ago.")) }
+    }
+    if s.daysTrained >= 2 { out.append(Fact(kind: .you, text: "You've trained on \(s.daysTrained) different days.")) }
+    if let d = s.favoriteDay, s.favoriteDayCount >= 3 {
+        out.append(Fact(kind: .you, text: "\(d.label) is your day: \(s.favoriteDayCount) workouts."))
+    }
+    if s.daysTrained >= 5 {
+        let pct = Int((Double(s.weekendDays) / Double(s.daysTrained) * 100).rounded())
+        out.append(Fact(kind: .you, text: "\(pct)% of your training days are weekends."))
     }
     return out
 }

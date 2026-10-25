@@ -504,11 +504,19 @@ struct SpotifyAuthTests {
         #expect(st.workouts == 3 && st.sets == 12 && st.runs == 2)
         #expect(st.heaviestName == "Leg Press" && st.heaviestLb == 255)
         #expect(st.improved?.name == "Bench" && st.improved?.from == 180 && st.improved?.to == 200)
-        let facts = historyFacts(st)
-        #expect(facts.first == "You've moved 14,490 lb. That's 1.1 elephants.")
-        #expect(facts.contains("Bench is up 11% since Oct 1."))
-        #expect(facts.contains("9.2 mi run. 3.0 5Ks."))
+        let facts = historyFacts(st).map(\.text)
+        #expect(facts.contains("You've moved 14,490 lb. That's about 1.1 African elephants."))
+        #expect(facts.contains("You've moved 14,490 lb. That's about 4.3 Toyota Camrys."))
+        #expect(!facts.contains { $0.contains("school bus") })       // not moved one yet
+        #expect(facts.contains("Bench is up 11% since Oct 1. 180 → 200 lb."))
+        #expect(facts.contains("9.2 mi run. That's 3.0× a 5K."))
+        #expect(!facts.contains { $0.contains("marathon") })
         #expect(facts.contains("Longest run: 6.2 mi."))
+        #expect(facts.contains("Fastest pace: 9:41 /mi."))
+        #expect(facts.contains("Most-trained lift: Bench, 6 sets."))
+        #expect(facts.contains("Average workout: 50 min."))
+        #expect(facts.contains("Biggest day: 4,950 lb on Oct 15."))
+        #expect(st.prs == 2)  // bench went up twice
     }
 
     @Test func runawayRunTimerFallsBackToPlan() {
@@ -519,12 +527,22 @@ struct SpotifyAuthTests {
         #expect(s.allRuns(synced: []).first?.minutes == 30)
     }
 
+    @Test func referenceNumbersStayAccurate() {
+        // Guard the public figures the facts lean on.
+        #expect(abs(FactRefs.everestMiles - 5.5) < 0.05)
+        #expect(abs(FactRefs.lotrExtendedHours - 11.77) < 0.01)
+        #expect(FactRefs.distances.first { $0.0 == "a marathon" }?.1 == 26.2)
+        #expect(FactRefs.weights.map(\.2) == FactRefs.weights.map(\.2).sorted())
+    }
+
     @Test func noFactsWhenEmpty() {
         #expect(historyFacts(LifetimeStats()).isEmpty)
     }
 
     @Test func factPicksBiggestThing() {
         var st = LifetimeStats(); st.pounds = 26_000
-        #expect(historyFacts(st).first == "You've moved 26,000 lb. That's 1.0 school bus.")
+        let facts = historyFacts(st).map(\.text)
+        #expect(facts.contains("You've moved 26,000 lb. That's about 1.0 school bus."))
+        #expect(!facts.contains { $0.contains("Boeing") })
     }
 }
