@@ -37,6 +37,7 @@ struct SettingsView: View {
                     }
                     .id(coachTick)
                 } header: { Text("Coach") } footer: { Text("Fills each workout with the coach's targets.") }
+                NotificationsSection()
                 Section("Rest timer") {
                     Stepper(value: Binding(get: { rest.defaultSec }, set: { rest.setDefault($0) }),
                             in: RestTimer.minSec...RestTimer.maxSec, step: 15) {
@@ -208,5 +209,74 @@ private struct AppearanceSection: View {
         }
         .buttonStyle(.borderless)
         .sensoryFeedback(.selection, trigger: selected)
+    }
+}
+
+/// Reminder switches and times. Any change re-plans the next week of notifications.
+private struct NotificationsSection: View {
+    @Environment(Store.self) private var store
+    @Environment(Connections.self) private var connections
+    typealias K = NotificationPrefs.Key
+    private static let d = NotificationPrefs()
+
+    @AppStorage(K.workout) private var workout = d.workout
+    @AppStorage(K.workoutTime) private var workoutTime = d.workoutTime
+    @AppStorage(K.missed) private var missed = d.missed
+    @AppStorage(K.missedTime) private var missedTime = d.missedTime
+    @AppStorage(K.recap) private var recap = d.recap
+    @AppStorage(K.fact) private var fact = d.fact
+    @AppStorage(K.factTime) private var factTime = d.factTime
+    @AppStorage(K.rest) private var rest = d.rest
+    @State private var denied = false
+
+    var body: some View {
+        Section {
+            if denied {
+                Button {
+                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                } label: {
+                    Label { Text("Allow Notifications") } icon: { IconBadge(systemName: "bell.slash.fill", color: Theme.warning) }
+                }
+            }
+            row("Workout Reminder", "dumbbell.fill", Theme.lift, isOn: $workout, time: $workoutTime)
+            row("Not Logged Yet", "exclamationmark.circle.fill", .orange, isOn: $missed, time: $missedTime)
+            row("Daily Fun Fact", "sparkles", .purple, isOn: $fact, time: $factTime)
+            Toggle(isOn: $recap) {
+                Label { LabeledContent("Weekly Recap", value: "Sun 7 PM") } icon: { IconBadge(systemName: "chart.bar.fill", color: Theme.run) }
+            }
+            Toggle(isOn: $rest) {
+                Label { Text("Rest Over") } icon: { IconBadge(systemName: "timer", color: .orange) }
+            }
+        } header: {
+            Text("Notifications")
+        } footer: {
+            Text("Training days only. Skipped once you've logged it.")
+        }
+        .task { denied = await Notifier.isDenied() }
+        .onChange(of: [workout, missed, recap, fact, rest]) { _, new in apply(askIfNeeded: new.contains(true)) }
+        .onChange(of: [workoutTime, missedTime, factTime]) { apply(askIfNeeded: false) }
+    }
+
+    @ViewBuilder
+    private func row(_ title: String, _ icon: String, _ color: Color, isOn: Binding<Bool>, time: Binding<Int>) -> some View {
+        Toggle(isOn: isOn) {
+            Label { Text(title) } icon: { IconBadge(systemName: icon, color: color) }
+        }
+        if isOn.wrappedValue {
+            DatePicker("Time", selection: Binding(
+                get: { Calendar.current.startOfDay(for: .now).addingTimeInterval(TimeInterval(time.wrappedValue * 60)) },
+                set: { let c = Calendar.current.dateComponents([.hour, .minute], from: $0); time.wrappedValue = (c.hour ?? 0) * 60 + (c.minute ?? 0) }
+            ), displayedComponents: .hourAndMinute)
+            .padding(.leading, 46)
+        }
+    }
+
+    private func apply(askIfNeeded: Bool) {
+        let db = store.db, runs = connections.runs
+        Task {
+            if askIfNeeded { _ = await Notifier.requestPermission() }
+            denied = await Notifier.isDenied()
+            await Notifier.reschedule(db, runs: runs)
+        }
     }
 }

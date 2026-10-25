@@ -546,3 +546,56 @@ struct SpotifyAuthTests {
         #expect(!facts.contains { $0.contains("Boeing") })
     }
 }
+
+@Suite struct NotificationTests {
+    /// Mon lift (Upper A), Wed run, rest otherwise.
+    func snap() -> Snapshot {
+        var s = Snapshot(days: [Day(id: 1, name: "Upper A", focus: "")],
+                         exercises: [Exercise(id: "b", dayId: 1, order: 0, name: "Bench", sets: 1, weight: "200 lb", reps: "× 6",
+                                              loadType: .weight, updatedAt: 0)],
+                         programWeeks: [ProgramWeek(id: 1, phase: "", startDate: "2026-10-05", isDeload: false,
+                                                    slots: [ProgramSlot(dow: .mon, liftDayId: 1, run: nil),
+                                                            ProgramSlot(dow: .wed, liftDayId: nil, run: makeRun(.easy, minutes: 30, timing: .standalone))],
+                                                    updatedAt: 0)])
+        s.schema = 2
+        return s
+    }
+    // Monday Oct 26 2026, 6:00 AM local.
+    let now = DateKey.date("2026-10-26").addingTimeInterval(6 * 3600)
+
+    @Test func plansRemindersForTrainingDaysOnly() {
+        let p = Notifier.plan(snap(), runs: [], prefs: NotificationPrefs(), now: now)
+        let ids = p.map(\.id)
+        #expect(ids.contains("gt-workout-2026-10-26") && ids.contains("gt-missed-2026-10-26"))
+        #expect(ids.contains("gt-workout-2026-10-28"))            // Wednesday run
+        #expect(!ids.contains { $0.contains("2026-10-27") })       // Tuesday is rest
+        #expect(ids.contains("gt-recap-2026-11-01"))               // Sunday
+        #expect(!ids.contains { $0.hasPrefix("gt-fact") })         // off by default
+        #expect(p.first { $0.id == "gt-workout-2026-10-26" }?.title == "Upper A today")
+        #expect(p.first { $0.id == "gt-workout-2026-10-26" }?.body == "Shoot for Bench · 200 lb × 6.")
+    }
+
+    @Test func doneDaysAndPastTimesAreSkipped() {
+        var s = snap()
+        s.sessions.append(Session(id: "x", dayId: 1, date: "2026-10-26", startedAt: 0, finishedAt: 1, updatedAt: 0, type: .lift))
+        let late = DateKey.date("2026-10-28").addingTimeInterval(21 * 3600) // Wed 9 PM
+        let p = Notifier.plan(s, runs: [], prefs: NotificationPrefs(), now: late)
+        #expect(!p.contains { $0.id.contains("2026-10-26") || $0.id.contains("2026-10-28") })
+        let early = Notifier.plan(s, runs: [], prefs: NotificationPrefs(), now: now)
+        #expect(!early.contains { $0.id == "gt-workout-2026-10-26" })   // already logged
+    }
+
+    @Test func togglesAndTimesAreRespected() {
+        var prefs = NotificationPrefs()
+        prefs.workout = false; prefs.missed = false; prefs.recap = false
+        prefs.fact = true; prefs.factTime = 9 * 60 + 30
+        var s = snap()
+        s.sessions.append(Session(id: "y", dayId: 1, date: "2026-10-19", startedAt: 0, finishedAt: 1, updatedAt: 0, type: .lift))
+        s.sets.append(WorkoutSet(id: "y0", sessionId: "y", exerciseId: "b", exerciseName: "Bench", setIndex: 0,
+                                 weight: "200 lb", reps: "× 6", completedAt: 1, updatedAt: 0))
+        let p = Notifier.plan(s, runs: [], prefs: prefs, now: now)
+        #expect(p.count == 7 && p.allSatisfy { $0.id.hasPrefix("gt-fact") })
+        let c = DateKey.calendar.dateComponents([.hour, .minute], from: p[0].fireDate)
+        #expect(c.hour == 9 && c.minute == 30)
+    }
+}

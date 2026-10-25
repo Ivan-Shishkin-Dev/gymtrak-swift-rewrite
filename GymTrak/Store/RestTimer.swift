@@ -82,7 +82,7 @@ final class RestTimer {
         }
         UserDefaults.standard.set(["startedAt": startedAt.timeIntervalSince1970, "targetSec": targetSec], forKey: Self.activeKey)
         let left = remaining(at: Date())
-        guard left > 1 else { return }
+        guard left > 1, NotificationPrefs.current.rest else { return }
         let content = UNMutableNotificationContent()
         content.title = "Rest's up"
         content.body = "Time for the next set."

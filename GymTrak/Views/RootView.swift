@@ -35,7 +35,7 @@ struct RootView: View {
             if ProcessInfo.processInfo.arguments.contains("-holdLoading") { return }
             withAnimation(.easeInOut(duration: 0.4)) { loading = false }
             await connections.refresh()
-            WidgetBridge.publish(store.db, runs: connections.runs)
+            refreshOutputs()
         }
     }
 
@@ -78,15 +78,22 @@ struct RootView: View {
                 showSummary = true
             }
         }
-        .onChange(of: store.db.maxUpdatedAt) { WidgetBridge.publish(store.db, runs: connections.runs) }
-        .onChange(of: connections.runs.count) { WidgetBridge.publish(store.db, runs: connections.runs) }
+        .onChange(of: store.db.maxUpdatedAt) { refreshOutputs() }
+        .onChange(of: connections.runs.count) { refreshOutputs() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await connections.refresh() } }
-            if phase == .background { WidgetBridge.publish(store.db, runs: connections.runs) }
+            if phase == .background { refreshOutputs() }
         }
     }
 
     /// One bar above the tab bar while a workout is open: progress, rest, Resume.
+    /// Widgets and reminders follow the data.
+    private func refreshOutputs() {
+        WidgetBridge.publish(store.db, runs: connections.runs)
+        let db = store.db, runs = connections.runs
+        Task { await Notifier.reschedule(db, runs: runs) }
+    }
+
     @ViewBuilder private var dock: some View {
         if let open = store.db.openLift() {
             ResumeBanner(session: open) { nav.showWorkout = true }

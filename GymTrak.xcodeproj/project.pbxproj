@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1722343CEFEA463C858BC97F /* ExerciseHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */; };
 		1B9688E4388A591CF9B798B5 /* PlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C5A2741915293CDDE1B7DFA /* PlanView.swift */; };
+		1BA0B39500B53C25FF30C9A8 /* Notifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0AC1A3DE18E3A9ADE60597B /* Notifier.swift */; };
 		26B12830260B17C5B489D3BF /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A770C3F2D54C20078AF11BE7 /* LoadingView.swift */; };
 		28FC0A684EB65AC538EDFC98 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 096BDA360A99C6D009AE0D55 /* Models.swift */; };
 		2EF0F19D95DBBDCB8FEB8CCE /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED9FEFA66FBE1F68F31AC163 /* Store.swift */; };
@@ -95,6 +96,7 @@
 		8D8A0D2492763D47E688E900 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9684EC3870EF7C69871D5B8E /* RestBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestBar.swift; sourceTree = "<group>"; };
 		972035EEB2C47A17E43327D8 /* Coach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Coach.swift; sourceTree = "<group>"; };
+		A0AC1A3DE18E3A9ADE60597B /* Notifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Notifier.swift; sourceTree = "<group>"; };
 		A770C3F2D54C20078AF11BE7 /* LoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingView.swift; sourceTree = "<group>"; };
 		B4A76751019FB132D5513D1F /* Program.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Program.swift; sourceTree = "<group>"; };
 		B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistoryView.swift; sourceTree = "<group>"; };
@@ -108,7 +110,7 @@
 		ED9FEFA66FBE1F68F31AC163 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		F0BE589482F4E09EF006D1D7 /* GymTrak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GymTrak.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F7567A3CD8CDF775E5CBFEBF /* Spotify.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spotify.swift; sourceTree = "<group>"; };
-		"TEMP_7C686ED0-D9A1-431D-9425-DB41917307D7" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_AE16FB6E-6453-4602-AF83-F3D19A2CD0C6" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -132,6 +134,7 @@
 			isa = PBXGroup;
 			children = (
 				CE59531A26F3C74DB59C5E4C /* Connections.swift */,
+				A0AC1A3DE18E3A9ADE60597B /* Notifier.swift */,
 				39BDA911196A0C13FB2E8ADA /* RestTimer.swift */,
 				F7567A3CD8CDF775E5CBFEBF /* Spotify.swift */,
 				ED9FEFA66FBE1F68F31AC163 /* Store.swift */,
@@ -217,10 +220,10 @@
 			path = Widgets;
 			sourceTree = "<group>";
 		};
-		"TEMP_7D0CA819-B6BA-4349-9144-DDBC2B6FAA7E" /* gymtrak-swift-rewrite */ = {
+		"TEMP_8CC26692-F4AE-4D3A-A934-08FBDF5A598C" /* gymtrak-swift-rewrite */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_7C686ED0-D9A1-431D-9425-DB41917307D7" /* Config.xcconfig */,
+				"TEMP_AE16FB6E-6453-4602-AF83-F3D19A2CD0C6" /* Config.xcconfig */,
 			);
 			path = "gymtrak-swift-rewrite";
 			sourceTree = "<group>";
@@ -362,6 +365,7 @@
 				26B12830260B17C5B489D3BF /* LoadingView.swift in Sources */,
 				A2E79764A56247801C604AFE /* MediaBar.swift in Sources */,
 				28FC0A684EB65AC538EDFC98 /* Models.swift in Sources */,
+				1BA0B39500B53C25FF30C9A8 /* Notifier.swift in Sources */,
 				1B9688E4388A591CF9B798B5 /* PlanView.swift in Sources */,
 				86D71F68FB438DAEA933B58C /* Program.swift in Sources */,
 				DC686BACA7D314D6EA51795A /* RestBar.swift in Sources */,
@@ -585,7 +589,7 @@
 		};
 		C51B4C3A1A037D7EDB9E81F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_7C686ED0-D9A1-431D-9425-DB41917307D7" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_AE16FB6E-6453-4602-AF83-F3D19A2CD0C6" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -604,7 +608,7 @@
 		};
 		DE1DAE831E7778559F295B52 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_7C686ED0-D9A1-431D-9425-DB41917307D7" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_AE16FB6E-6453-4602-AF83-F3D19A2CD0C6" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
