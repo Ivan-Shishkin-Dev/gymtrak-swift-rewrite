@@ -105,6 +105,7 @@ struct DayDetailView: View {
     @Environment(Store.self) private var store
     @State private var name = ""
     @State private var focus = ""
+    @State private var historyTarget: Exercise?
 
     var body: some View {
         let db = store.db
@@ -117,11 +118,19 @@ struct DayDetailView: View {
                 }
                 Section("Exercises") {
                     ForEach(exercises) { ex in
-                        NavigationLink { ExerciseEditorView(exerciseId: ex.id) } label: {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(ex.name)
-                                Text(exerciseSummary(ex.rows)).font(.subheadline).foregroundStyle(.secondary)
+                        HStack {
+                            NavigationLink { ExerciseEditorView(exerciseId: ex.id) } label: {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(ex.name)
+                                    Text(exerciseSummary(ex.rows)).font(.subheadline).foregroundStyle(.secondary)
+                                }
                             }
+                            Button { historyTarget = ex } label: {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(Theme.lift)
+                            .accessibilityLabel("History")
                         }
                     }
                     .onDelete { idx in
@@ -145,6 +154,10 @@ struct DayDetailView: View {
             .toolbar { if store.canEdit { EditButton() } }
             .onAppear { name = day.name; focus = day.focus }
             .onDisappear(perform: saveDay)
+            .sheet(item: $historyTarget) { ex in
+                NavigationStack { ExerciseHistoryView(ex: ex) }
+                    .presentationDetents([.medium, .large])
+            }
         } else {
             ContentUnavailableView("Day not found", systemImage: "questionmark")
         }

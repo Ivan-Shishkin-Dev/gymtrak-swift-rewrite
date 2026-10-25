@@ -171,6 +171,17 @@ struct CoachTests {
         #expect(same.prs(sessionId: "s0").isEmpty) // first session has nothing to beat
     }
 
+    @Test func historyChartSkipsPinMachinesAndKeepsOrder() {
+        let history = [
+            LiftPerformance(date: "2026-10-01", deload: false, sets: [.init(weight: "200 lb", score: 200, reps: 6, target: 6)]),
+            LiftPerformance(date: "2026-10-08", deload: false, sets: [.init(weight: "Max", score: 10_000, reps: 8, target: 8)]),
+            LiftPerformance(date: "2026-10-15", deload: false, sets: [.init(weight: "205 lb", score: 205, reps: 6, target: 6)]),
+        ]
+        let points = ExerciseHistory.points(history)
+        #expect(points.map(\.load) == [200, 205])
+        #expect(points.first.map { DateKey.key($0.date) } == "2026-10-01")
+    }
+
     @Test func noHistoryKeepsWeight() {
         let a = db([]).liftAdvice(for: bench, today: today)
         #expect(a.kind == .new && a.steps == 0 && a.target == "200 lb × 6")

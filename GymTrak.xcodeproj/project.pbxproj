@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		16482615692237C8B250D086 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A02CD47867B3144223D08094 /* Supabase */; };
+		1722343CEFEA463C858BC97F /* ExerciseHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */; };
 		1B9688E4388A591CF9B798B5 /* PlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C5A2741915293CDDE1B7DFA /* PlanView.swift */; };
 		26B12830260B17C5B489D3BF /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A770C3F2D54C20078AF11BE7 /* LoadingView.swift */; };
 		28FC0A684EB65AC538EDFC98 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 096BDA360A99C6D009AE0D55 /* Models.swift */; };
@@ -61,6 +62,7 @@
 		972035EEB2C47A17E43327D8 /* Coach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Coach.swift; sourceTree = "<group>"; };
 		A770C3F2D54C20078AF11BE7 /* LoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingView.swift; sourceTree = "<group>"; };
 		B4A76751019FB132D5513D1F /* Program.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Program.swift; sourceTree = "<group>"; };
+		B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistoryView.swift; sourceTree = "<group>"; };
 		B9852C57291AC247289AFB11 /* Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Actions.swift; sourceTree = "<group>"; };
 		C85E1EE3AF6C4E833BC29146 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		CE59531A26F3C74DB59C5E4C /* Connections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connections.swift; sourceTree = "<group>"; };
@@ -70,7 +72,7 @@
 		EB1A96275B820FD5C193DC82 /* Load.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Load.swift; sourceTree = "<group>"; };
 		ED9FEFA66FBE1F68F31AC163 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		F0BE589482F4E09EF006D1D7 /* GymTrak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GymTrak.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_6C5359AA-5D8B-4A31-8EA5-2AC9D789CBF6" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_EF3F9F09-6E87-46CE-8548-79D9C8FE6675" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -149,6 +151,7 @@
 		E290277D1D3D46CE942D1CCC /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */,
 				2DA5A37017F06901DB8C32FE /* LoadEditorSheet.swift */,
 				A770C3F2D54C20078AF11BE7 /* LoadingView.swift */,
 				5C5A2741915293CDDE1B7DFA /* PlanView.swift */,
@@ -165,10 +168,10 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		"TEMP_8718C3B7-B1ED-46E9-A92F-AEA4FE854E15" /* gymtrak-swift-rewrite */ = {
+		"TEMP_CFA953A4-58CA-49D0-8671-487407D6D9EE" /* gymtrak-swift-rewrite */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_6C5359AA-5D8B-4A31-8EA5-2AC9D789CBF6" /* Config.xcconfig */,
+				"TEMP_EF3F9F09-6E87-46CE-8548-79D9C8FE6675" /* Config.xcconfig */,
 			);
 			path = "gymtrak-swift-rewrite";
 			sourceTree = "<group>";
@@ -283,6 +286,7 @@
 				F8E0067000377DE50E54E7A2 /* Actions.swift in Sources */,
 				CA21554E95C5303507506A75 /* Coach.swift in Sources */,
 				91AE3BD2ABADBDDA60B0CEB3 /* Connections.swift in Sources */,
+				1722343CEFEA463C858BC97F /* ExerciseHistoryView.swift in Sources */,
 				34FABD8E26490FD6B57AFE04 /* GymTrakApp.swift in Sources */,
 				688F959739EB02D5DFE1647C /* Load.swift in Sources */,
 				CEF8CA53CA813215ACDB514B /* LoadEditorSheet.swift in Sources */,
@@ -478,7 +482,7 @@
 		};
 		C51B4C3A1A037D7EDB9E81F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_6C5359AA-5D8B-4A31-8EA5-2AC9D789CBF6" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_EF3F9F09-6E87-46CE-8548-79D9C8FE6675" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -497,7 +501,7 @@
 		};
 		DE1DAE831E7778559F295B52 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_6C5359AA-5D8B-4A31-8EA5-2AC9D789CBF6" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_EF3F9F09-6E87-46CE-8548-79D9C8FE6675" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

@@ -16,6 +16,7 @@ struct WorkoutView: View {
     @State private var loadTarget: SetEdit?
     @State private var repsTarget: SetEdit?
     @State private var settingsTarget: Exercise?
+    @State private var historyTarget: Exercise?
     @State private var renaming: Exercise?
     @State private var nameDraft = ""
     @State private var tick = 0
@@ -110,6 +111,10 @@ struct WorkoutView: View {
         }
         .sheet(item: $settingsTarget) { ex in
             NavigationStack { ExerciseEditorView(exerciseId: ex.id, showsSets: false) }
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(item: $historyTarget) { ex in
+            NavigationStack { ExerciseHistoryView(ex: ex) }
                 .presentationDetents([.medium, .large])
         }
         .alert("Rename Exercise", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
@@ -368,16 +373,20 @@ struct WorkoutView: View {
                     }
                 } header: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack {
-                                Text(g.ex.name).font(.headline).foregroundStyle(.primary)
-                                if g.isDone { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.lift) }
+                        Button { historyTarget = g.ex } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text(g.ex.name).font(.headline).foregroundStyle(.primary)
+                                    if g.isDone { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.lift) }
+                                }
+                                let a = store.db.liftAdvice(for: g.ex, deload: session.deload ?? false, today: session.slotDate)
+                                Label(a.target + (a.range.map { "  ·  \($0)" } ?? ""), systemImage: a.icon)
+                                    .font(.caption).labelStyle(CoachLabelStyle())
                             }
-                            let a = store.db.liftAdvice(for: g.ex, deload: session.deload ?? false, today: session.slotDate)
-                            Label(a.target + (a.range.map { "  ·  \($0)" } ?? ""), systemImage: a.icon)
-                                .font(.caption).labelStyle(CoachLabelStyle())
+                            .textCase(nil)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .textCase(nil)
+                        .buttonStyle(.plain)
                         Spacer()
                         if store.canEdit { exerciseMenu(g.ex, session: session, index: i, count: groups.count) }
                     }
@@ -389,6 +398,7 @@ struct WorkoutView: View {
 
     private func exerciseMenu(_ ex: Exercise, session: Session, index: Int, count: Int) -> some View {
         Menu {
+            Button { historyTarget = ex } label: { Label("History", systemImage: "chart.line.uptrend.xyaxis") }
             Button { startRename(ex) } label: { Label("Rename", systemImage: "pencil") }
             Button { settingsTarget = ex } label: { Label("Settings", systemImage: "slider.horizontal.3") }
             Button { store.mutate { $0.moveExercise(ex.id, -1) } } label: { Label("Move Up", systemImage: "arrow.up") }
