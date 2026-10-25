@@ -1,0 +1,3 @@
+// Shared build settings. Supabase values come from Secrets.xcconfig (gitignored).
+// Copy Secrets.example.xcconfig to Secrets.xcconfig and fill it in to enable sync.
+#include? "Secrets.xcconfig"

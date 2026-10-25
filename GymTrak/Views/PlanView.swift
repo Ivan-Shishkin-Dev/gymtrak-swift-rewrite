@@ -1,0 +1,265 @@
+import SwiftUI
+
+/// The Plan: lift days and their exercises (the source of truth for loads), plus the schedule.
+struct PlanView: View {
+    @Environment(Store.self) private var store
+    @Environment(AppNav.self) private var nav
+    @State private var confirmDelete: Day?
+
+    var body: some View {
+        let db = store.db
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(db.activeDays) { day in
+                        NavigationLink(value: day.id) { dayRow(day) }
+                            .swipeActions {
+                                if store.canEdit {
+                                    Button("Delete", role: .destructive) { confirmDelete = day }
+                                    Button("Archive") { store.mutate { $0.archiveDay(day.id, true) } }.tint(Theme.amber)
+                                }
+                            }
+                    }
+                    .onMove { from, to in
+                        guard store.canEdit, let i = from.first else { return }
+                        let id = db.activeDays[i].id
+                        let steps = to > i ? to - i - 1 : to - i
+                        store.mutate { snap in
+                            for _ in 0..<abs(steps) { snap.moveDay(id, steps > 0 ? 1 : -1) }
+                        }
+                    }
+                    if store.canEdit {
+                        Button { store.mutate { $0.addDay() } } label: { Label("Add day", systemImage: "plus") }
+                    }
+                } header: { Text("Lift days") }
+
+                Section {
+                    NavigationLink { ScheduleView() } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Schedule")
+                                Text(scheduleSummary(db.weeks)).font(.caption).foregroundStyle(.secondary)
+                            }
+                        } icon: { Image(systemName: "calendar") }
+                    }
+                } header: { Text("Program") }
+
+                let archived = db.sortedDays.filter(\.isArchived)
+                if !archived.isEmpty {
+                    Section("Archived") {
+                        ForEach(archived) { day in
+                            HStack {
+                                Text(day.name).foregroundStyle(.secondary)
+                                Spacer()
+                                if store.canEdit {
+                                    Button("Restore") { store.mutate { $0.archiveDay(day.id, false) } }.buttonStyle(.borderless)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(Theme.bg)
+            .navigationTitle("Plan")
+            .navigationDestination(for: Int.self) { DayDetailView(dayId: $0) }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { if store.canEdit { EditButton() } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { nav.showSettings = true } label: { Image(systemName: "gearshape") }
+                }
+            }
+            .confirmationDialog("Delete \(confirmDelete?.name ?? "day")?", isPresented: Binding(
+                get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }), titleVisibility: .visible) {
+                Button("Delete day and its exercises", role: .destructive) {
+                    if let d = confirmDelete { store.mutate { $0.deleteDay(d.id) } }
+                }
+            } message: { Text("Past workouts are kept. Archive instead if you might want it back.") }
+        }
+    }
+
+    private func dayRow(_ day: Day) -> some View {
+        let count = store.db.exercises(of: day.id).count
+        let dows = store.db.weeks.first.map { w in w.slots.filter { $0.liftDayId == day.id }.map { $0.dow.short } } ?? []
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(day.name).font(.display(22))
+            Text([dows.joined(separator: ", "), "\(count) exercises", day.focus].filter { !$0.isEmpty }.joined(separator: " · "))
+                .font(.system(size: 13)).foregroundStyle(Theme.sub)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func scheduleSummary(_ weeks: [ProgramWeek]) -> String {
+        guard let first = weeks.first, let last = weeks.last else { return "No program" }
+        return "\(weeks.count) weeks · \(DateKey.label(first.startDate, "MMM d")) – \(DateKey.label(DateKey.addDays(last.startDate, 6), "MMM d"))"
+    }
+}
+
+// MARK: - Day detail
+
+struct DayDetailView: View {
+    let dayId: Int
+    @Environment(Store.self) private var store
+    @State private var name = ""
+    @State private var focus = ""
+
+    var body: some View {
+        let db = store.db
+        if let day = db.day(dayId) {
+            let exercises = db.exercises(of: dayId)
+            List {
+                Section("Day") {
+                    TextField("Name", text: $name).onSubmit(saveDay).disabled(!store.canEdit)
+                    TextField("Focus", text: $focus).onSubmit(saveDay).disabled(!store.canEdit)
+                }
+                Section("Exercises") {
+                    ForEach(exercises) { ex in
+                        NavigationLink { ExerciseEditorView(exerciseId: ex.id) } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(ex.name).font(.system(size: 15, weight: .semibold))
+                                Text(exerciseSummary(ex.rows)).font(.system(size: 12, design: .monospaced)).foregroundStyle(Theme.sub)
+                            }
+                        }
+                    }
+                    .onDelete { idx in
+                        let ids = idx.map { exercises[$0].id }
+                        store.mutate { snap in ids.forEach { snap.deleteExercise($0) } }
+                    }
+                    .onMove { from, to in
+                        guard let i = from.first else { return }
+                        let id = exercises[i].id
+                        let steps = to > i ? to - i - 1 : to - i
+                        store.mutate { snap in for _ in 0..<abs(steps) { snap.moveExercise(id, steps > 0 ? 1 : -1) } }
+                    }
+                    .deleteDisabled(!store.canEdit)
+                    .moveDisabled(!store.canEdit)
+                    if store.canEdit {
+                        Button { store.mutate { $0.addExercise(dayId: dayId) } } label: { Label("Add exercise", systemImage: "plus") }
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(Theme.bg)
+            .navigationTitle(day.name)
+            .toolbar { if store.canEdit { EditButton() } }
+            .onAppear { name = day.name; focus = day.focus }
+            .onDisappear(perform: saveDay)
+        } else {
+            ContentUnavailableView("Day not found", systemImage: "questionmark")
+        }
+    }
+
+    private func saveDay() {
+        guard let day = store.db.day(dayId) else { return }
+        let n = name.trimmingCharacters(in: .whitespaces)
+        if (!n.isEmpty && n != day.name) || focus != day.focus {
+            store.mutate { $0.updateDay(dayId, name: n.isEmpty ? nil : n, focus: focus) }
+        }
+    }
+}
+
+// MARK: - Exercise editor
+
+struct ExerciseEditorView: View {
+    let exerciseId: String
+    @Environment(Store.self) private var store
+    @State private var name = ""
+    @State private var loadEdit: Int?
+    @State private var repsEdit: Int?
+
+    var body: some View {
+        if let ex = store.db.exercises.first(where: { $0.id == exerciseId }) {
+            let rows = ex.rows
+            Form {
+                Section("Name") {
+                    TextField("Name", text: $name)
+                        .onSubmit { commitName() }
+                        .disabled(!store.canEdit)
+                }
+                Section {
+                    Picker("Load type", selection: Binding(get: { ex.effectiveLoadType }, set: { t in
+                        store.mutate { $0.updateExercise(exerciseId) { $0.loadType = t } }
+                    })) {
+                        ForEach(LoadType.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    .disabled(!store.canEdit)
+                } footer: { Text(loadTypeHelp(ex.effectiveLoadType)) }
+
+                Section("Sets") {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
+                        HStack {
+                            Text("Set \(i + 1)").foregroundStyle(.secondary).frame(width: 52, alignment: .leading)
+                            Button(row.weight.isEmpty ? "Add load" : row.weight) { loadEdit = i }
+                                .buttonStyle(.borderless).foregroundStyle(row.weight.isEmpty ? Theme.dim : Theme.text)
+                            Spacer()
+                            Button(row.reps.isEmpty ? "Reps" : row.reps) { repsEdit = i }
+                                .buttonStyle(.borderless).foregroundStyle(Theme.sub)
+                        }
+                        .disabled(!store.canEdit)
+                    }
+                    .onDelete { idx in
+                        var r = rows
+                        r.remove(atOffsets: idx)
+                        if !r.isEmpty { store.mutate { $0.setRows(exerciseId, r) } }
+                    }
+                    .deleteDisabled(!store.canEdit || rows.count <= 1)
+                    if store.canEdit {
+                        Button { store.mutate { $0.setRows(exerciseId, rows + [rows.last ?? SetRow(weight: "", reps: "× 6")]) } } label: {
+                            Label("Add set", systemImage: "plus")
+                        }
+                    }
+                }
+
+                Section("Workout") {
+                    Stepper(value: Binding(get: { ex.effectiveIncrement }, set: { v in
+                        store.mutate { $0.updateExercise(exerciseId) { $0.loadIncrement = v } }
+                    }), in: 0.5...50, step: ex.effectiveIncrement >= 5 ? 2.5 : 0.5) {
+                        LabeledContent("± step", value: fmtNum(ex.effectiveIncrement))
+                    }
+                    Stepper(value: Binding(get: { ex.restSeconds ?? 180 }, set: { v in
+                        store.mutate { $0.updateExercise(exerciseId) { $0.restSeconds = v } }
+                    }), in: 15...600, step: 15) {
+                        LabeledContent("Rest", value: fmtClock(Double(ex.restSeconds ?? 180)))
+                    }
+                }
+                .disabled(!store.canEdit)
+            }
+            .scrollContentBackground(.hidden)
+            .background(Theme.bg)
+            .navigationTitle(ex.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear { name = ex.name }
+            .onDisappear(perform: commitName)
+            .sheet(item: Binding(get: { loadEdit.map(IndexBox.init) }, set: { loadEdit = $0?.i })) { box in
+                LoadEditorSheet(title: "\(ex.name) · set \(box.i + 1)", loadType: ex.effectiveLoadType, initial: rows[box.i].weight) { w in
+                    var r = rows; r[box.i].weight = w
+                    store.mutate { $0.setRows(exerciseId, r) }
+                }
+            }
+            .sheet(item: Binding(get: { repsEdit.map(IndexBox.init) }, set: { repsEdit = $0?.i })) { box in
+                RepsEditorSheet(title: "\(ex.name) · set \(box.i + 1)", initial: rows[box.i].reps) { reps in
+                    var r = rows; r[box.i].reps = reps
+                    store.mutate { $0.setRows(exerciseId, r) }
+                }
+            }
+        }
+    }
+
+    private func commitName() {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        guard !n.isEmpty, n != store.db.exercises.first(where: { $0.id == exerciseId })?.name else { return }
+        store.mutate { $0.updateExercise(exerciseId) { $0.name = n } }
+    }
+
+    private func loadTypeHelp(_ t: LoadType) -> String {
+        switch t {
+        case .weight: "Free weights in pounds, e.g. 225 lb."
+        case .machine: "A pin level (12), pounds (120 lb), or Max with extra (Max + 10)."
+        case .plates: "Plates per side plus extra pounds, e.g. 5 pl + 25."
+        case .bodyweight: "BW, weighted (+70) or assisted (−25)."
+        case .free: "Anything else, written as you like."
+        }
+    }
+}
+
+private struct IndexBox: Identifiable { let i: Int; var id: Int { i } }

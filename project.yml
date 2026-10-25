@@ -16,13 +16,24 @@ targets:
     type: application
     platform: iOS
     sources: [GymTrak]
+    configFiles:
+      Debug: Config.xcconfig
+      Release: Config.xcconfig
+    info:
+      path: GymTrak/Info.plist
+      properties:
+        CFBundleDisplayName: GymTrak
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIApplicationSupportsIndirectInputEvents: true
+        SupabaseHost: $(SUPABASE_HOST)
+        SupabaseKey: $(SUPABASE_KEY)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.ivanshishkin.gymtrak
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
-        INFOPLIST_KEY_CFBundleDisplayName: GymTrak
+        GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
