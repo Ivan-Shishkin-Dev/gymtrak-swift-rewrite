@@ -1,44 +1,130 @@
 import SwiftUI
 
-/// What am I doing today? The lift can be started here; the run is described only
-/// (it's tracked on the watch).
+/// Home: today's workout up top, then this week. Tap a day to open it.
 struct TodayView: View {
     @Environment(Store.self) private var store
     @Environment(AppNav.self) private var nav
     @Environment(Connections.self) private var connections
-    @State private var selectedDow: Dow?
-    @State private var confirmDiscard = false
 
     var body: some View {
         let db = store.db
         let today = Date()
         let todayKey = DateKey.key(today)
-        let todayDow = DateKey.dow(today)
-        let dow = selectedDow ?? todayDow
 
         NavigationStack {
             List {
                 if let week = db.scheduleWeek(today) {
-                    daySections(week: week, dow: dow, todayKey: todayKey)
-                    weekSection(week, selected: dow, todayKey: todayKey)
+                    DaySections(week: week, dow: DateKey.dow(today), todayKey: todayKey)
+                    weekSection(week, todayKey: todayKey)
                 } else {
                     noProgramSection()
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle(todayDow.label)
+            .navigationTitle(DateKey.dow(today).label)
             .navigationSubtitle(DateKey.label(todayKey, "MMMM d"))
-            .toolbar {
-                if dow != todayDow {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Today") { withAnimation { selectedDow = nil } }
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) { SettingsButton() }
-            }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { SettingsButton() } }
+            .navigationDestination(for: String.self) { DayScreen(date: $0) }
             .refreshable { await store.sync() }
         }
     }
+
+    // MARK: The week
+
+    private func weekSection(_ week: ProgramWeek, todayKey: String) -> some View {
+        let db = store.db
+        let done = db.doneDates.union(connections.runDates)
+        return Section {
+            ForEach(Dow.allCases, id: \.self) { dow in
+                let slot = week.slot(dow)
+                let date = week.date(of: dow)
+                let dayName = db.day(slot?.liftDayId)?.name
+                NavigationLink(value: date) {
+                    HStack(spacing: 14) {
+                        VStack(spacing: 0) {
+                            Text(dow.short.uppercased()).font(.caption2.weight(.semibold))
+                            Text(DateKey.label(date, "d")).font(.title3.weight(.semibold)).monospacedDigit()
+                        }
+                        .frame(width: 36)
+                        .foregroundStyle(date == todayKey ? Theme.lift : .secondary)
+
+                        IconBadge(systemName: dayName != nil ? "dumbbell.fill" : slot?.run != nil ? "figure.run" : "moon.zzz.fill",
+                                  color: dayName != nil ? Theme.lift : slot?.run != nil ? Theme.run : Color(.systemGray3),
+                                  size: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            if let dayName {
+                                Text(dayName).foregroundStyle(.primary)
+                                if let run = slot?.run {
+                                    Text("+ \(run.durationMin) min run").font(.caption).foregroundStyle(Theme.run)
+                                }
+                            } else if let run = slot?.run {
+                                Text(run.label.rawValue).foregroundStyle(.primary)
+                                Text("\(run.durationMin) min").font(.caption).foregroundStyle(Theme.run)
+                            } else {
+                                Text("Rest").foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        if done.contains(date) {
+                            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.lift)
+                        }
+                    }
+                }
+                .listRowBackground(date == todayKey ? Theme.lift.opacity(0.2) : nil)
+            }
+        }
+    }
+
+    private func noProgramSection() -> some View {
+        Section {
+            ForEach(store.db.activeDays) { d in
+                Button {
+                    store.mutate { $0.startSession(day: d) }
+                    nav.showWorkout = true
+                } label: {
+                    Label(d.name, systemImage: "play.circle")
+                }
+                .disabled(!store.canEdit)
+            }
+        } header: {
+            Text("No schedule yet")
+        } footer: {
+            Text("Pick a workout.")
+        }
+    }
+}
+
+/// One day, full screen: "Tuesday / October 20" with a back button to home.
+struct DayScreen: View {
+    let date: String
+    @Environment(Store.self) private var store
+
+    var body: some View {
+        let d = DateKey.date(date)
+        List {
+            if let week = store.db.scheduleWeek(d) {
+                DaySections(week: week, dow: DateKey.dow(d), todayKey: DateKey.key(Date()), showExercises: true)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(DateKey.dow(d).label)
+        .navigationSubtitle(DateKey.label(date, "MMMM d"))
+        .navigationBarTitleDisplayMode(.large)
+    }
+}
+
+/// The hero card, exercises with coach targets, and the run for one weekday.
+struct DaySections: View {
+    let week: ProgramWeek
+    let dow: Dow
+    let todayKey: String
+    @State var showExercises = false
+    @Environment(Store.self) private var store
+    @Environment(AppNav.self) private var nav
+    @Environment(Connections.self) private var connections
+    @State private var confirmDiscard = false
+
+    var body: some View { daySections(week: week, dow: dow, todayKey: todayKey) }
 
     // MARK: The selected day
 
@@ -60,7 +146,7 @@ struct TodayView: View {
         Section {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text(isToday ? "Today" : "\(dow.label) · \(DateKey.label(date, "MMM d"))")
+                    Text(isToday ? "Today" : date < todayKey ? "Past" : "Upcoming")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(onHero.opacity(0.8))
                     Spacer()
@@ -97,7 +183,7 @@ struct TodayView: View {
 
         if !exercises.isEmpty {
             Section {
-                DisclosureGroup {
+                DisclosureGroup(isExpanded: $showExercises) {
                     ForEach(exercises) { ex in
                         let a = db.liftAdvice(for: ex, today: date)
                         VStack(alignment: .leading, spacing: 3) {
@@ -174,74 +260,6 @@ struct TodayView: View {
         .buttonStyle(.plain)
         .confirmationDialog("Discard other workout?", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("Discard and Start", role: .destructive) { proceed(day, week: week, date: date) }
-        }
-    }
-
-    // MARK: The week
-
-    private func weekSection(_ week: ProgramWeek, selected: Dow, todayKey: String) -> some View {
-        let db = store.db
-        let done = db.doneDates.union(connections.runDates)
-        return Section {
-            ForEach(Dow.allCases, id: \.self) { dow in
-                let slot = week.slot(dow)
-                let date = week.date(of: dow)
-                let dayName = db.day(slot?.liftDayId)?.name
-                Button {
-                    selectedDow = dow
-                } label: {
-                    HStack(spacing: 14) {
-                        VStack(spacing: 0) {
-                            Text(dow.short.uppercased()).font(.caption2.weight(.semibold))
-                            Text(DateKey.label(date, "d")).font(.title3.weight(.semibold)).monospacedDigit()
-                        }
-                        .frame(width: 36)
-                        .foregroundStyle(date == todayKey ? Theme.lift : .secondary)
-
-                        IconBadge(systemName: dayName != nil ? "dumbbell.fill" : slot?.run != nil ? "figure.run" : "moon.zzz.fill",
-                                  color: dayName != nil ? Theme.lift : slot?.run != nil ? Theme.run : Color(.systemGray3),
-                                  size: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let dayName {
-                                Text(dayName).foregroundStyle(.primary)
-                                if let run = slot?.run {
-                                    Text("+ \(run.durationMin) min run").font(.caption).foregroundStyle(Theme.run)
-                                }
-                            } else if let run = slot?.run {
-                                Text(run.label.rawValue).foregroundStyle(.primary)
-                                Text("\(run.durationMin) min").font(.caption).foregroundStyle(Theme.run)
-                            } else {
-                                Text("Rest").foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        if done.contains(date) {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.lift)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .listRowBackground(dow == selected ? Theme.lift.opacity(0.2) : nil)
-            }
-        }
-    }
-
-    private func noProgramSection() -> some View {
-        Section {
-            ForEach(store.db.activeDays) { d in
-                Button {
-                    store.mutate { $0.startSession(day: d) }
-                    nav.showWorkout = true
-                } label: {
-                    Label(d.name, systemImage: "play.circle")
-                }
-                .disabled(!store.canEdit)
-            }
-        } header: {
-            Text("No schedule yet")
-        } footer: {
-            Text("Pick a workout.")
         }
     }
 
