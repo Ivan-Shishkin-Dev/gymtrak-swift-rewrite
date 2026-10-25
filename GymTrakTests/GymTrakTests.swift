@@ -314,3 +314,72 @@ struct CoachTests {
         #expect(a.target == "40 min" && a.pace == "10:15–10:30 /mi")
     }
 }
+
+struct DotTests {
+    let today = DateKey.date("2026-10-25")
+
+    /// Mon lift, Wed run, Fri lift, every week from Oct 5 on.
+    func planned() -> Snapshot {
+        let week = ProgramWeek(id: 1, phase: "base", startDate: "2026-10-05", isDeload: false,
+                               slots: [ProgramSlot(dow: .mon, liftDayId: 1, run: nil),
+                                       ProgramSlot(dow: .wed, liftDayId: nil, run: makeRun(.easy, minutes: 25, timing: .standalone)),
+                                       ProgramSlot(dow: .fri, liftDayId: 1, run: nil)],
+                               updatedAt: 0)
+        return Snapshot(days: [Day(id: 1, name: "Upper A", focus: "")], programWeeks: [week])
+    }
+
+    func finish(_ s: inout Snapshot, _ dates: [String]) {
+        for (i, date) in dates.enumerated() {
+            s.sessions.append(Session(id: "d\(i)", dayId: 1, date: date, startedAt: 1, finishedAt: 2, updatedAt: 0, type: .lift))
+        }
+    }
+
+    @Test func finishedDaysShowAsDone() {
+        var s = planned()
+        finish(&s, ["2026-10-19", "2026-10-21", "2026-10-23"])
+        let dots = s.weekDots(ending: today)
+        #expect(dots.count == 7)
+        #expect(dots.filter { $0.state == .done }.count == 3)
+        #expect(dots.first?.date == "2026-10-19" && dots.first?.state == .done)
+        #expect(dots.last?.date == "2026-10-25" && dots.last?.state == .rest)
+    }
+
+    @Test func unfinishedPastDayIsMissed() {
+        var s = planned()
+        finish(&s, ["2026-10-19", "2026-10-23"])
+        #expect(s.weekDots(ending: today).filter { $0.state == .missed }.map(\.date) == ["2026-10-21"])
+    }
+
+    @Test func unfinishedTodayIsUpcoming() {
+        var s = planned()
+        finish(&s, ["2026-10-19", "2026-10-21"])
+        // Friday is today and not logged yet.
+        #expect(s.weekDots(ending: DateKey.date("2026-10-23")).last?.state == .upcoming)
+    }
+
+    @Test func runsLoggedOutsideSessionsCountAsDone() {
+        var s = planned()
+        finish(&s, ["2026-10-19", "2026-10-23"])
+        let dots = s.weekDots(ending: today, doneExtra: ["2026-10-21"])
+        #expect(dots.filter { $0.state == .missed }.isEmpty)
+    }
+
+    @Test func streakCountsCleanPastWeeks() {
+        var s = planned()
+        finish(&s, ["2026-10-05", "2026-10-07", "2026-10-09", "2026-10-12", "2026-10-14", "2026-10-16"])
+        // The current week is missed so far, but it does not count until it ends.
+        #expect(s.streakWeeks(today: today) == 2)
+    }
+
+    @Test func aMissInTheLastWeekStopsTheStreak() {
+        var s = planned()
+        finish(&s, ["2026-10-05", "2026-10-07", "2026-10-09", "2026-10-12", "2026-10-16"]) // Oct 14 missed
+        #expect(s.streakWeeks(today: today) == 0)
+    }
+
+    @Test func anOlderMissLeavesOnlyTheWeeksAfterIt() {
+        var s = planned()
+        finish(&s, ["2026-10-09", "2026-10-12", "2026-10-14", "2026-10-16"]) // Oct 5 and 7 missed
+        #expect(s.streakWeeks(today: today) == 1)
+    }
+}

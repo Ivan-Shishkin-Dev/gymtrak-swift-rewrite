@@ -173,6 +173,9 @@ struct DaySections: View {
                 if let liftDay {
                     startButton(liftDay, week: week, date: date, done: doneLift != nil)
                 }
+                if !showExercises {
+                    dotRow(onHero: onHero)
+                }
             }
             .padding(.vertical, 8)
             .listRowBackground(
@@ -260,6 +263,38 @@ struct DaySections: View {
         .buttonStyle(.plain)
         .confirmationDialog("Discard other workout?", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("Discard and Start", role: .destructive) { proceed(day, week: week, date: date) }
+        }
+    }
+
+    /// Last seven days as dots, with the streak. Home only.
+    private func dotRow(onHero: Color) -> some View {
+        let now = Date()
+        let doneExtra = connections.runDates
+        let dots = store.db.weekDots(ending: now, doneExtra: doneExtra)
+        let streak = store.db.streakWeeks(today: now, doneExtra: doneExtra)
+        return HStack(spacing: 8) {
+            ForEach(dots) { dot in
+                Circle()
+                    .fill(dotFill(dot.state, onHero: onHero))
+                    .overlay(Circle().strokeBorder(onHero.opacity(0.6), lineWidth: dot.state == .upcoming ? 1.5 : 0))
+                    .frame(width: 10, height: 10)
+            }
+            Spacer()
+            if streak >= 1 {
+                Text("\(streak) wk").font(.caption.weight(.semibold)).foregroundStyle(onHero.opacity(0.8))
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Last 7 days, \(dots.filter { $0.state == .done }.count) done")
+    }
+
+    /// Done uses the hero's own text color: the card is already Theme.lift in most accents, so a lift dot would vanish.
+    private func dotFill(_ state: DayDot.State, onHero: Color) -> Color {
+        switch state {
+        case .done: onHero
+        case .missed: .red.opacity(0.6)
+        case .rest: onHero.opacity(0.15)
+        case .upcoming: .clear
         }
     }
 

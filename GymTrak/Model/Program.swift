@@ -75,6 +75,46 @@ extension Snapshot {
         return w
     }
 
+    /// Days before the first program week are never scheduled.
+    private var programStart: String? { weeks.first?.startDate }
+
+    /// Where one local date stands. `doneExtra` holds dates done outside a session (Strava or Health runs).
+    func dotState(_ key: String, todayKey: String, doneExtra: Set<String>) -> DayDot.State {
+        if doneDates.contains(key) || doneExtra.contains(key) { return .done }
+        let date = DateKey.date(key)
+        let slot = scheduleWeek(date)?.slot(DateKey.dow(date))
+        guard let slot, !slot.isRest, let start = programStart, key >= start else { return .rest }
+        return key < todayKey ? .missed : .upcoming
+    }
+
+    /// The last seven days, oldest first, ending on `today`.
+    func weekDots(ending today: Date, doneExtra: Set<String> = []) -> [DayDot] {
+        let todayKey = DateKey.key(today)
+        return (0..<7).reversed().map { back in
+            let key = DateKey.addDays(todayKey, -back)
+            return DayDot(date: key, state: dotState(key, todayKey: todayKey, doneExtra: doneExtra))
+        }
+    }
+
+    /// Consecutive Mon–Sun weeks with no missed day, counted back from last week.
+    /// The current week only counts once it ends.
+    func streakWeeks(today: Date, doneExtra: Set<String> = []) -> Int {
+        guard let start = programStart else { return 0 }
+        let todayKey = DateKey.key(today)
+        var monday = DateKey.mondayKey(today)
+        var count = 0
+        while true {
+            monday = DateKey.addDays(monday, -7)
+            guard monday >= start else { break }
+            let clean = (0..<7).allSatisfy { offset in
+                dotState(DateKey.addDays(monday, offset), todayKey: todayKey, doneExtra: doneExtra) != .missed
+            }
+            guard clean else { break }
+            count += 1
+        }
+        return count
+    }
+
     /// Save the weekly schedule as the only week.
     mutating func saveSchedule(_ week: ProgramWeek, now: EpochMs = nowMs()) {
         var w = week
@@ -84,6 +124,14 @@ extension Snapshot {
         w.updatedAt = now
         programWeeks = [w]
     }
+}
+
+/// One day on the home dots row.
+struct DayDot: Identifiable, Hashable, Sendable {
+    enum State: Sendable { case done, missed, rest, upcoming }
+    let date: String
+    let state: State
+    var id: String { date }
 }
 
 /// The program week containing `d`, or nil when it falls outside the program.
