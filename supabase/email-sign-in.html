@@ -1,0 +1,63 @@
+<!-- GymTrak sign-in email. Paste into Supabase → Authentication → Emails → "Magic Link" and "Confirm signup".
+     Subject: Your GymTrak sign-in link 💪 -->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+<title>Sign in to GymTrak</title>
+</head>
+<body style="margin:0;padding:0;background:#000000;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#000000;">
+  <tr>
+    <td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:440px;background:#1C1C1E;border-radius:28px;border:1px solid #2C2C2E;">
+        <tr>
+          <td align="center" style="padding:44px 32px 8px 32px;">
+            <!-- Logo: the app icon, served from the public repo -->
+            <img src="https://raw.githubusercontent.com/Ivan-Shishkin-Dev/gymtrak-swift-rewrite/main/supabase/email-logo.png"
+                 width="88" height="88" alt="GymTrak"
+                 style="display:block;width:88px;height:88px;border-radius:20px;border:1px solid #3A3A3C;">
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:20px 32px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <div style="font-size:30px;font-weight:800;letter-spacing:-0.5px;color:#FFFFFF;">GymTrak</div>
+            <div style="padding-top:10px;font-size:17px;line-height:24px;color:#A1A1A6;">Tap below to sign in and get lifting.</div>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:32px 32px 12px 32px;">
+            <!-- Big button -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td align="center" style="border-radius:999px;background:#F2F2F4;">
+                  <a href="{{ .ConfirmationURL }}" target="_blank"
+                     style="display:block;padding:20px 24px;border-radius:999px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;color:#000000;text-decoration:none;">
+                    Sign In to GymTrak&nbsp;&nbsp;→
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:12px 32px 40px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:19px;color:#6E6E73;">
+            Open this on the iPhone with GymTrak.<br>Link expires in 1 hour.
+          </td>
+        </tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:440px;">
+        <tr>
+          <td align="center" style="padding:20px 16px 0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#48484A;">
+            Didn't ask for this? Ignore it.
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
