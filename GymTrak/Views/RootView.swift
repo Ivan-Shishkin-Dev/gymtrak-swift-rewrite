@@ -72,7 +72,7 @@ struct RootView: View {
             if nav.reopenAfterSummary { nav.reopenAfterSummary = false; nav.showWorkout = true }
         }) {
             if let id = nav.completed?.sessionId {
-                WorkoutSummaryView(sessionId: id)
+                WorkoutSummaryView(sessionId: id).environment(nav)
                     .presentationDetents([.medium, .large])
                     .tint(Theme.lift)
             }
