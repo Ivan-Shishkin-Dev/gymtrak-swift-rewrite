@@ -1,18 +1,19 @@
 import SwiftUI
 
 /// Spotify controls docked above the bottom bar on the workout screen.
-/// No client ID: one disabled row. Not connected: Connect. Connected: track, play/pause, skip.
+/// No client ID: hidden. Not connected: Connect. Connected: track, play/pause, skip.
 struct MediaBar: View {
     @Environment(Spotify.self) private var spotify
     @Environment(\.webAuthenticationSession) private var webAuth
 
     var body: some View {
+        // Hidden until a client ID exists; Settings says "Needs client ID" instead.
+        if spotify.configured { bar }
+    }
+
+    private var bar: some View {
         Group {
-            if !spotify.configured {
-                Label("Spotify: add client ID", systemImage: "music.note")
-                    .font(.subheadline).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else if !spotify.connected {
+            if !spotify.connected {
                 HStack {
                     Label("Spotify", systemImage: "music.note").font(.subheadline.weight(.semibold))
                     Spacer()

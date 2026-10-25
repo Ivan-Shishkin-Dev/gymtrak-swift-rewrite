@@ -360,6 +360,16 @@ struct DotTests {
         #expect(s.weekDots(ending: today).filter { $0.state == .missed }.map(\.date) == ["2026-10-21"])
     }
 
+    @Test func savingTheScheduleKeepsPastDotsAndStreak() {
+        var s = planned()
+        finish(&s, ["2026-10-05", "2026-10-07", "2026-10-09", "2026-10-12", "2026-10-14", "2026-10-16", "2026-10-19", "2026-10-23"])
+        #expect(s.streakWeeks(today: today) == 2)
+        // Editing the schedule moves its startDate to this Monday; history must not turn into rest days.
+        s.saveSchedule(s.scheduleTemplate!)
+        #expect(s.streakWeeks(today: today) == 2)
+        #expect(s.weekDots(ending: today).filter { $0.state == .missed }.map(\.date) == ["2026-10-21"])
+    }
+
     @Test func unfinishedTodayIsUpcoming() {
         var s = planned()
         finish(&s, ["2026-10-19", "2026-10-21"])

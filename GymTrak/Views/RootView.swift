@@ -8,6 +8,8 @@ final class AppNav {
     var showSettings = false
     /// Set right after finishing; opens the finish summary sheet.
     var completed: (sessionId: String, label: String)?
+    /// "Undo finish" on the summary: reopen the workout once the sheet is gone.
+    var reopenAfterSummary = false
 }
 
 struct RootView: View {
@@ -65,7 +67,10 @@ struct RootView: View {
         .sheet(isPresented: $nav.showSettings) {
             SettingsView().tint(Theme.lift)
         }
-        .sheet(isPresented: $showSummary, onDismiss: { nav.completed = nil }) {
+        .sheet(isPresented: $showSummary, onDismiss: {
+            nav.completed = nil
+            if nav.reopenAfterSummary { nav.reopenAfterSummary = false; nav.showWorkout = true }
+        }) {
             if let id = nav.completed?.sessionId {
                 WorkoutSummaryView(sessionId: id)
                     .presentationDetents([.medium, .large])

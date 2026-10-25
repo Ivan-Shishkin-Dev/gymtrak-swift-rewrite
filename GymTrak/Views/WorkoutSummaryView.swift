@@ -5,6 +5,7 @@ struct WorkoutSummaryView: View {
     let sessionId: String
     @Environment(Store.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppNav.self) private var nav
 
     var body: some View {
         let db = store.db
@@ -22,6 +23,10 @@ struct WorkoutSummaryView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(title).font(.largeTitle.bold())
                         Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                    }
+
+                    if done.isEmpty {
+                        Text("Nothing logged.").foregroundStyle(.secondary)
                     }
 
                     if !prs.isEmpty {
@@ -58,6 +63,7 @@ struct WorkoutSummaryView: View {
                     }
                 }
                 .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 12) {
@@ -70,6 +76,7 @@ struct WorkoutSummaryView: View {
                     }
                     Button("Undo finish") {
                         store.mutate { $0.reopenSession(sessionId) }
+                        nav.reopenAfterSummary = true
                         dismiss()
                     }
                     .font(.subheadline).foregroundStyle(.secondary)

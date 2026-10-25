@@ -75,8 +75,12 @@ extension Snapshot {
         return w
     }
 
-    /// Days before the first program week are never scheduled.
-    private var programStart: String? { weeks.first?.startDate }
+    /// Days before the program (or the first logged session) are never "missed".
+    /// `saveSchedule` moves the week's startDate to this Monday, so the earliest session keeps history alive.
+    private var programStart: String? {
+        let firstSession = sessions.filter { $0.finishedAt != nil && !$0.isDeleted }.map(\.slotDate).min()
+        return [weeks.first?.startDate, firstSession].compactMap { $0 }.min()
+    }
 
     /// Where one local date stands. `doneExtra` holds dates done outside a session (Strava or Health runs).
     func dotState(_ key: String, todayKey: String, doneExtra: Set<String>) -> DayDot.State {
