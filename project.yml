@@ -4,6 +4,10 @@ options:
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.55.0
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -15,7 +19,12 @@ targets:
   GymTrak:
     type: application
     platform: iOS
-    sources: [GymTrak]
+    sources:
+      - path: GymTrak
+        excludes: [GymTrak.entitlements]
+    dependencies:
+      - package: Supabase
+        product: Supabase
     configFiles:
       Debug: Config.xcconfig
       Release: Config.xcconfig
@@ -28,6 +37,14 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSupportsIndirectInputEvents: true
+        CFBundleURLTypes:
+          - CFBundleURLName: dev.ivanshishkin.gymtrak
+            CFBundleURLSchemes: [gymtrak]
+        NSHealthShareUsageDescription: GymTrak reads your runs and heart rate to tick off run days.
+        NSHealthUpdateUsageDescription: GymTrak saves your lifts to Apple Health.
+        HealthEnabled: $(HEALTH_ENABLED)
+        StravaClientID: $(STRAVA_CLIENT_ID)
+        StravaClientSecret: $(STRAVA_CLIENT_SECRET)
         SupabaseHost: $(SUPABASE_HOST)
         SupabaseKey: $(SUPABASE_KEY)
     settings:

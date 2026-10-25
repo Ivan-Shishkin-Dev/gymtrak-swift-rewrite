@@ -18,8 +18,29 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>dev.ivanshishkin.gymtrak</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>gymtrak</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>HealthEnabled</key>
+	<string>$(HEALTH_ENABLED)</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>GymTrak reads your runs and heart rate to tick off run days.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>GymTrak saves your lifts to Apple Health.</string>
+	<key>StravaClientID</key>
+	<string>$(STRAVA_CLIENT_ID)</string>
+	<key>StravaClientSecret</key>
+	<string>$(STRAVA_CLIENT_SECRET)</string>
 	<key>SupabaseHost</key>
 	<string>$(SUPABASE_HOST)</string>
 	<key>SupabaseKey</key>

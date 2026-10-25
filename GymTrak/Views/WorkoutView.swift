@@ -7,6 +7,7 @@ struct WorkoutView: View {
     @Environment(Store.self) private var store
     @Environment(RestTimer.self) private var rest
     @Environment(AppNav.self) private var nav
+    @Environment(Connections.self) private var connections
     @Environment(\.dismiss) private var dismiss
 
     @State private var mode = Mode.current
@@ -427,6 +428,8 @@ struct WorkoutView: View {
     private func finish(session: Session, day: Day) {
         rest.stop()
         store.mutate { $0.finishSession(session.id) }
+        let start = Date(timeIntervalSince1970: session.startedAt / 1000)
+        Task { await connections.saveLift(start: start, end: Date()) }
         nav.completed = (session.id, day.name)
         dismiss()
     }

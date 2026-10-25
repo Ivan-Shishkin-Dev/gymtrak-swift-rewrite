@@ -1,11 +1,14 @@
 import SwiftUI
+import AuthenticationServices
 
-/// Edit code, sync, rest timer, program dates, data backup, and app info.
+/// Account, connections, sync, rest timer, program dates, data backup, and app info.
 struct SettingsView: View {
     @Environment(Store.self) private var store
     @Environment(RestTimer.self) private var rest
+    @Environment(Connections.self) private var connections
+    @Environment(\.webAuthenticationSession) private var webAuth
     @Environment(\.dismiss) private var dismiss
-    @State private var code = ""
+    @State private var confirmSignOut = false
     @State private var startMonday = Date()
     @State private var confirmReanchor = false
     @State private var confirmReset = false
@@ -26,6 +29,7 @@ struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
                 accessSection
+                connectionsSection
                 syncSection
                 Section("Rest timer") {
                     Stepper(value: Binding(get: { rest.defaultSec }, set: { rest.setDefault($0) }),
@@ -53,22 +57,70 @@ struct SettingsView: View {
     // MARK: Sections
 
     @ViewBuilder private var accessSection: some View {
-        Section {
-            if store.canEdit {
-                Label { Text("Editing On") } icon: { IconBadge(systemName: "lock.open.fill", color: Theme.lift) }
-                Button("Lock", role: .destructive) { store.lock() }
+        Section("Account") {
+            if let email = store.email {
+                Label { Text(email) } icon: { IconBadge(systemName: "person.fill", color: Theme.lift) }
+                Button("Sign Out", role: .destructive) { confirmSignOut = true }
+                    .confirmationDialog("Sign out?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+                        Button("Sign Out", role: .destructive) { Task { await store.signOut(); dismiss() } }
+                    } message: { Text("Your data stays in your account.") }
             } else {
-                SecureField("Edit code", text: $code).keyboardType(.numberPad)
-                Button("Unlock") {
-                    store.unlock(code: code)
-                    code = ""
+                Label { Text("Demo mode") } icon: { IconBadge(systemName: "person.fill", color: .gray) }
+            }
+        }
+    }
+
+    @ViewBuilder private var connectionsSection: some View {
+        Section {
+            HStack {
+                Label { Text("Strava") } icon: { IconBadge(systemName: "figure.run", color: .orange) }
+                Spacer()
+                if connections.stravaConnected {
+                    Text(connections.stravaAthlete ?? "Connected").foregroundStyle(.secondary)
+                } else {
+                    Button("Connect") { Task { await connectStrava() } }
+                        .disabled(!connections.stravaConfigured)
                 }
-                .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .swipeActions { if connections.stravaConnected { Button("Disconnect", role: .destructive) { connections.disconnectStrava() } } }
+            HStack {
+                Label { Text("Apple Health") } icon: { IconBadge(systemName: "heart.fill", color: .pink) }
+                Spacer()
+                if connections.healthConnected {
+                    Text("Connected").foregroundStyle(.secondary)
+                } else if connections.healthAvailable {
+                    Button("Connect") { Task { await connections.connectHealth() } }
+                } else {
+                    Text("Needs paid account").font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .swipeActions { if connections.healthConnected { Button("Disconnect", role: .destructive) { connections.disconnectHealth() } } }
+            if connections.stravaConnected || connections.healthConnected {
+                Button { Task { await connections.refresh() } } label: {
+                    HStack {
+                        Text("Refresh Runs")
+                        Spacer()
+                        if connections.refreshing { ProgressView() } else { Text("\(connections.runs.count)").foregroundStyle(.secondary) }
+                    }
+                }
+            }
+            if let error = connections.lastError {
+                Text(error).font(.footnote).foregroundStyle(Theme.warning)
             }
         } header: {
-            Text("Access")
+            Text("Connections")
         } footer: {
-            if !store.canEdit { Text("Needed to make changes.") }
+            if !connections.stravaConfigured { Text("Add your Strava API keys to Secrets.xcconfig to connect.") }
+        }
+    }
+
+    private func connectStrava() async {
+        guard let url = connections.stravaAuthURL else { return }
+        do {
+            let callback = try await webAuth.authenticate(using: url, callbackURLScheme: Connections.stravaCallbackScheme)
+            await connections.finishStrava(callback: callback)
+        } catch {
+            // Cancelled by the user: nothing to do.
         }
     }
 

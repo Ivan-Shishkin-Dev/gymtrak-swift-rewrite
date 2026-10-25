@@ -13,13 +13,18 @@ final class AppNav {
 struct RootView: View {
     @Environment(Store.self) private var store
     @Environment(RestTimer.self) private var rest
+    @Environment(Connections.self) private var connections
     @Environment(\.scenePhase) private var scenePhase
     @State private var nav = AppNav()
     @State private var loading = true
 
     var body: some View {
         ZStack {
-            tabs
+            if store.canEdit || store.supabase == nil {
+                tabs
+            } else if !loading {
+                SignInView().transition(.opacity)
+            }
             if loading {
                 LoadingView().transition(.opacity.combined(with: .scale(scale: 1.05)))
             }
@@ -37,6 +42,7 @@ struct RootView: View {
             if ProcessInfo.processInfo.arguments.contains("-holdLoading") { return }
             withAnimation(.easeInOut(duration: 0.4)) { loading = false }
             await sync.value
+            await connections.refresh()
         }
     }
 
@@ -59,7 +65,7 @@ struct RootView: View {
         }
         .overlay(alignment: .top) { CompletionToast().environment(nav) }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await store.sync() } }
+            if phase == .active { Task { await store.sync(); await connections.refresh() } }
         }
     }
 

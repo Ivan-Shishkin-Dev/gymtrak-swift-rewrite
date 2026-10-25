@@ -5,6 +5,7 @@ import SwiftUI
 struct TodayView: View {
     @Environment(Store.self) private var store
     @Environment(AppNav.self) private var nav
+    @Environment(Connections.self) private var connections
     @State private var viewWeekId: Int?
     @State private var selectedDow: Dow?
     @State private var confirmDiscard = false
@@ -137,6 +138,16 @@ struct TodayView: View {
                 }
                 .padding(.vertical, 4)
                 .listRowBackground(Theme.run.opacity(0.14))
+                if let done = connections.run(on: date) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Done · \(done.summary)").font(.subheadline.weight(.semibold))
+                            Text(done.source == .strava ? "From Strava · \(done.name)" : "From Apple Health")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    } icon: { IconBadge(systemName: "checkmark", color: Theme.run, size: 28) }
+                    .listRowBackground(Theme.run.opacity(0.14))
+                }
             } header: {
                 Label(liftDay != nil ? "Then Run" : "Run", systemImage: "figure.run").foregroundStyle(Theme.run)
             }
@@ -172,7 +183,7 @@ struct TodayView: View {
     private func weekSection(_ week: ProgramWeek, weeks: [ProgramWeek], onTodayWeek: Bool,
                              notStarted: Bool, selected: Dow, todayKey: String) -> some View {
         let db = store.db
-        let done = db.doneDates
+        let done = db.doneDates.union(connections.runDates)
         return Section {
             ForEach(Dow.allCases, id: \.self) { dow in
                 let slot = week.slot(dow)
@@ -284,6 +295,7 @@ struct TodayView: View {
 struct SettingsButton: View {
     @Environment(Store.self) private var store
     @Environment(AppNav.self) private var nav
+    @Environment(Connections.self) private var connections
 
     var body: some View {
         Button { nav.showSettings = true } label: {
