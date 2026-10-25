@@ -128,4 +128,3 @@ Each brief is self-contained. Read the named files first. Rules for every brief:
 - Home-screen widget "Today: Upper A" with a Start deep link (widget extension target + App Group for the JSON).
 - Rest-timer Live Activity on the lock screen (ActivityKit, same extension).
 - Strava app + Apple Health (paid team), then install on the phone.
-- Paste `supabase/email-sign-in.html` into Supabase when accounts go live.
