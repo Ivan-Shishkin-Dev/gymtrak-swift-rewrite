@@ -1,26 +1,28 @@
 import SwiftUI
 
-/// The live workout: a set-by-set focus view, an overview of every exercise, and an
-/// edit mode for changing the workout's structure.
+/// The live workout. "Current Set" shows one set at a time with big +/− controls;
+/// "All Sets" lists every exercise. Tap a set to tick it; swipe to delete it; use an
+/// exercise's ••• menu to rename, retype or remove it.
 struct WorkoutView: View {
     @Environment(Store.self) private var store
     @Environment(RestTimer.self) private var rest
     @Environment(AppNav.self) private var nav
     @Environment(\.dismiss) private var dismiss
 
-    @State private var focusMode = true
-    @State private var editing = false
-    @State private var expanded: Set<String> = []
+    @State private var mode = Mode.current
     @State private var confirmFinish = false
     @State private var confirmDiscard = false
     @State private var loadTarget: SetEdit?
     @State private var repsTarget: SetEdit?
+    @State private var settingsTarget: Exercise?
     @State private var renaming: Exercise?
     @State private var nameDraft = ""
     @State private var tick = 0
 
+    enum Mode: String, CaseIterable { case current = "Set", all = "All" }
+
     struct SetEdit: Identifiable { let row: WorkoutSet; let ex: Exercise; var id: String { row.id } }
-    struct Group: Identifiable {
+    struct ExGroup: Identifiable {
         let ex: Exercise
         let sets: [WorkoutSet]
         var id: String { ex.id }
@@ -32,99 +34,67 @@ struct WorkoutView: View {
         if let session = db.sessions.first(where: { $0.isOpen && !$0.isRun }), let day = db.day(session.dayId) {
             content(session: session, day: day)
         } else {
-            Color(Theme.bg).ignoresSafeArea().onAppear { dismiss() }
+            Color(.systemGroupedBackground).ignoresSafeArea().onAppear { dismiss() }
+        }
+    }
+
+    private func groups(_ session: Session, _ day: Day) -> [ExGroup] {
+        let sets = store.db.sets(of: session.id)
+        return store.db.exercises(of: day.id).compactMap { ex in
+            let s = sets.filter { $0.exerciseId == ex.id }.sorted { $0.setIndex < $1.setIndex }
+            return s.isEmpty ? nil : ExGroup(ex: ex, sets: s)
         }
     }
 
     // MARK: Layout
 
     private func content(session: Session, day: Day) -> some View {
-        let db = store.db
-        let sessionSets = db.sets(of: session.id)
-        let groups = db.exercises(of: day.id).compactMap { ex -> Group? in
-            let s = sessionSets.filter { $0.exerciseId == ex.id }.sorted { $0.setIndex < $1.setIndex }
-            return s.isEmpty ? nil : Group(ex: ex, sets: s)
-        }
-        let ordered = groups.flatMap { g in g.sets.map { (set: $0, ex: g.ex) } }
-        let pending = ordered.filter { !$0.set.isDone }
+        let groups = groups(session, day)
+        let pending = groups.flatMap { g in g.sets.filter { !$0.isDone }.map { (row: $0, ex: g.ex) } }
         let active = pending.first
-        let done = sessionSets.filter(\.isDone).count
-        let total = sessionSets.count
-        let showFocus = focusMode && !editing
+        let total = groups.reduce(0) { $0 + $1.sets.count }
+        let done = total - pending.count
+        let allDone = total > 0 && done == total
 
-        return VStack(spacing: 0) {
-            header(session: session, day: day, done: done, total: total)
-            ProgressView(value: total == 0 ? 0 : Double(done), total: Double(max(total, 1)))
-                .tint(Theme.volt).padding(.horizontal, 20).padding(.bottom, 6)
+        return decorate(NavigationStack {
+            page(session: session, day: day, groups: groups, active: active, next: pending.dropFirst().first,
+                 total: total, done: done, allDone: allDone)
+        }, session: session, day: day, total: total, done: done)
+    }
 
-            ScrollView {
-                VStack(spacing: 12) {
-                    if !editing && !groups.isEmpty {
-                        Picker("View", selection: $focusMode) {
-                            Text("Current set").tag(true)
-                            Text("Overview").tag(false)
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                    if !store.canEdit || editing {
-                        Text(store.canEdit ? "Editing: reorder, rename, change type, add or remove sets and exercises."
-                                           : "Viewing a live workout (read only).")
-                            .font(.system(size: 12)).foregroundStyle(Theme.faint)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    if showFocus, let active, let group = groups.first(where: { $0.ex.id == active.ex.id }) {
-                        let next = pending.dropFirst().first
-                        FocusSetView(
-                            ex: group.ex, sets: group.sets, current: active.set, canEdit: store.canEdit,
-                            next: next.map { n in
-                                let num = (groups.first { $0.ex.id == n.ex.id }?.sets.firstIndex { $0.id == n.set.id } ?? 0) + 1
-                                return (n.ex.id == group.ex.id ? "set \(num)" : n.ex.name) + " · \(n.set.weight.isEmpty ? "—" : n.set.weight) × \(bareReps(n.set.reps))"
-                            },
-                            onStepLoad: { stepLoad(active.set, ex: group.ex, $0) },
-                            onStepReps: { stepReps(active.set, $0) },
-                            onEditWeight: { loadTarget = SetEdit(row: active.set, ex: group.ex) },
-                            onEditReps: { repsTarget = SetEdit(row: active.set, ex: group.ex) },
-                            onChip: { toggle($0, ex: group.ex) })
-                    }
-                    if showFocus && total > 0 && done == total {
-                        VStack(spacing: 6) {
-                            Text("All \(total) sets done").font(.display(26))
-                            Text("Finish to save loads to the Plan for next time.").font(.system(size: 13.5)).foregroundStyle(Theme.sub)
-                        }
-                        .frame(maxWidth: .infinity).padding(.vertical, 28).card(padding: 0)
-                    }
-
-                    if !showFocus {
-                        ForEach(groups.filter { !$0.isDone || editing }) { g in
-                            exerciseCard(g, session: session, groups: groups)
-                        }
-                        if editing {
-                            Button {
-                                let id = store.mutate { $0.addExerciseToSession(session.id, dayId: day.id) }
-                                if let id, let ex = store.db.exercises.first(where: { $0.id == id }) { startRename(ex) }
-                            } label: { Label("Add exercise", systemImage: "plus") }
-                            .buttonStyle(DashedButtonStyle())
-                            Button("Discard workout", role: .destructive) { confirmDiscard = true }
-                                .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Theme.red).padding(8)
-                        } else {
-                            donePile(groups.filter(\.isDone), session: session, groups: groups)
-                        }
-                    }
+    private func page(session: Session, day: Day, groups: [ExGroup], active: (row: WorkoutSet, ex: Exercise)?,
+                      next: (row: WorkoutSet, ex: Exercise)?, total: Int, done: Int, allDone: Bool) -> some View {
+            SwiftUI.Group {
+                if mode == .current {
+                    currentSetPage(groups: groups, active: active, next: next, allDone: allDone, total: total)
+                } else {
+                    allSetsList(groups: groups, session: session, day: day, activeId: active?.row.id)
                 }
-                .padding(.horizontal, 20).padding(.top, 6).padding(.bottom, 24)
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                VStack(spacing: 10) {
+                    ProgressView(value: Double(done), total: Double(max(total, 1))).tint(Theme.lift)
+                    Picker("View", selection: $mode) {
+                        ForEach(Mode.allCases, id: \.self) { Text($0.rawValue) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.horizontal).padding(.bottom, 8)
+                .background(.bar)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: 0) {
+                    if rest.isActive { RestBar() }
+                    if store.canEdit { bottomBar(active: mode == .current ? active : nil, allDone: allDone) }
+                }
+            }
+            .navigationTitle(day.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { toolbar(session: session, day: day, done: done, total: total) }
+    }
 
-            if rest.isActive || (store.canEdit && !editing && !showFocus) {
-                RestBar(canStart: store.canEdit && !editing && !showFocus)
-            }
-            if store.canEdit && !editing && ((showFocus && active != nil) || done > 0) {
-                footer(active: showFocus ? active : nil, allDone: total > 0 && done == total)
-            }
-        }
-        .background(Theme.bg.ignoresSafeArea())
-        .foregroundStyle(Theme.text)
-        .preferredColorScheme(.dark)
+    private func decorate<V: View>(_ v: V, session: Session, day: Day, total: Int, done: Int) -> some View {
+        v
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true; RestTimer.requestPermission() }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         .sheet(item: $loadTarget) { t in
@@ -137,7 +107,11 @@ struct WorkoutView: View {
                 store.mutate { $0.updateSetLoad(t.row.id, weight: t.row.weight, reps: r) }
             }
         }
-        .alert("Rename exercise", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+        .sheet(item: $settingsTarget) { ex in
+            NavigationStack { ExerciseEditorView(exerciseId: ex.id, showsSets: false) }
+                .presentationDetents([.medium, .large])
+        }
+        .alert("Rename Exercise", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Name", text: $nameDraft)
             Button("Save") {
                 let text = nameDraft.trimmingCharacters(in: .whitespaces)
@@ -148,9 +122,9 @@ struct WorkoutView: View {
         }
         .confirmationDialog("Finish workout?", isPresented: $confirmFinish, titleVisibility: .visible) {
             Button("Finish") { finish(session: session, day: day) }
-            Button("Keep going", role: .cancel) {}
+            Button("Keep Going", role: .cancel) {}
         } message: {
-            Text("\(total - done) sets aren't ticked. Their planned loads stay as they were.")
+            Text("\(total - done) sets left.")
         }
         .confirmationDialog("Discard this workout?", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("Discard", role: .destructive) {
@@ -158,208 +132,259 @@ struct WorkoutView: View {
                 store.mutate { $0.discardSession(session.id) }
                 dismiss()
             }
-        } message: { Text("Nothing from this session is saved. This can't be undone.") }
+        }
         .sensoryFeedback(.success, trigger: tick)
     }
 
-    private func header(session: Session, day: Day, done: Int, total: Int) -> some View {
+    @ToolbarContentBuilder
+    private func toolbar(session: Session, day: Day, done: Int, total: Int) -> some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button { dismiss() } label: { Image(systemName: "chevron.down") }
+                .accessibilityLabel("Minimize workout")
+        }
+        ToolbarItem(placement: .principal) {
+            VStack(spacing: 0) {
+                Text(day.name).font(.headline)
+                TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                    Text("\(fmtClock(ctx.date.timeIntervalSince1970 - session.startedAt / 1000)) · \(done) of \(total) sets")
+                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
+        }
+        if store.canEdit {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        let id = store.mutate { $0.addExerciseToSession(session.id, dayId: day.id) }
+                        if let id, let ex = store.db.exercises.first(where: { $0.id == id }) {
+                            mode = .all
+                            startRename(ex)
+                        }
+                    } label: { Label("Add Exercise", systemImage: "plus") }
+                    Button { rest.start() } label: { Label("Rest Timer", systemImage: "timer") }
+                    Divider()
+                    Button(role: .destructive) { confirmDiscard = true } label: {
+                        Label("Discard Workout", systemImage: "trash")
+                    }
+                } label: { Image(systemName: "ellipsis.circle") }
+            }
+        }
+    }
+
+    private func bottomBar(active: (row: WorkoutSet, ex: Exercise)?, allDone: Bool) -> some View {
         HStack(spacing: 12) {
-            Button { dismiss() } label: {
-                Image(systemName: "chevron.down").font(.system(size: 15, weight: .semibold))
-                    .frame(width: 40, height: 40)
-                    .background(Theme.card, in: Circle()).overlay(Circle().strokeBorder(Theme.pillBorder))
-            }
-            .accessibilityLabel("Back")
-            VStack(alignment: .leading, spacing: 1) {
-                Text(day.name).font(.display(27))
-                Text("\(day.focus.isEmpty ? "" : "\(day.focus) · ")\(done) of \(total) sets")
-                    .font(.system(size: 12.5)).foregroundStyle(Theme.sub).lineLimit(1)
-            }
-            Spacer()
-            if store.canEdit {
-                Button(editing ? "Done" : "Edit") { withAnimation(.snappy) { editing.toggle() } }
-                    .buttonStyle(PillButtonStyle(active: editing))
-            }
-            TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                Text(fmtClock(ctx.date.timeIntervalSince1970 - session.startedAt / 1000))
-                    .font(.display(18, weight: .semibold)).monospacedDigit()
-                    .padding(.horizontal, 14).frame(height: 36)
-                    .background(Theme.card, in: Capsule()).overlay(Capsule().strokeBorder(Theme.pillBorder))
-            }
-        }
-        .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 12)
-    }
-
-    private func footer(active: (set: WorkoutSet, ex: Exercise)?, allDone: Bool) -> some View {
-        HStack(spacing: 10) {
             if let active {
-                Button { toggle(active.set, ex: active.ex) } label: { Label("Done set", systemImage: "checkmark") }
-                    .buttonStyle(VoltButtonStyle())
+                Button { toggle(active.row, ex: active.ex) } label: {
+                    Label("Done", systemImage: "checkmark").font(.headline).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent).tint(Theme.lift)
             }
-            Button("Finish") { allDone ? finishNow() : (confirmFinish = true) }
-                .buttonStyle(VoltButtonStyle(quiet: !allDone))
-                .frame(maxWidth: active == nil ? .infinity : 120)
+            Button { allDone ? finish() : (confirmFinish = true) } label: {
+                Text("Finish").font(.headline).frame(maxWidth: active == nil ? .infinity : nil)
+                    .padding(.horizontal, active == nil ? 0 : 12)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(allDone ? Theme.lift : Color(.systemGray5))
+            .foregroundStyle(allDone ? .white : .primary)
         }
-        .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 6)
-        .background(Theme.bg.opacity(0.92))
-        .overlay(alignment: .top) { Rectangle().fill(Theme.cardBorder).frame(height: 1) }
+        .controlSize(.large)
+        .padding(.horizontal).padding(.vertical, 10)
+        .background(.bar)
     }
 
-    // MARK: Overview cards
+    // MARK: Current Set
 
-    private func exerciseCard(_ g: Group, session: Session, groups: [Group]) -> some View {
-        let idx = groups.firstIndex { $0.id == g.id } ?? 0
-        let firstPending = groups.flatMap(\.sets).first { !$0.isDone }?.id
-        return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                if editing {
-                    Button { store.mutate { $0.moveExercise(g.ex.id, -1) } } label: { Image(systemName: "chevron.up") }
-                        .disabled(idx == 0)
-                    Button { store.mutate { $0.moveExercise(g.ex.id, 1) } } label: { Image(systemName: "chevron.down") }
-                        .disabled(idx == groups.count - 1)
-                }
-                Text(g.ex.name).font(.system(size: 15, weight: .semibold))
-                    .onTapGesture { if editing { startRename(g.ex) } }
-                Spacer()
-                if editing {
-                    Button(role: .destructive) {
-                        store.mutate { $0.removeExerciseFromSession(session.id, exerciseId: g.ex.id) }
-                    } label: { Image(systemName: "trash") }
-                    .foregroundStyle(Theme.faint)
-                } else if g.isDone {
-                    Button { expanded.remove(g.ex.id) } label: { Image(systemName: "chevron.up") }.foregroundStyle(Theme.dim)
-                }
-            }
-            .font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.text)
-            .padding(.top, 10).padding(.bottom, 4)
+    @ViewBuilder
+    private func currentSetPage(groups: [ExGroup], active: (row: WorkoutSet, ex: Exercise)?,
+                                next: (row: WorkoutSet, ex: Exercise)?, allDone: Bool, total: Int) -> some View {
+        if let active, let group = groups.first(where: { $0.ex.id == active.ex.id }) {
+            let index = (group.sets.firstIndex { $0.id == active.row.id } ?? 0) + 1
+            ScrollView {
+                VStack(spacing: 28) {
+                    VStack(spacing: 6) {
+                        Text(group.ex.name).font(.title.bold()).multilineTextAlignment(.center)
+                        Text("Set \(index) of \(group.sets.count)").font(.headline).foregroundStyle(.secondary)
+                        setDots(group.sets, current: active.row.id)
+                    }
 
-            if editing {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(LoadType.allCases, id: \.self) { t in
-                            Button(t.label) { store.mutate { $0.updateExercise(g.ex.id) { $0.loadType = t } } }
-                                .buttonStyle(PillButtonStyle(active: g.ex.effectiveLoadType == t, height: 26))
+                    VStack(spacing: 14) {
+                        valueRow(label: "Weight",
+                                 value: active.row.weight.isEmpty ? "—" : active.row.weight,
+                                 canStep: store.canEdit && group.ex.effectiveLoadType != .free,
+                                 onStep: { stepLoad(active.row, ex: group.ex, $0) },
+                                 onTap: { loadTarget = SetEdit(row: active.row, ex: group.ex) })
+                        valueRow(label: "Reps",
+                                 value: bareReps(active.row.reps).isEmpty ? "—" : bareReps(active.row.reps),
+                                 canStep: store.canEdit && (bareReps(active.row.reps).isEmpty || Int(bareReps(active.row.reps)) != nil),
+                                 onStep: { stepReps(active.row, $0) },
+                                 onTap: { repsTarget = SetEdit(row: active.row, ex: group.ex) })
+                    }
+
+                    if let next {
+                        let nextIndex = (groups.first { $0.ex.id == next.ex.id }?.sets.firstIndex { $0.id == next.row.id } ?? 0) + 1
+                        VStack(spacing: 2) {
+                            Text("Next").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                            Text(next.ex.id == group.ex.id ? "Set \(nextIndex)" : next.ex.name).font(.subheadline.weight(.semibold))
+                            Text("\(next.row.weight.isEmpty ? "—" : next.row.weight) × \(bareReps(next.row.reps))")
+                                .font(.subheadline).foregroundStyle(.secondary)
                         }
                     }
                 }
-                .padding(.vertical, 6)
+                .padding(.horizontal, 20).padding(.vertical, 28)
+                .frame(maxWidth: .infinity)
             }
-
-            ForEach(Array(g.sets.enumerated()), id: \.element.id) { i, st in
-                setRow(st, number: i + 1, ex: g.ex, isActive: st.id == firstPending, canRemove: g.sets.count > 1)
+            .background(Color(.systemGroupedBackground))
+        } else {
+            ContentUnavailableView {
+                Label(allDone ? "All Done" : "No Sets", systemImage: allDone ? "checkmark.circle.fill" : "dumbbell")
+            } description: {
+                Text(allDone ? "Tap Finish." : "Add one from •••")
             }
-
-            if editing {
-                Button { store.mutate { $0.addSetToSession(session.id, exerciseId: g.ex.id) } } label: {
-                    Label("Add set", systemImage: "plus")
-                }
-                .buttonStyle(DashedButtonStyle()).padding(.top, 6)
-                HStack(spacing: 8) {
-                    settingField("Load step", value: fmtNum(g.ex.effectiveIncrement)) { v in
-                        if let d = Double(v), d >= 0.5 { store.mutate { $0.updateExercise(g.ex.id) { $0.loadIncrement = d } } }
-                    }
-                    settingField("Rest seconds", value: String(g.ex.restSeconds ?? rest.defaultSec)) { v in
-                        if let s = Int(v), s >= 15 { store.mutate { $0.updateExercise(g.ex.id) { $0.restSeconds = s } } }
-                    }
-                }
-                .padding(.top, 8)
-            }
+            .symbolRenderingMode(.multicolor)
+            .background(Color(.systemGroupedBackground))
         }
-        .padding(.horizontal, 18).padding(.bottom, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.cardBorder))
     }
 
-    private func setRow(_ st: WorkoutSet, number: Int, ex: Exercise, isActive: Bool, canRemove: Bool) -> some View {
-        let live = isActive && !editing
-        return HStack(spacing: 12) {
-            Text("SET \(number)").font(.system(size: 10.5, design: .monospaced)).tracking(0.8)
-                .foregroundStyle(live ? Theme.volt : Theme.dim).frame(width: 46, alignment: .leading)
-            HStack(spacing: 6) {
-                if live && store.canEdit && ex.effectiveLoadType != .free {
-                    miniStep("minus") { stepLoad(st, ex: ex, -1) }
+    /// One dot per set: filled when done, ringed for the current one. Tap a done dot to undo it.
+    private func setDots(_ sets: [WorkoutSet], current: String) -> some View {
+        HStack(spacing: 8) {
+            ForEach(sets) { s in
+                Button { toggle(s, ex: nil) } label: {
+                    Circle()
+                        .fill(s.isDone ? Theme.lift : Color(.systemGray4))
+                        .frame(width: 10, height: 10)
+                        .overlay(Circle().stroke(Theme.lift, lineWidth: 2).frame(width: 16, height: 16).opacity(s.id == current ? 1 : 0))
+                        .frame(width: 22, height: 22)
                 }
-                Text(st.weight.isEmpty ? "—" : st.weight).font(.display(22, weight: .semibold)).monospacedDigit()
-                    .onTapGesture { if store.canEdit { loadTarget = SetEdit(row: st, ex: ex) } }
-                if live && store.canEdit && ex.effectiveLoadType != .free {
-                    miniStep("plus") { stepLoad(st, ex: ex, 1) }
-                }
-            }
-            Spacer()
-            Text(st.reps).font(.display(18, weight: .semibold)).foregroundStyle(Theme.sub).monospacedDigit()
-                .onTapGesture { if store.canEdit { repsTarget = SetEdit(row: st, ex: ex) } }
-            if editing {
-                Button { store.mutate { $0.removeSet(st.id) } } label: {
-                    Image(systemName: "minus").font(.system(size: 11, weight: .bold)).frame(width: 28, height: 28)
-                        .overlay(Circle().strokeBorder(Color.white.opacity(0.22), lineWidth: 1.5))
-                }
-                .foregroundStyle(Theme.faint).disabled(!canRemove).opacity(canRemove ? 1 : 0.3)
-            } else {
-                Image(systemName: st.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 24)).foregroundStyle(st.isDone ? Theme.volt : Color.white.opacity(0.22))
+                .buttonStyle(.plain)
+                .disabled(!s.isDone || !store.canEdit)
+                .accessibilityLabel(s.isDone ? "Undo set" : s.id == current ? "Current set" : "Set")
             }
         }
-        .frame(height: 46)
-        .padding(.horizontal, 10).padding(.horizontal, -10)
-        .background(live ? Theme.voltTint : .clear, in: RoundedRectangle(cornerRadius: 12))
-        .opacity(st.isDone && !editing ? 0.45 : 1)
-        .contentShape(Rectangle())
-        .onTapGesture { if !editing { toggle(st, ex: ex) } }
+        .padding(.top, 4)
     }
 
-    private func miniStep(_ icon: String, action: @escaping () -> Void) -> some View {
+    private func valueRow(label: String, value: String, canStep: Bool,
+                          onStep: @escaping (Int) -> Void, onTap: @escaping () -> Void) -> some View {
+        HStack {
+            stepButton("minus", label: "Less \(label.lowercased())", enabled: canStep) { onStep(-1) }
+            Button(action: onTap) {
+                VStack(spacing: 2) {
+                    Text(value).font(.number(44, weight: .bold)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(.primary)
+                    Text(label).font(.footnote.weight(.medium)).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .disabled(!store.canEdit)
+            .accessibilityHint("Tap to type a value")
+            stepButton("plus", label: "More \(label.lowercased())", enabled: canStep) { onStep(1) }
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func stepButton(_ icon: String, label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: icon).font(.system(size: 12, weight: .bold)).frame(width: 28, height: 28)
-                .background(Theme.bg, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.pillBorder))
+            Image(systemName: icon).font(.title2.weight(.semibold)).frame(width: 52, height: 52)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.circle)
+        .tint(.primary)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0)
+        .accessibilityLabel(label)
     }
 
-    private func settingField(_ label: String, value: String, commit: @escaping (String) -> Void) -> some View {
-        SettingField(label: label, initial: value, commit: commit)
-    }
+    // MARK: All Sets
 
-    private func donePile(_ done: [Group], session: Session, groups: [Group]) -> some View {
-        VStack(spacing: 12) {
-            if !done.isEmpty {
-                HStack(spacing: 10) {
-                    Text("DONE · \(done.count)").eyebrow(Theme.faint)
-                    Rectangle().fill(Theme.separator).frame(height: 1)
-                }
-                .padding(.top, 8)
-            }
-            ForEach(done) { g in
-                if expanded.contains(g.ex.id) {
-                    exerciseCard(g, session: session, groups: groups)
-                } else {
-                    Button { expanded.insert(g.ex.id) } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "checkmark").font(.system(size: 12, weight: .heavy)).foregroundStyle(Theme.onVolt)
-                                .frame(width: 24, height: 24).background(Theme.volt, in: Circle())
-                            Text(g.ex.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.sub)
-                            Spacer()
-                            Text("\(g.sets.count) \(g.sets.count == 1 ? "set" : "sets")")
-                                .font(.system(size: 12, design: .monospaced)).foregroundStyle(Theme.dim)
-                        }
-                        .card(radius: 16, padding: 14, border: Theme.voltTint)
+    private func allSetsList(groups: [ExGroup], session: Session, day: Day, activeId: String?) -> some View {
+        List {
+            ForEach(Array(groups.enumerated()), id: \.element.id) { i, g in
+                Section {
+                    ForEach(Array(g.sets.enumerated()), id: \.element.id) { n, st in
+                        setRow(st, number: n + 1, ex: g.ex, isActive: st.id == activeId)
+                            .swipeActions {
+                                if store.canEdit && g.sets.count > 1 {
+                                    Button("Delete", role: .destructive) { store.mutate { $0.removeSet(st.id) } }
+                                }
+                            }
                     }
-                    .buttonStyle(.plain)
+                    if store.canEdit {
+                        Button { store.mutate { $0.addSetToSession(session.id, exerciseId: g.ex.id) } } label: {
+                            Label("Add Set", systemImage: "plus")
+                        }
+                    }
+                } header: {
+                    HStack {
+                        Text(g.ex.name).font(.headline).foregroundStyle(.primary).textCase(nil)
+                        if g.isDone { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.lift) }
+                        Spacer()
+                        if store.canEdit { exerciseMenu(g.ex, session: session, index: i, count: groups.count) }
+                    }
                 }
             }
         }
+        .listStyle(.insetGrouped)
+    }
+
+    private func exerciseMenu(_ ex: Exercise, session: Session, index: Int, count: Int) -> some View {
+        Menu {
+            Button { startRename(ex) } label: { Label("Rename", systemImage: "pencil") }
+            Button { settingsTarget = ex } label: { Label("Settings", systemImage: "slider.horizontal.3") }
+            Button { store.mutate { $0.moveExercise(ex.id, -1) } } label: { Label("Move Up", systemImage: "arrow.up") }
+                .disabled(index == 0)
+            Button { store.mutate { $0.moveExercise(ex.id, 1) } } label: { Label("Move Down", systemImage: "arrow.down") }
+                .disabled(index == count - 1)
+            Divider()
+            Button(role: .destructive) {
+                store.mutate { $0.removeExerciseFromSession(session.id, exerciseId: ex.id) }
+            } label: { Label("Remove", systemImage: "trash") }
+        } label: {
+            Image(systemName: "ellipsis.circle").font(.title3)
+        }
+        .textCase(nil)
+    }
+
+    private func setRow(_ st: WorkoutSet, number: Int, ex: Exercise, isActive: Bool) -> some View {
+        HStack(spacing: 14) {
+            Button { toggle(st, ex: ex) } label: {
+                Image(systemName: st.isDone ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundStyle(st.isDone ? Theme.lift : isActive ? Theme.lift : Color(.systemGray3))
+            }
+            .buttonStyle(.borderless)
+            .disabled(!store.canEdit)
+            .accessibilityLabel(st.isDone ? "Mark set \(number) not done" : "Mark set \(number) done")
+
+            Text("Set \(number)").foregroundStyle(.secondary).frame(width: 50, alignment: .leading)
+
+            Button(st.weight.isEmpty ? "—" : st.weight) { loadTarget = SetEdit(row: st, ex: ex) }
+                .buttonStyle(.borderless)
+                .font(.number(20))
+                .foregroundStyle(st.weight.isEmpty ? .secondary : .primary)
+                .disabled(!store.canEdit)
+            Spacer()
+            Button(st.reps.isEmpty ? "Reps" : st.reps) { repsTarget = SetEdit(row: st, ex: ex) }
+                .buttonStyle(.borderless)
+                .font(.number(17))
+                .foregroundStyle(.secondary)
+                .disabled(!store.canEdit)
+        }
+        .padding(.vertical, 4)
+        .listRowBackground(isActive ? Theme.lift.opacity(0.12) : nil)
+        .opacity(st.isDone ? 0.55 : 1)
     }
 
     // MARK: Actions
 
-    private func toggle(_ st: WorkoutSet, ex: Exercise) {
-        guard store.canEdit, !editing else { return }
-        expanded.remove(ex.id)
+    private func toggle(_ st: WorkoutSet, ex: Exercise?) {
+        guard store.canEdit else { return }
         let nowDone = store.mutate { $0.toggleSet(st.id) } ?? false
         if nowDone {
             tick += 1
-            rest.start(ex.restSeconds)
+            let restSec = (ex ?? store.db.exercises.first { $0.id == st.exerciseId })?.restSeconds
+            rest.start(restSec)
         }
     }
 
@@ -369,7 +394,8 @@ struct WorkoutView: View {
     }
 
     private func stepReps(_ st: WorkoutSet, _ dir: Int) {
-        guard let n = Int(bareReps(st.reps)) else { return }
+        let bare = bareReps(st.reps)
+        guard let n = bare.isEmpty ? 0 : Int(bare) else { return }
         store.mutate { $0.updateSetLoad(st.id, weight: st.weight, reps: "× \(max(0, n + dir))") }
     }
 
@@ -378,7 +404,7 @@ struct WorkoutView: View {
         renaming = ex
     }
 
-    private func finishNow() {
+    private func finish() {
         let db = store.db
         guard let session = db.sessions.first(where: { $0.isOpen && !$0.isRun }), let day = db.day(session.dayId) else { return }
         finish(session: session, day: day)
@@ -389,129 +415,5 @@ struct WorkoutView: View {
         store.mutate { $0.finishSession(session.id) }
         nav.completed = (session.id, day.name)
         dismiss()
-    }
-}
-
-/// A small numeric field that commits when editing ends.
-private struct SettingField: View {
-    let label: String
-    let initial: String
-    let commit: (String) -> Void
-    @State private var text = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(Theme.sub)
-            TextField("", text: $text)
-                .keyboardType(.decimalPad)
-                .font(.system(size: 14, weight: .semibold))
-                .padding(.horizontal, 10).frame(height: 34)
-                .background(Theme.bg, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.pillBorder))
-                .onSubmit { commit(text) }
-                .onChange(of: text) { _, v in commit(v) }
-        }
-        .onAppear { text = initial }
-    }
-}
-
-/// The set to do now, large, with steppers for load and reps.
-struct FocusSetView: View {
-    let ex: Exercise
-    let sets: [WorkoutSet]
-    let current: WorkoutSet
-    let canEdit: Bool
-    let next: String?
-    let onStepLoad: (Int) -> Void
-    let onStepReps: (Int) -> Void
-    let onEditWeight: () -> Void
-    let onEditReps: () -> Void
-    let onChip: (WorkoutSet) -> Void
-
-    var body: some View {
-        let index = sets.firstIndex { $0.id == current.id } ?? 0
-        let reps = bareReps(current.reps)
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(ex.name).font(.display(26))
-                Text("SET \(index + 1) OF \(sets.count)").font(.system(size: 11.5, design: .monospaced)).tracking(1.1).foregroundStyle(Theme.volt)
-            }
-            FlowChips(sets: sets, current: current, canEdit: canEdit, onChip: onChip)
-            stepper(canStep: canEdit && ex.effectiveLoadType != .free, onStep: onStepLoad) {
-                Button(action: onEditWeight) {
-                    Text(current.weight.isEmpty ? "—" : current.weight)
-                        .font(.display(current.weight.count > 7 ? 32 : 44)).monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.6)
-                }
-                .disabled(!canEdit)
-            }
-            stepper(canStep: canEdit && Int(reps) != nil, onStep: onStepReps) {
-                Button(action: onEditReps) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(reps.isEmpty ? "—" : reps).font(.display(34)).monospacedDigit()
-                        Text("reps").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.sub)
-                    }
-                }
-                .disabled(!canEdit)
-            }
-            if let next {
-                Text("Next: \(next)").font(.system(size: 13)).foregroundStyle(Theme.sub).frame(maxWidth: .infinity)
-            }
-        }
-        .foregroundStyle(Theme.text)
-        .card(padding: 18)
-    }
-
-    private func stepper<V: View>(canStep: Bool, onStep: @escaping (Int) -> Void, @ViewBuilder value: () -> V) -> some View {
-        HStack(spacing: 12) {
-            stepButton("minus", enabled: canStep) { onStep(-1) }
-            value().buttonStyle(.plain).frame(maxWidth: .infinity, minHeight: 56)
-            stepButton("plus", enabled: canStep) { onStep(1) }
-        }
-    }
-
-    private func stepButton(_ icon: String, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon).font(.system(size: 22, weight: .medium))
-                .frame(width: 56, height: 56)
-                .background(Theme.bg, in: RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.pillBorder))
-        }
-        .buttonStyle(.plain)
-        .opacity(enabled ? 1 : 0)
-        .disabled(!enabled)
-        .sensoryFeedback(.selection, trigger: current.weight + current.reps)
-    }
-}
-
-/// Set chips — progress through the exercise; tapping a done chip unticks it.
-private struct FlowChips: View {
-    let sets: [WorkoutSet]
-    let current: WorkoutSet
-    let canEdit: Bool
-    let onChip: (WorkoutSet) -> Void
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(sets) { s in
-                    let isCurrent = s.id == current.id
-                    Button { onChip(s) } label: {
-                        HStack(spacing: 4) {
-                            if s.isDone { Image(systemName: "checkmark").font(.system(size: 10, weight: .heavy)) }
-                            Text("\(s.weight.isEmpty ? "—" : s.weight) × \(bareReps(s.reps))").monospacedDigit()
-                        }
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .padding(.horizontal, 10).frame(minWidth: 64, minHeight: 44)
-                        .foregroundStyle(s.isDone ? Theme.volt : isCurrent ? Theme.text : Theme.faint)
-                        .background(s.isDone ? Theme.voltTint : .clear, in: RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(s.isDone || isCurrent ? Theme.volt : Theme.pillBorder, lineWidth: 1.5))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!s.isDone || !canEdit)
-                }
-            }
-        }
     }
 }

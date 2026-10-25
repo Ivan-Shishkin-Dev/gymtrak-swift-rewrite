@@ -10,7 +10,6 @@ struct GymTrakApp: App {
             RootView()
                 .environment(store)
                 .environment(rest)
-                .preferredColorScheme(.dark)
         }
     }
 }

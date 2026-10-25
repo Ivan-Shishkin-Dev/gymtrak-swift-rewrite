@@ -16,7 +16,7 @@ struct PlanView: View {
                             .swipeActions {
                                 if store.canEdit {
                                     Button("Delete", role: .destructive) { confirmDelete = day }
-                                    Button("Archive") { store.mutate { $0.archiveDay(day.id, true) } }.tint(Theme.amber)
+                                    Button("Archive") { store.mutate { $0.archiveDay(day.id, true) } }.tint(Theme.warning)
                                 }
                             }
                     }
@@ -59,8 +59,6 @@ struct PlanView: View {
                     }
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Theme.bg)
             .navigationTitle("Plan")
             .navigationDestination(for: Int.self) { DayDetailView(dayId: $0) }
             .toolbar {
@@ -71,10 +69,10 @@ struct PlanView: View {
             }
             .confirmationDialog("Delete \(confirmDelete?.name ?? "day")?", isPresented: Binding(
                 get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }), titleVisibility: .visible) {
-                Button("Delete day and its exercises", role: .destructive) {
+                Button("Delete Day", role: .destructive) {
                     if let d = confirmDelete { store.mutate { $0.deleteDay(d.id) } }
                 }
-            } message: { Text("Past workouts are kept. Archive instead if you might want it back.") }
+            } message: { Text("Past workouts are kept.") }
         }
     }
 
@@ -82,9 +80,9 @@ struct PlanView: View {
         let count = store.db.exercises(of: day.id).count
         let dows = store.db.weeks.first.map { w in w.slots.filter { $0.liftDayId == day.id }.map { $0.dow.short } } ?? []
         return VStack(alignment: .leading, spacing: 3) {
-            Text(day.name).font(.display(22))
+            Text(day.name).font(.headline)
             Text([dows.joined(separator: ", "), "\(count) exercises", day.focus].filter { !$0.isEmpty }.joined(separator: " · "))
-                .font(.system(size: 13)).foregroundStyle(Theme.sub)
+                .font(.subheadline).foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
     }
@@ -116,8 +114,8 @@ struct DayDetailView: View {
                     ForEach(exercises) { ex in
                         NavigationLink { ExerciseEditorView(exerciseId: ex.id) } label: {
                             VStack(alignment: .leading, spacing: 3) {
-                                Text(ex.name).font(.system(size: 15, weight: .semibold))
-                                Text(exerciseSummary(ex.rows)).font(.system(size: 12, design: .monospaced)).foregroundStyle(Theme.sub)
+                                Text(ex.name)
+                                Text(exerciseSummary(ex.rows)).font(.subheadline).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -138,8 +136,6 @@ struct DayDetailView: View {
                     }
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Theme.bg)
             .navigationTitle(day.name)
             .toolbar { if store.canEdit { EditButton() } }
             .onAppear { name = day.name; focus = day.focus }
@@ -162,7 +158,10 @@ struct DayDetailView: View {
 
 struct ExerciseEditorView: View {
     let exerciseId: String
+    /// False when opened from a live workout, where the sets are edited in place.
+    var showsSets = true
     @Environment(Store.self) private var store
+    @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var loadEdit: Int?
     @State private var repsEdit: Int?
@@ -177,7 +176,7 @@ struct ExerciseEditorView: View {
                         .disabled(!store.canEdit)
                 }
                 Section {
-                    Picker("Load type", selection: Binding(get: { ex.effectiveLoadType }, set: { t in
+                    Picker("Weight type", selection: Binding(get: { ex.effectiveLoadType }, set: { t in
                         store.mutate { $0.updateExercise(exerciseId) { $0.loadType = t } }
                     })) {
                         ForEach(LoadType.allCases, id: \.self) { Text($0.label).tag($0) }
@@ -185,15 +184,15 @@ struct ExerciseEditorView: View {
                     .disabled(!store.canEdit)
                 } footer: { Text(loadTypeHelp(ex.effectiveLoadType)) }
 
-                Section("Sets") {
+                if showsSets { Section("Sets") {
                     ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
                         HStack {
                             Text("Set \(i + 1)").foregroundStyle(.secondary).frame(width: 52, alignment: .leading)
-                            Button(row.weight.isEmpty ? "Add load" : row.weight) { loadEdit = i }
-                                .buttonStyle(.borderless).foregroundStyle(row.weight.isEmpty ? Theme.dim : Theme.text)
+                            Button(row.weight.isEmpty ? "Add" : row.weight) { loadEdit = i }
+                                .buttonStyle(.borderless).foregroundStyle(row.weight.isEmpty ? .secondary : .primary)
                             Spacer()
                             Button(row.reps.isEmpty ? "Reps" : row.reps) { repsEdit = i }
-                                .buttonStyle(.borderless).foregroundStyle(Theme.sub)
+                                .buttonStyle(.borderless).foregroundStyle(.secondary)
                         }
                         .disabled(!store.canEdit)
                     }
@@ -205,16 +204,15 @@ struct ExerciseEditorView: View {
                     .deleteDisabled(!store.canEdit || rows.count <= 1)
                     if store.canEdit {
                         Button { store.mutate { $0.setRows(exerciseId, rows + [rows.last ?? SetRow(weight: "", reps: "× 6")]) } } label: {
-                            Label("Add set", systemImage: "plus")
+                            Label("Add Set", systemImage: "plus")
                         }
                     }
-                }
-
+                } }
                 Section("Workout") {
                     Stepper(value: Binding(get: { ex.effectiveIncrement }, set: { v in
                         store.mutate { $0.updateExercise(exerciseId) { $0.loadIncrement = v } }
                     }), in: 0.5...50, step: ex.effectiveIncrement >= 5 ? 2.5 : 0.5) {
-                        LabeledContent("± step", value: fmtNum(ex.effectiveIncrement))
+                        LabeledContent("Step", value: fmtNum(ex.effectiveIncrement))
                     }
                     Stepper(value: Binding(get: { ex.restSeconds ?? 180 }, set: { v in
                         store.mutate { $0.updateExercise(exerciseId) { $0.restSeconds = v } }
@@ -224,10 +222,11 @@ struct ExerciseEditorView: View {
                 }
                 .disabled(!store.canEdit)
             }
-            .scrollContentBackground(.hidden)
-            .background(Theme.bg)
             .navigationTitle(ex.name)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if !showsSets { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            }
             .onAppear { name = ex.name }
             .onDisappear(perform: commitName)
             .sheet(item: Binding(get: { loadEdit.map(IndexBox.init) }, set: { loadEdit = $0?.i })) { box in
@@ -253,11 +252,11 @@ struct ExerciseEditorView: View {
 
     private func loadTypeHelp(_ t: LoadType) -> String {
         switch t {
-        case .weight: "Free weights in pounds, e.g. 225 lb."
-        case .machine: "A pin level (12), pounds (120 lb), or Max with extra (Max + 10)."
-        case .plates: "Plates per side plus extra pounds, e.g. 5 pl + 25."
-        case .bodyweight: "BW, weighted (+70) or assisted (−25)."
-        case .free: "Anything else, written as you like."
+        case .weight: "e.g. 225 lb"
+        case .machine: "e.g. 12, 120 lb, Max + 10"
+        case .plates: "e.g. 5 pl + 25"
+        case .bodyweight: "e.g. BW, +70, −25"
+        case .free: "Any text"
         }
     }
 }

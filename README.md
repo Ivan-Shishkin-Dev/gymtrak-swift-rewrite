@@ -3,8 +3,15 @@
 Native iPhone version of [GymTrak](https://github.com/Ivan-Shishkin-Dev/GymTrak), for personal use only.
 
 ## Stack
-- SwiftUI + SwiftData
-- Supabase sync (same `gt_state` blob as the PWA)
+- SwiftUI, native iOS look (light + dark)
+- Local JSON store; Supabase sync on the same `gt_state` blob as the PWA
+
+## Run
+1. `brew install xcodegen && xcodegen generate`
+2. Copy `Secrets.example.xcconfig` to `Secrets.xcconfig` and fill it in
+3. Open `GymTrak.xcodeproj`, press ⌘R
+
+Launch with `-demo` for a local sandbox (no sync, editing on).
 
 ## Plan
 1. Xcode project setup

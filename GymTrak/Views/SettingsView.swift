@@ -20,16 +20,14 @@ struct SettingsView: View {
                             in: RestTimer.minSec...RestTimer.maxSec, step: 15) {
                         LabeledContent("Default rest", value: fmtClock(Double(rest.defaultSec)))
                     }
-                    Text("Exercises with their own rest time (set in a workout's Edit mode) use that instead.")
-                        .font(.footnote).foregroundStyle(.secondary)
                 }
                 programSection
                 dataSection
                 Section("About") {
                     LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
                     LabeledContent("Lift days", value: "\(store.db.activeDays.count)")
-                    LabeledContent("Workouts logged", value: "\(store.db.sessions.filter { $0.finishedAt != nil && !$0.isDeleted }.count)")
-                    Link("Source on GitHub", destination: URL(string: "https://github.com/Ivan-Shishkin-Dev/gymtrak-swift-rewrite")!)
+                    LabeledContent("Workouts", value: "\(store.db.sessions.filter { $0.finishedAt != nil && !$0.isDeleted }.count)")
+                    Link("GitHub", destination: URL(string: "https://github.com/Ivan-Shishkin-Dev/gymtrak-swift-rewrite")!)
                 }
             }
             .navigationTitle("Settings")
@@ -39,7 +37,6 @@ struct SettingsView: View {
                 if let first = store.db.weeks.first { startMonday = DateKey.date(first.startDate) }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     // MARK: Sections
@@ -47,11 +44,11 @@ struct SettingsView: View {
     @ViewBuilder private var accessSection: some View {
         Section {
             if store.canEdit {
-                Label("Editing unlocked on this device", systemImage: "lock.open.fill").foregroundStyle(Theme.volt)
-                Button("Lock (view only)", role: .destructive) { store.lock() }
+                Label("Editing On", systemImage: "lock.open.fill").foregroundStyle(Theme.lift)
+                Button("Lock", role: .destructive) { store.lock() }
             } else {
                 SecureField("Edit code", text: $code).keyboardType(.numberPad)
-                Button("Unlock editing") {
+                Button("Unlock") {
                     store.unlock(code: code)
                     code = ""
                 }
@@ -60,32 +57,32 @@ struct SettingsView: View {
         } header: {
             Text("Access")
         } footer: {
-            Text("Without the edit code the app is read-only. The code is checked by the server the next time it saves.")
+            if !store.canEdit { Text("Needed to make changes.") }
         }
     }
 
     @ViewBuilder private var syncSection: some View {
-        Section("Cloud sync") {
+        Section("Sync") {
             LabeledContent("Status") {
                 switch store.syncStatus {
                 case .offline: Text("Offline")
                 case .idle: Text("Idle")
                 case .syncing: ProgressView()
-                case .synced: Text("Up to date").foregroundStyle(Theme.volt)
-                case .error: Text("Error").foregroundStyle(Theme.amber)
+                case .synced: Text("Synced").foregroundStyle(Theme.lift)
+                case .error: Text("Error").foregroundStyle(Theme.warning)
                 }
             }
             if case .error(let message) = store.syncStatus {
-                Text(message).font(.footnote).foregroundStyle(Theme.amber)
+                Text(message).font(.footnote).foregroundStyle(Theme.warning)
             }
             if let last = store.lastSyncedAt {
                 LabeledContent("Last synced", value: last.formatted(date: .omitted, time: .shortened))
             }
             Button("Sync now") { Task { await store.sync() } }
-            Button("Replace this device's data with the cloud copy", role: .destructive) { confirmReset = true }
+            Button("Reset from Cloud", role: .destructive) { confirmReset = true }
                 .confirmationDialog("Use the cloud copy?", isPresented: $confirmReset, titleVisibility: .visible) {
                     Button("Replace local data", role: .destructive) { Task { await store.forcePull() } }
-                } message: { Text("Any edits on this device that haven't synced are lost.") }
+                } message: { Text("Unsynced changes are lost.") }
         }
     }
 
@@ -95,32 +92,28 @@ struct SettingsView: View {
                 Text("No program installed.").foregroundStyle(.secondary)
             } else {
                 DatePicker("Week 1 starts", selection: $startMonday, displayedComponents: .date)
-                Button("Move the program to this date") { confirmReanchor = true }
+                Button("Move Program") { confirmReanchor = true }
                     .disabled(!store.canEdit)
                     .confirmationDialog("Re-anchor the program?", isPresented: $confirmReanchor, titleVisibility: .visible) {
                         Button("Move it") {
                             store.mutate { $0.setProgramStart(DateKey.mondayKey(startMonday)) }
                         }
                     } message: {
-                        Text("Week 1 will start on the Monday of \(startMonday.formatted(date: .abbreviated, time: .omitted)). Logged workouts don't change.")
+                        Text("Week 1 starts \(DateKey.label(DateKey.mondayKey(startMonday), "MMM d")).")
                     }
             }
         } header: {
             Text("Program")
-        } footer: {
-            Text("Any date snaps to the Monday of its week.")
         }
     }
 
     @ViewBuilder private var dataSection: some View {
         Section {
             if let url = exportURL() {
-                ShareLink(item: url) { Label("Export backup (JSON)", systemImage: "square.and.arrow.up") }
+                ShareLink(item: url) { Label("Export Backup", systemImage: "square.and.arrow.up") }
             }
         } header: {
             Text("Data")
-        } footer: {
-            Text("The same format the web app syncs, so it can be restored anywhere.")
         }
     }
 

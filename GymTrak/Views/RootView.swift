@@ -25,13 +25,13 @@ struct RootView: View {
                 PlanView().safeAreaInset(edge: .bottom) { dock }
             }
         }
-        .tint(Theme.volt)
+        .tint(Theme.lift)
         .environment(nav)
         .fullScreenCover(isPresented: $nav.showWorkout) {
-            WorkoutView().environment(nav)
+            WorkoutView().environment(nav).tint(Theme.lift)
         }
         .sheet(isPresented: $nav.showSettings) {
-            SettingsView()
+            SettingsView().tint(Theme.lift)
         }
         .overlay(alignment: .top) { CompletionToast().environment(nav) }
         .task { await store.sync() }
@@ -64,19 +64,18 @@ struct ResumeBanner: View {
         let done = sets.filter(\.isDone).count
         Button(action: onResume) {
             HStack(spacing: 12) {
-                Circle().fill(Theme.volt).frame(width: 8, height: 8)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(store.db.day(session.dayId)?.name ?? session.dayNameSnapshot ?? "Workout") in progress")
-                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.text)
-                    Text("\(done) of \(sets.count) sets").font(.system(size: 12)).foregroundStyle(Theme.sub)
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .font(.title3).foregroundStyle(Theme.lift)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(store.db.day(session.dayId)?.name ?? session.dayNameSnapshot ?? "Workout").font(.headline)
+                    Text("\(done)/\(sets.count) sets").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text("Resume").font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.volt)
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundStyle(Theme.volt)
+                Text("Resume").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.lift)
             }
-            .padding(.horizontal, 16).padding(.vertical, 12)
-            .background(.ultraThinMaterial)
-            .overlay(alignment: .top) { Rectangle().fill(Theme.cardBorder).frame(height: 1) }
+            .padding(.horizontal).padding(.vertical, 10)
+            .background(.bar)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -89,23 +88,23 @@ struct CompletionToast: View {
     var body: some View {
         if let done = nav.completed {
             HStack(spacing: 10) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.volt)
-                Text("\(done.label) saved").font(.system(size: 14, weight: .semibold))
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.lift)
+                Text("Saved").font(.subheadline.weight(.semibold))
                 Spacer()
                 Button("Undo") {
                     store.mutate { $0.reopenSession(done.sessionId) }
                     nav.completed = nil
                     nav.showWorkout = true
                 }
-                .font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.volt)
+                .font(.subheadline.weight(.semibold))
             }
-            .padding(.horizontal, 16).frame(height: 50)
-            .background(Theme.card, in: Capsule())
-            .overlay(Capsule().strokeBorder(Theme.pillBorder))
+            .padding(.horizontal, 16).frame(height: 48)
+            .background(.regularMaterial, in: Capsule())
+            .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
             .padding(.horizontal, 16)
             .transition(.move(edge: .top).combined(with: .opacity))
             .task(id: done.sessionId) {
-                try? await Task.sleep(for: .seconds(6))
+                try? await Task.sleep(for: .seconds(5))
                 withAnimation { nav.completed = nil }
             }
         }

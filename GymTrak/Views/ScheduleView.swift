@@ -13,12 +13,12 @@ struct ScheduleView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             HStack(spacing: 6) {
-                                Text("Week \(w.id)").font(.system(size: 16, weight: .semibold))
-                                if w.startDate == thisMonday { Text("NOW").eyebrow(Theme.volt) }
-                                if w.isDeload { Text("DELOAD").eyebrow(Theme.amber) }
+                                Text("Week \(w.id)").font(.headline)
+                                if w.startDate == thisMonday { Text("Current").font(.caption.weight(.semibold)).foregroundStyle(Theme.lift) }
+                                if w.isDeload { Text("Deload").font(.caption.weight(.semibold)).foregroundStyle(Theme.warning) }
                             }
-                            Text("\(DateKey.label(w.startDate, "MMM d")) – \(DateKey.label(DateKey.addDays(w.startDate, 6), "MMM d")) · \(w.runMinutes) min running")
-                                .font(.system(size: 12.5)).foregroundStyle(Theme.sub)
+                            Text("\(DateKey.label(w.startDate, "MMM d")) – \(DateKey.label(DateKey.addDays(w.startDate, 6), "MMM d")) · \(w.runMinutes) min run")
+                                .font(.subheadline).foregroundStyle(.secondary)
                         }
                         Spacer()
                     }
@@ -26,12 +26,10 @@ struct ScheduleView: View {
             }
             if store.canEdit, let last = weeks.last {
                 Button { store.mutate { $0.duplicateProgramWeek(last.id) } } label: {
-                    Label("Add a week (copy of week \(last.id))", systemImage: "plus")
+                    Label("Add Week", systemImage: "plus")
                 }
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Theme.bg)
         .navigationTitle("Schedule")
     }
 }
@@ -49,7 +47,7 @@ struct WeekEditorView: View {
                 Section {
                     Toggle("Deload week", isOn: binding(\.isDeload))
                 } footer: {
-                    Text(editable ? "Deload drops the last set of any exercise with 3 or more." : "Past weeks can't be edited.")
+                    Text(editable ? "Drops the last set when there are 3+." : "Past weeks are locked.")
                 }
                 ForEach(Dow.allCases, id: \.self) { dow in
                     if let i = draft.slots.firstIndex(where: { $0.dow == dow }) {
@@ -59,8 +57,6 @@ struct WeekEditorView: View {
             }
         }
         .disabled(!editable)
-        .scrollContentBackground(.hidden)
-        .background(Theme.bg)
         .navigationTitle("Week \(weekId)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
