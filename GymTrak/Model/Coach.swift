@@ -18,7 +18,7 @@ enum Coach {
 // MARK: - Lifts
 
 struct LiftAdvice: Equatable {
-    enum Kind: Equatable { case new, push, bigPush, reps, hold, backoff, deload }
+    enum Kind: Equatable { case new, push, reps, hold, backoff, deload }
     var kind: Kind
     /// Load change in the exercise's increments (+1 = one increment heavier).
     var steps: Int
@@ -40,7 +40,7 @@ struct LiftAdvice: Equatable {
     var icon: String {
         switch kind {
         case .new: "sparkles"
-        case .push, .bigPush: "arrow.up.circle.fill"
+        case .push: "arrow.up.circle.fill"
         case .reps, .hold: "equal.circle.fill"
         case .backoff, .deload: "arrow.down.circle.fill"
         }
@@ -68,25 +68,22 @@ func loadScore(_ raw: String, type: LoadType) -> Double? {
 }
 
 /// The coach's jump size: 5–10 lb on pound-read machines, otherwise the exercise's increment.
+/// Never more than 5 lb at a time.
 func coachIncrement(_ ex: Exercise, _ raw: String) -> Double {
-    if let set = ex.loadIncrement { return set }
     let type = ex.effectiveLoadType
-    if type == .plates { return 10 }
-    if type == .machine {
-        let p = parseLoad(raw, type: .machine)
-        if p.lb { return (p.n ?? 0) >= 150 ? 10 : 5 }
-    }
-    return ex.effectiveIncrement
+    if type == .plates { return 5 }
+    if type == .machine && !parseLoad(raw, type: .machine).lb { return ex.loadIncrement ?? 1 } // pins
+    return min(ex.loadIncrement ?? 5, 5)
 }
 
-/// Move a load by `steps` coach jumps. Plate loads move 10 lb at a time ("4 pl + 35" → "5 pl").
+/// Move a load by `steps` coach jumps. Plate loads move 5 lb at a time ("4 pl + 40" → "5 pl").
 func coachShift(_ raw: String, ex: Exercise, steps: Int) -> String {
     let type = ex.effectiveLoadType
     guard steps != 0 else { return raw }
     if type == .plates, ex.loadIncrement == nil {
         var p = parseLoad(raw, type: .plates)
         guard let n = p.n else { return raw }
-        let total = max(0, n * 45 + (p.add ?? 0) + Double(steps) * 10)
+        let total = max(0, n * 45 + (p.add ?? 0) + Double(steps) * 5)
         let plates = (total / 45).rounded(.down)
         let rest = total - plates * 45
         p.n = plates
@@ -199,30 +196,30 @@ extension Snapshot {
             return LiftAdvice(kind: .hold, steps: 0, target: target(0), range: loadRange(-1, 0),
                               why: "\(gap) days off. Match last time.", trend: trend, reps: goals)
         }
-        // Dipped lighter and nailed it → straight back to the recent best you've hit.
+        // Working back up after a dip: one step at a time toward a weight you've already hit.
         if hitAll, let cur = top.score, cur < 10_000,
            let best = real.dropFirst().filter({ $0.sets.allSatisfy { $0.reps >= $0.target } })
             .compactMap({ $0.sets.first?.score }).filter({ $0 < 10_000 }).max(),
            best > cur {
-            let s = min(4, max(topBeat >= 2 ? 2 : 1, Int(((best - cur) / incScore).rounded(.up))))
-            return LiftAdvice(kind: .push, steps: s, target: target(s), range: loadRange(max(1, s - 1), s),
-                              why: "Back to \(load(s)). You've done it.", trend: trend, reps: goals)
-        }
-        if switched && hitAll {
             return LiftAdvice(kind: .push, steps: 1, target: target(1), range: loadRange(0, 1),
-                              why: "New setup. Building from here.", trend: nil, reps: goals)
+                              why: "Working back up. Add \(incLabel(type, inc)).", trend: trend, reps: goals)
         }
         if switched {
-            return LiftAdvice(kind: .hold, steps: 0, target: target(0), range: loadRange(-1, 0),
+            return LiftAdvice(kind: .hold, steps: 0, target: target(0), range: nil,
                               why: "New setup. Repeat it, then build.", trend: nil, reps: goals)
         }
-        if hitAll && topBeat >= 2 {
-            return LiftAdvice(kind: .bigPush, steps: 2, target: target(2), range: loadRange(1, 2),
-                              why: "Beat it by \(topBeat) reps. Jump up.", trend: trend, reps: goals)
+        // Add weight only after two clean sessions in a row at this weight.
+        let prev = real.dropFirst().first
+        let cleanTwice = hitAll && prev.map { p in
+            p.sets.allSatisfy { $0.reps >= $0.target } && p.sets.first?.score == top.score
+        } == true
+        if cleanTwice {
+            return LiftAdvice(kind: .push, steps: 1, target: target(1), range: loadRange(0, 1),
+                              why: "Clean twice. Add \(incLabel(type, inc)).", trend: trend, reps: goals)
         }
         if hitAll {
-            return LiftAdvice(kind: .push, steps: 1, target: target(1), range: loadRange(0, 1),
-                              why: "Hit every rep. Add \(incLabel(type, inc)).", trend: trend, reps: goals)
+            return LiftAdvice(kind: .hold, steps: 0, target: target(0), range: nil,
+                              why: "Hit it. Once more, then add \(incLabel(type, inc)).", trend: trend, reps: goals)
         }
         // Missed something. Twice in a row at this weight or heavier → back off.
         if let prev = real.dropFirst().first, prev.sets.contains(where: { $0.reps < $0.target }),

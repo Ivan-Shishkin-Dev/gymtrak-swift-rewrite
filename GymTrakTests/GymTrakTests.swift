@@ -164,14 +164,14 @@ struct CoachTests {
         #expect(a.kind == .new && a.steps == 0 && a.target == "200 lb × 6")
     }
 
-    @Test func hitEveryRepAddsOneIncrement() {
-        let a = db([[6, 6]], start: "2026-10-18").liftAdvice(for: bench, today: today)
-        #expect(a.kind == .push && a.target == "205 lb × 6" && a.range == "200–205 lb")
+    @Test func oneCleanSessionRepeats() {
+        let a = db([[8, 6]], start: "2026-10-18").liftAdvice(for: bench, today: today)
+        #expect(a.kind == .hold && a.target == "200 lb × 6")
     }
 
-    @Test func crushingItJumpsTwo() {
-        let a = db([[8, 6]], start: "2026-10-18").liftAdvice(for: bench, today: today)
-        #expect(a.kind == .bigPush && a.target == "210 lb × 6")
+    @Test func twoCleanSessionsAddFive() {
+        let a = db([[6, 6], [7, 6]], start: "2026-10-15").liftAdvice(for: bench, today: today)
+        #expect(a.kind == .push && a.target == "205 lb × 6" && a.range == "200–205 lb")
     }
 
     @Test func nearMissHoldsAndRestoresRepGoal() {
@@ -195,7 +195,7 @@ struct CoachTests {
     }
 
     @Test func startAppliesCoachTargets() {
-        var s = db([[6, 6]], start: "2026-10-18")
+        var s = db([[6, 6], [6, 6]], start: "2026-10-15")
         s.exercises[0].setRows = [SetRow(weight: "200 lb", reps: "× 6"), SetRow(weight: "200 lb", reps: "× 6")]
         let id = s.startSession(day: s.days[0], options: StartOptions(scheduledDate: today, coach: true))
         #expect(s.sets(of: id).map(\.weight) == ["205 lb", "205 lb"])
@@ -216,11 +216,11 @@ struct CoachTests {
     @Test func coachJumpsAreRealistic() {
         let plates = Exercise(id: "p", dayId: 1, order: 0, name: "Press", sets: 1, weight: "4 pl + 35", reps: "× 5",
                               loadType: .plates, updatedAt: 0)
-        #expect(coachShift("4 pl + 35", ex: plates, steps: 1) == "5 pl")
-        #expect(coachShift("5 pl", ex: plates, steps: -1) == "4 pl + 35")
+        #expect(coachShift("4 pl + 40", ex: plates, steps: 1) == "5 pl")
+        #expect(coachShift("5 pl", ex: plates, steps: -1) == "4 pl + 40")
         let stack = Exercise(id: "m", dayId: 1, order: 0, name: "Pec Dec", sets: 1, weight: "210 lb", reps: "× 6",
                              loadType: .machine, updatedAt: 0)
-        #expect(coachShift("210 lb", ex: stack, steps: 1) == "220 lb")
+        #expect(coachShift("210 lb", ex: stack, steps: 1) == "215 lb")
         #expect(coachShift("14", ex: stack, steps: 1) == "15")
     }
 
@@ -238,10 +238,10 @@ struct CoachTests {
     }
 
     @Test func dipThenBackToBest() {
-        // 135 → 125 (nailed it) → go straight back to 135.
+        // 135 → 125 (nailed it) → work back up 5 lb at a time.
         let s = dbW([("135 lb", [6, 6]), ("125 lb", [6, 6])])
         let a = s.liftAdvice(for: s.exercises[0], today: today)
-        #expect(a.target == "135 lb × 6" && a.why.contains("Back to"))
+        #expect(a.target == "130 lb × 6" && a.why.contains("Working back"))
     }
 
     @Test func machineSwitchStartsFresh() {
@@ -249,7 +249,7 @@ struct CoachTests {
         let s = dbW([("200 lb", [4, 4]), ("200 lb", [4, 3]), ("90 lb", [5, 6])])
         let a = s.liftAdvice(for: s.exercises[0], today: today)
         #expect(a.kind == .hold && a.target == "90 lb × 6" && a.why.contains("New setup"))
-        let b = dbW([("200 lb", [6, 6]), ("90 lb", [6, 6])])
+        let b = dbW([("200 lb", [6, 6]), ("90 lb", [6, 6]), ("90 lb", [6, 6])])
         #expect(b.liftAdvice(for: b.exercises[0], today: today).target == "95 lb × 6")
     }
 
