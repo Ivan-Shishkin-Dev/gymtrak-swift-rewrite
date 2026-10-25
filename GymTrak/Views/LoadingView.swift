@@ -11,22 +11,20 @@ struct LoadingView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Theme.lift.mix(with: .white, by: 0.15), Theme.lift.mix(with: .black, by: 0.35)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-                .ignoresSafeArea()
+            Theme.backdrop.ignoresSafeArea()
 
             VStack(spacing: 28) {
                 ZStack {
                     // Shadow that shrinks as the dumbbell goes up.
                     Ellipse()
-                        .fill(.black.opacity(0.18))
+                        .fill(Theme.lift.opacity(0.18))
                         .frame(width: up ? 60 : 110, height: 14)
                         .offset(y: 78)
                         .blur(radius: 3)
 
                     Image(systemName: "dumbbell.fill")
                         .font(.system(size: 92, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.lift)
                         .rotationEffect(.degrees(up ? -12 : 12))
                         .scaleEffect(x: squash ? 1.12 : 1, y: squash ? 0.86 : 1, anchor: .bottom)
                         .offset(y: up ? -46 : 0)
@@ -41,7 +39,7 @@ struct LoadingView: View {
                         .frame(width: 26, alignment: .leading)
                 }
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.95))
+                .foregroundStyle(.white.opacity(0.85))
                 .monospacedDigit()
             }
         }

@@ -18,8 +18,7 @@ struct SettingsView: View {
             Form {
                 Section {
                     HStack(spacing: 14) {
-                        Image("Logo").resizable().frame(width: 60, height: 60)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        LogoView(size: 60)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("GymTrak").font(.title2.bold())
                             Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")")
@@ -29,6 +28,7 @@ struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
                 accessSection
+                AppearanceSection()
                 connectionsSection
                 syncSection
                 Section("Rest timer") {
@@ -190,5 +190,58 @@ struct SettingsView: View {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(store.db), (try? data.write(to: url)) != nil else { return nil }
         return url
+    }
+}
+
+/// Accent swatches, a custom color picker, and the matte black background switch.
+private struct AppearanceSection: View {
+    @State private var look = Appearance.shared
+    @State private var custom: Color = Appearance.shared.accent
+
+    var body: some View {
+        Section {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 14) {
+                ForEach(Appearance.presets) { p in
+                    swatch(Color(hex: p.hex), name: p.name, selected: look.accentID == p.id, matte: p.id == "matte") {
+                        look.accentID = p.id
+                    }
+                }
+            }
+            .padding(.vertical, 6)
+            ColorPicker(selection: Binding(get: { custom }, set: { custom = $0; look.setCustom($0) }), supportsOpacity: false) {
+                Label { Text("Custom Color") } icon: {
+                    IconBadge(systemName: "paintpalette.fill", color: look.accentID == "custom" ? look.accent : .gray)
+                }
+            }
+            Toggle(isOn: $look.matteBackground) {
+                Label { Text("Matte Black Background") } icon: { IconBadge(systemName: "moon.fill", color: Color(hex: 0x3A3A3C)) }
+            }
+        } header: {
+            Text("Appearance")
+        } footer: {
+            Text(look.matteBackground ? "Always dark." : "Follows your phone's light or dark mode.")
+        }
+    }
+
+    private func swatch(_ color: Color, name: String, selected: Bool, matte: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(matte ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x3A3A3C), .black], startPoint: .top, endPoint: .bottom))
+                                    : AnyShapeStyle(color.gradient))
+                        .overlay(Circle().strokeBorder(matte ? color.opacity(0.5) : .clear, lineWidth: 1.5))
+                        .frame(width: 40, height: 40)
+                    if selected {
+                        Image(systemName: "checkmark").font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(matte ? .white : (color.isLight ? .black : .white))
+                    }
+                }
+                .overlay(Circle().stroke(selected ? Color.primary.opacity(0.6) : .clear, lineWidth: 2).padding(-4))
+                Text(name).font(.caption2).foregroundStyle(Color(.secondaryLabel))
+            }
+        }
+        .buttonStyle(.borderless)
+        .sensoryFeedback(.selection, trigger: selected)
     }
 }

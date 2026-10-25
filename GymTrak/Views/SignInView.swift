@@ -11,14 +11,11 @@ struct SignInView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Theme.lift.mix(with: .white, by: 0.15), Theme.lift.mix(with: .black, by: 0.35)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-                .ignoresSafeArea()
+            Theme.backdrop.ignoresSafeArea()
 
             VStack(spacing: 28) {
                 Spacer()
-                Image("Logo").resizable().frame(width: 96, height: 96)
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                LogoView(size: 96)
                     .shadow(color: .black.opacity(0.25), radius: 16, y: 8)
                 Text("GymTrak").font(.largeTitle.bold()).foregroundStyle(.white)
                 Spacer()
@@ -57,11 +54,12 @@ struct SignInView: View {
                 .onChange(of: remember) { _, v in Store.rememberMe = v }
             Button(action: send) {
                 Group {
-                    if sending { ProgressView().tint(.white) } else { Text("Email Me a Link") }
+                    if sending { ProgressView().tint(Theme.onLift) } else { Text("Email Me a Link") }
                 }
                 .font(.headline).frame(maxWidth: .infinity).frame(height: 52)
             }
             .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(Theme.lift)
+            .foregroundStyle(Theme.onLift)
             .opacity(email.contains("@") ? 1 : 0.45)
             .allowsHitTesting(email.contains("@") && !sending)
             if case .error(let message) = store.syncStatus {
@@ -83,6 +81,7 @@ struct SignInView: View {
                 Text("Open Mail").font(.headline).frame(maxWidth: .infinity).frame(height: 52)
             }
             .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(Theme.lift)
+            .foregroundStyle(Theme.onLift)
             Button("Use a Different Email") { store.cancelLink() }.font(.subheadline)
         }
     }

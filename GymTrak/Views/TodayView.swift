@@ -66,17 +66,18 @@ struct TodayView: View {
         }
 
         // The hero card: green for a lift, blue for a run-only day, grey for rest.
-        let heroColor: Color = liftDay != nil ? Theme.lift : slot?.run != nil ? Theme.run : .gray
+        let heroColor: Color = liftDay != nil ? Theme.surface : slot?.run != nil ? Theme.run : Color(hex: 0x3A3A3C)
+        let onHero: Color = heroColor.isLight ? .black : .white
         Section {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Text(isToday ? "Today · \(dow.label)" : "\(dow.label) · \(DateKey.label(date, "MMM d"))")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(onHero.opacity(0.8))
                     Spacer()
                     if doneLift != nil {
                         Label("Done", systemImage: "checkmark.circle.fill")
-                            .font(.subheadline.weight(.bold)).foregroundStyle(.white)
+                            .font(.subheadline.weight(.bold)).foregroundStyle(onHero)
                     }
                 }
                 HStack(alignment: .center, spacing: 14) {
@@ -84,16 +85,16 @@ struct TodayView: View {
                         .font(.system(size: 30, weight: .semibold))
                         .rotationEffect(.degrees(liftDay != nil ? -45 : 0))
                         .frame(width: 56, height: 56)
-                        .background(.white.opacity(0.2), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(onHero.opacity(0.15), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(liftDay?.name ?? slot?.run?.label.rawValue ?? "Rest Day")
                             .font(.largeTitle.bold())
                         if let liftDay, !liftDay.focus.isEmpty {
-                            Text(liftDay.focus).font(.subheadline).foregroundStyle(.white.opacity(0.85))
+                            Text(liftDay.focus).font(.subheadline).foregroundStyle(onHero.opacity(0.8))
                         }
                     }
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(onHero)
                 if let liftDay {
                     startButton(liftDay, week: week, date: date, done: doneLift != nil)
                 }
@@ -169,8 +170,8 @@ struct TodayView: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
-                .foregroundStyle(done && !isOpen ? .white : Theme.lift.mix(with: .black, by: 0.35))
-                .background(done && !isOpen ? .white.opacity(0.22) : .white, in: Capsule())
+                .foregroundStyle(done && !isOpen ? Theme.onSurface : (Theme.onSurface == .white ? Theme.surface.mix(with: .black, by: 0.35) : .white))
+                .background(done && !isOpen ? Theme.onSurface.opacity(0.18) : Theme.onSurface, in: Capsule())
         }
         .buttonStyle(.plain)
         .confirmationDialog("Discard other workout?", isPresented: $confirmDiscard, titleVisibility: .visible) {

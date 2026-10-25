@@ -178,7 +178,7 @@ struct WorkoutView: View {
                 Button { toggle(active.row, ex: active.ex) } label: {
                     Label("Done", systemImage: "checkmark").font(.headline).frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent).tint(Theme.lift)
+                .buttonStyle(.borderedProminent).tint(Theme.lift).foregroundStyle(Theme.onLift)
             }
             Button { allDone ? finish() : (confirmFinish = true) } label: {
                 Text("Finish").font(.headline).frame(maxWidth: active == nil ? .infinity : nil)
@@ -186,7 +186,7 @@ struct WorkoutView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(allDone ? Theme.lift : Color(.systemGray5))
-            .foregroundStyle(allDone ? .white : .primary)
+            .foregroundStyle(allDone ? Theme.onLift : .primary)
         }
         .controlSize(.large)
         .padding(.horizontal).padding(.vertical, 10)

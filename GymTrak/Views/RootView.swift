@@ -57,6 +57,7 @@ struct RootView: View {
         }
         .tint(Theme.lift)
         .environment(nav)
+        .preferredColorScheme(Appearance.shared.matteBackground ? .dark : nil)
         .fullScreenCover(isPresented: $nav.showWorkout) {
             WorkoutView().environment(nav).tint(Theme.lift)
         }
@@ -111,7 +112,7 @@ struct ResumeBanner: View {
                     .font(.subheadline.weight(.semibold))
                     .padding(.horizontal, 14).padding(.vertical, 7)
                     .background(Theme.lift, in: Capsule())
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.onLift)
             }
             .padding(.horizontal).padding(.vertical, 10)
             .background(Color(.secondarySystemBackground))

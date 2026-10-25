@@ -66,7 +66,7 @@
 		EB1A96275B820FD5C193DC82 /* Load.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Load.swift; sourceTree = "<group>"; };
 		ED9FEFA66FBE1F68F31AC163 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		F0BE589482F4E09EF006D1D7 /* GymTrak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GymTrak.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_E6FC6EF5-72CC-4B7A-B3DD-C1BA80F634BF" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_BDB1BFF5-7EDC-4A9B-8D60-7BFC65A2295E" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -159,10 +159,10 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		"TEMP_AFFE67EB-56C3-42FF-B0B0-2EAB3F505514" /* gymtrak-swift-rewrite */ = {
+		"TEMP_9A7409DB-4753-486D-9315-19E855222CC4" /* gymtrak-swift-rewrite */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_E6FC6EF5-72CC-4B7A-B3DD-C1BA80F634BF" /* Config.xcconfig */,
+				"TEMP_BDB1BFF5-7EDC-4A9B-8D60-7BFC65A2295E" /* Config.xcconfig */,
 			);
 			path = "gymtrak-swift-rewrite";
 			sourceTree = "<group>";
@@ -470,7 +470,7 @@
 		};
 		C51B4C3A1A037D7EDB9E81F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_E6FC6EF5-72CC-4B7A-B3DD-C1BA80F634BF" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_BDB1BFF5-7EDC-4A9B-8D60-7BFC65A2295E" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -489,7 +489,7 @@
 		};
 		DE1DAE831E7778559F295B52 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_E6FC6EF5-72CC-4B7A-B3DD-C1BA80F634BF" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_BDB1BFF5-7EDC-4A9B-8D60-7BFC65A2295E" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

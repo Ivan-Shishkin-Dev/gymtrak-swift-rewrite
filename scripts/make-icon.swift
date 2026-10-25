@@ -14,12 +14,12 @@ let S = CGFloat(size)
 
 let colors = (dark
     ? [NSColor(srgbRed: 0.10, green: 0.14, blue: 0.11, alpha: 1).cgColor, NSColor(srgbRed: 0.02, green: 0.04, blue: 0.03, alpha: 1).cgColor]
-    : [NSColor(srgbRed: 0.22, green: 0.88, blue: 0.45, alpha: 1).cgColor, NSColor(srgbRed: 0.01, green: 0.52, blue: 0.29, alpha: 1).cgColor]) as CFArray
+    : [NSColor(srgbRed: 0.24, green: 0.24, blue: 0.25, alpha: 1).cgColor, NSColor(srgbRed: 0.05, green: 0.05, blue: 0.055, alpha: 1).cgColor]) as CFArray
 let grad = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: colors, locations: [0, 1])!
 ctx.drawLinearGradient(grad, start: CGPoint(x: 0, y: S), end: CGPoint(x: S, y: 0), options: [])
 
 let config = NSImage.SymbolConfiguration(pointSize: 500, weight: .bold)
-    .applying(NSImage.SymbolConfiguration(paletteColors: [dark ? NSColor(srgbRed: 0.25, green: 0.86, blue: 0.45, alpha: 1) : .white]))
+    .applying(NSImage.SymbolConfiguration(paletteColors: [dark ? NSColor(srgbRed: 0.91, green: 0.91, blue: 0.92, alpha: 1) : .white]))
 let symbol = NSImage(systemSymbolName: "dumbbell.fill", accessibilityDescription: nil)!.withSymbolConfiguration(config)!
 let s = symbol.size
 ctx.saveGState()
