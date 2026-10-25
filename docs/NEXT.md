@@ -94,6 +94,35 @@ Each brief is self-contained. Read the named files first. Rules for every brief:
 
 ---
 
+## 6. Spotify media controller
+
+**Why:** Switching to Spotify mid-set breaks the workout flow. A small bar on the workout screen with play/pause/skip and the track name keeps the lifter in the app.
+
+**Reality check (iOS):** a third-party app cannot control "whatever is playing" system-wide; Apple gives no API for that. Spotify is controllable through its Web API (Spotify Connect), which needs a **Spotify Premium** account and a network connection. Use the Web API, not the Spotify iOS SDK (the SDK is a binary framework that needs the Spotify app open and makes the build harder).
+
+**Files:** `GymTrak/Store/Connections.swift` (copy the Strava OAuth pattern: `StravaConfig.load`, `finishStrava`, `stravaTokenRequest`, `Keychain`), `GymTrak/Views/WorkoutView.swift` (`bottomBar`, `decorate`), `GymTrak/Views/RestBar.swift` (layout reference for a bottom strip), `GymTrak/Views/SettingsView.swift` (`connectionsSection`), `project.yml` + `Secrets.xcconfig` (`SPOTIFY_CLIENT_ID`).
+
+**Setup (Ivan, 5 min):** developer.spotify.com → create app → redirect URI `gymtrak://spotify` → put the client ID in `Secrets.xcconfig` as `SPOTIFY_CLIENT_ID`. No secret needed (PKCE).
+
+**Build:**
+1. `project.yml`: add `SpotifyClientID: $(SPOTIFY_CLIENT_ID)` under info properties, like `StravaClientID`.
+2. New file `GymTrak/Store/Spotify.swift`: `@MainActor @Observable final class Spotify`.
+   - `connect()`: PKCE flow with `ASWebAuthenticationSession`, auth URL `https://accounts.spotify.com/authorize`, scopes `user-read-playback-state user-modify-playback-state user-read-currently-playing`, redirect `gymtrak://spotify`. Token exchange at `https://accounts.spotify.com/api/token`. Store refresh token in `Keychain` (key `spotify_token`). Reuse the existing `gymtrak://` URL handling and route `spotify` host to `finishSpotify(callback:)`.
+   - `var state: PlaybackState?` with `track`, `artist`, `artURL`, `isPlaying`, `progressMs`, `durationMs`.
+   - `refresh()`: `GET https://api.spotify.com/v1/me/player`. 204 = nothing playing.
+   - `playPause()`, `next()`, `previous()`: `PUT /me/player/play`, `PUT /me/player/pause`, `POST /me/player/next`, `POST /me/player/previous`. A 403 with reason `PREMIUM_REQUIRED` → set `error = "Spotify Premium needed."`; a 404 (no active device) → `error = "Open Spotify first."`
+   - Poll `refresh()` every 3 s only while `isVisible` is true (a `Task` started/cancelled by the view).
+3. New file `GymTrak/Views/MediaBar.swift`: one row, 44 pt tall, matte surface: 40 pt album art (`AsyncImage`), track name + artist in two lines (caption, truncated), then `backward.fill` / `play.fill` or `pause.fill` / `forward.fill` buttons. Not connected → a single "Spotify" button that calls `connect()`. Error → show the error text in place of the track.
+4. Place it in `WorkoutView` above `bottomBar` (inside the same `safeAreaInset(edge: .bottom)` stack as `RestBar`). Set `spotify.isVisible` in `.onAppear` / `.onDisappear`.
+5. Settings → connections section: a "Spotify" row showing Connected / Not connected with Disconnect, matching the Strava row.
+6. Inject `Spotify` the same way `Connections` is injected (check `RootView.swift` / the app entry for `.environment(...)`).
+
+**Done when:** with Spotify playing on the phone, the bar shows the track and play/pause/skip work in the simulator (sign in once in the simulator's web view).
+
+**Later:** lock-screen control is already Spotify's own; nothing to add. Playlist picker ("Gym" playlist on Start) via `PUT /me/player/play` with `context_uri` if wanted.
+
+---
+
 ## Later (bigger, needs project.yml / Apple accounts)
 
 - Home-screen widget "Today: Upper A" with a Start deep link (widget extension target + App Group for the JSON).
