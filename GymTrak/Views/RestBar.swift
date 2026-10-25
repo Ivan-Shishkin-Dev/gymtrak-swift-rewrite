@@ -11,13 +11,13 @@ struct RestBar: View {
             HStack(spacing: 12) {
                 Gauge(value: max(0, min(1, left / Double(rest.targetSec)))) { EmptyView() }
                     .gaugeStyle(.accessoryCircularCapacity)
-                    .tint(over ? Theme.warning : Theme.lift)
+                    .tint(over ? Theme.warning : Page.text)
                     .scaleEffect(0.55)
                     .frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(over ? "+\(fmtClock(-left))" : fmtClock(left))
-                        .font(.number(22)).foregroundStyle(over ? Theme.warning : .primary)
-                    Text(over ? "Over" : "Rest").font(.caption).foregroundStyle(.secondary)
+                        .font(.number(22)).foregroundStyle(over ? Theme.warning : Page.text)
+                    Text(over ? "Over" : "Rest").font(.caption).foregroundStyle(Page.secondary)
                 }
                 Spacer()
                 Button("−15") { rest.add(-15) }
@@ -27,8 +27,10 @@ struct RestBar: View {
             .buttonStyle(.bordered)
             .buttonBorderShape(.capsule)
             .controlSize(.small)
-            .padding(.horizontal).padding(.vertical, 8)
-            .background(.bar)
+            .tint(Page.text)
+            .padding(.horizontal, 20).padding(.vertical, 8)
+            .background(Page.bg)
+            .overlay(alignment: .top) { Rectangle().fill(Page.divider).frame(height: 1) }
             .onChange(of: left < -60) { _, stale in if stale { rest.stop() } }
             .sensoryFeedback(.warning, trigger: over)
         }

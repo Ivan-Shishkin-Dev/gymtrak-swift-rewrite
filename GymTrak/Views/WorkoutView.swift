@@ -37,7 +37,7 @@ struct WorkoutView: View {
         if let session = db.sessions.first(where: { $0.isOpen && !$0.isRun }), let day = db.day(session.dayId) {
             content(session: session, day: day)
         } else {
-            Color(.systemGroupedBackground).ignoresSafeArea().onAppear { dismiss() }
+            Page.bg.ignoresSafeArea().onAppear { dismiss() }
         }
     }
 
@@ -75,15 +75,23 @@ struct WorkoutView: View {
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                VStack(spacing: 10) {
-                    ProgressView(value: Double(done), total: Double(max(total, 1))).tint(Theme.lift).scaleEffect(y: 1.8)
-                    Picker("View", selection: $mode) {
-                        ForEach(Mode.allCases, id: \.self) { Text($0.rawValue) }
+                VStack(alignment: .leading, spacing: 10) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Page.divider)
+                            Capsule().fill(Page.text).frame(width: geo.size.width * Double(done) / Double(max(total, 1)))
+                        }
                     }
-                    .pickerStyle(.segmented)
+                    .frame(height: 3)
+                    .animation(.snappy, value: done)
+                    HStack(spacing: 8) {
+                        ForEach(Mode.allCases, id: \.self) { m in
+                            Chip(title: m.rawValue, selected: mode == m) { mode = m }
+                        }
+                    }
                 }
-                .padding(.horizontal).padding(.bottom, 8)
-                .background(.bar)
+                .padding(.horizontal, 20).padding(.bottom, 10)
+                .background(Page.bg)
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
@@ -92,8 +100,11 @@ struct WorkoutView: View {
                     bottomBar(active: mode == .current ? active : nil, allDone: allDone)
                 }
             }
+            .background(Page.bg)
             .navigationTitle(day.name)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Page.bg, for: .navigationBar)
+            .toolbarBackgroundVisibility(.visible, for: .navigationBar)
             .toolbar { toolbar(session: session, day: day, done: done, total: total) }
     }
 
@@ -153,10 +164,10 @@ struct WorkoutView: View {
         }
         ToolbarItem(placement: .principal) {
             VStack(spacing: 0) {
-                Text(day.name).font(.headline)
+                Text(day.name).font(.headline).foregroundStyle(Page.text)
                 TimelineView(.periodic(from: .now, by: 1)) { ctx in
                     Text("\(fmtClock(ctx.date.timeIntervalSince1970 - session.startedAt / 1000)) · \(done) of \(total) sets")
-                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        .font(.caption).foregroundStyle(Page.secondary).monospacedDigit()
                 }
             }
         }
@@ -174,29 +185,23 @@ struct WorkoutView: View {
                 Button(role: .destructive) { confirmDiscard = true } label: {
                     Label("Discard Workout", systemImage: "trash")
                 }
-            } label: { Image(systemName: "ellipsis.circle") }
+            } label: { Image(systemName: "ellipsis") }
         }
     }
 
     private func bottomBar(active: (row: WorkoutSet, ex: Exercise)?, allDone: Bool) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             if let active {
-                Button { toggle(active.row, ex: active.ex) } label: {
-                    Label("Done", systemImage: "checkmark").font(.headline).frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent).tint(Theme.lift).foregroundStyle(Theme.onLift)
+                PrimaryButton(title: "Done", icon: "checkmark") { toggle(active.row, ex: active.ex) }
             }
-            Button { allDone ? finish() : (confirmFinish = true) } label: {
-                Text("Finish").font(.headline).frame(maxWidth: active == nil ? .infinity : nil)
-                    .padding(.horizontal, active == nil ? 0 : 12)
+            PrimaryButton(title: "Finish", icon: "flag.checkered", muted: !allDone) {
+                allDone ? finish() : (confirmFinish = true)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(allDone ? Theme.lift : Color(.systemGray5))
-            .foregroundStyle(allDone ? Theme.onLift : .primary)
+            .frame(maxWidth: active == nil ? .infinity : 130)
         }
-        .controlSize(.large)
-        .padding(.horizontal).padding(.vertical, 10)
-        .background(.bar)
+        .padding(.horizontal, 20).padding(.vertical, 10)
+        .background(Page.bg)
+        .overlay(alignment: .top) { Rectangle().fill(Page.divider).frame(height: 1) }
     }
 
     // MARK: Current Set
@@ -207,16 +212,27 @@ struct WorkoutView: View {
         if let active, let group = groups.first(where: { $0.ex.id == active.ex.id }) {
             let index = (group.sets.firstIndex { $0.id == active.row.id } ?? 0) + 1
             ScrollView {
-                VStack(spacing: 28) {
-                    VStack(spacing: 6) {
-                        Text(group.ex.name).font(.title.bold()).multilineTextAlignment(.center)
-                        Text("Set \(index) of \(group.sets.count)").font(.headline).foregroundStyle(Theme.lift)
-                        setDots(group.sets, current: active.row.id)
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(group.ex.name).font(.system(size: 30, weight: .bold)).foregroundStyle(Page.text)
+                        HStack(spacing: 10) {
+                            Text("Set \(index) of \(group.sets.count)").foregroundStyle(Page.secondary)
+                            setDots(group.sets, current: active.row.id)
+                        }
                     }
 
-                    coachCard(group.ex, setIndex: index - 1)
+                    VStack(alignment: .leading, spacing: 0) {
+                        coachRows(group.ex, setIndex: index - 1)
+                        if let next {
+                            let nextIndex = (groups.first { $0.ex.id == next.ex.id }?.sets.firstIndex { $0.id == next.row.id } ?? 0) + 1
+                            PropertyRow(icon: "arrow.turn.down.right", label: "Next") {
+                                Text("\(next.ex.id == group.ex.id ? "Set \(nextIndex)" : next.ex.name) · \(next.row.weight.isEmpty ? "—" : next.row.weight) × \(bareReps(next.row.reps))")
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
 
-                    VStack(spacing: 14) {
+                    VStack(spacing: 0) {
                         let unit = group.ex.effectiveLoadType.valueLabel(for: active.row.weight)
                         valueRow(label: unit,
                                  value: displayLoad(active.row.weight, unit: unit),
@@ -224,92 +240,75 @@ struct WorkoutView: View {
                                  onStep: { stepLoad(active.row, ex: group.ex, $0) },
                                  onTap: { loadTarget = SetEdit(row: active.row, ex: group.ex) })
                         if let line = plateLine(active.row.weight, type: group.ex.effectiveLoadType) {
-                            Text(line).font(.caption).foregroundStyle(.secondary)
+                            Text(line).font(.caption).foregroundStyle(Page.secondary).padding(.bottom, 8)
                         }
+                        Rectangle().fill(Page.divider).frame(height: 1)
                         valueRow(label: "Reps",
                                  value: bareReps(active.row.reps).isEmpty ? "—" : bareReps(active.row.reps),
                                  canStep: (bareReps(active.row.reps).isEmpty || Int(bareReps(active.row.reps)) != nil),
                                  onStep: { stepReps(active.row, $0) },
                                  onTap: { repsTarget = SetEdit(row: active.row, ex: group.ex) })
                     }
-
-                    if let next {
-                        let nextIndex = (groups.first { $0.ex.id == next.ex.id }?.sets.firstIndex { $0.id == next.row.id } ?? 0) + 1
-                        VStack(spacing: 2) {
-                            Text("Next").font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-                            Text(next.ex.id == group.ex.id ? "Set \(nextIndex)" : next.ex.name).font(.subheadline.weight(.semibold))
-                            Text("\(next.row.weight.isEmpty ? "—" : next.row.weight) × \(bareReps(next.row.reps))")
-                                .font(.subheadline).foregroundStyle(.secondary)
-                        }
-                    }
+                    .overlay(alignment: .top) { Rectangle().fill(Page.divider).frame(height: 1) }
+                    .overlay(alignment: .bottom) { Rectangle().fill(Page.divider).frame(height: 1) }
                 }
-                .padding(.horizontal, 20).padding(.vertical, 28)
-                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 20).padding(.vertical, 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Page.bg)
         } else {
-            ContentUnavailableView {
-                Label(allDone ? "All Done" : "No Sets", systemImage: allDone ? "checkmark.circle.fill" : "dumbbell")
-            } description: {
-                Text(allDone ? "Tap Finish." : "Add one from •••")
+            VStack(alignment: .leading, spacing: 6) {
+                Text(allDone ? "All done." : "No sets.").font(.system(size: 30, weight: .bold)).foregroundStyle(Page.text)
+                Text(allDone ? "Tap Finish." : "Add one from •••").foregroundStyle(Page.secondary)
             }
-            .symbolRenderingMode(.multicolor)
-            .background(Color(.systemGroupedBackground))
+            .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Page.bg)
         }
     }
 
-    /// The coach's target for this exercise, plus a nudge after each set when it looked easy or hard.
+    /// The coach's target as property rows, plus a nudge after a set that looked easy or hard.
     @ViewBuilder
-    private func coachCard(_ ex: Exercise, setIndex: Int) -> some View {
+    private func coachRows(_ ex: Exercise, setIndex: Int) -> some View {
         let db = store.db
         if let session = db.sessions.first(where: { $0.isOpen && !$0.isRun }) {
             let a = db.liftAdvice(for: ex, deload: session.deload ?? false, today: session.slotDate)
             let tip = db.liveTip(sessionId: session.id, ex: ex)
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline) {
-                    Label("Shoot for \(a.target(forSet: setIndex))", systemImage: a.icon)
-                        .font(.headline).labelStyle(CoachLabelStyle())
-                    Spacer()
-                    if setIndex == 0, let range = a.range { Text(range).font(.subheadline).foregroundStyle(.secondary) }
-                }
-                if let note = a.note {
-                    Text(note).font(.subheadline).foregroundStyle(.secondary)
-                }
-                if let tip {
-                    Button {
-                        store.mutate { $0.shiftSets(tip.setIds, ex: ex, steps: tip.steps) }
-                    } label: {
-                        Label(tip.text, systemImage: tip.steps > 0 ? "arrow.up" : "arrow.down")
-                            .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered).tint(tip.steps > 0 ? Theme.lift : Theme.warning)
-                    .transition(.scale.combined(with: .opacity))
-                }
+            PropertyRow(icon: a.icon.replacingOccurrences(of: ".fill", with: ""), label: "Shoot for") {
+                Text(a.target(forSet: setIndex)).fontWeight(.semibold)
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .animation(.snappy, value: tip?.text)
+            if setIndex == 0, let range = a.range {
+                PropertyRow(icon: "arrow.left.and.right", label: "Range") { Text(range) }
+            }
+            if let note = a.note {
+                PropertyRow(icon: "text.bubble", label: "Coach") { Text(note) }
+            }
+            if let tip {
+                PrimaryButton(title: tip.text, icon: tip.steps > 0 ? "arrow.up" : "arrow.down", muted: true) {
+                    store.mutate { $0.shiftSets(tip.setIds, ex: ex, steps: tip.steps) }
+                }
+                .padding(.top, 8)
+                .transition(.opacity)
+            }
         }
     }
 
     /// One dot per set: filled when done, ringed for the current one. Tap a done dot to undo it.
     private func setDots(_ sets: [WorkoutSet], current: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 4) {
             ForEach(sets) { s in
                 Button { toggle(s, ex: nil) } label: {
                     Circle()
-                        .fill(s.isDone ? Theme.lift : Color(.systemGray4))
-                        .frame(width: 10, height: 10)
-                        .overlay(Circle().stroke(Theme.lift, lineWidth: 2).frame(width: 16, height: 16).opacity(s.id == current ? 1 : 0))
-                        .frame(width: 22, height: 22)
+                        .fill(s.isDone ? Page.text : Page.divider)
+                        .frame(width: 8, height: 8)
+                        .overlay(Circle().stroke(Page.text, lineWidth: 1.5).frame(width: 13, height: 13).opacity(s.id == current ? 1 : 0))
+                        .frame(width: 18, height: 18)
                 }
                 .buttonStyle(.plain)
                 .disabled(!s.isDone)
                 .accessibilityLabel(s.isDone ? "Undo set" : s.id == current ? "Current set" : "Set")
             }
         }
-        .padding(.top, 4)
     }
 
     private func valueRow(label: String, value: String, canStep: Bool,
@@ -317,13 +316,9 @@ struct WorkoutView: View {
         HStack {
             stepButton("minus", label: "Less \(label.lowercased())", enabled: canStep) { onStep(-1) }
             Button(action: onTap) {
-                VStack(spacing: 2) {
-                    Text(value).font(.number(44, weight: .bold)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(.primary)
-                    HStack(spacing: 4) {
-                        Text(label)
-                        Image(systemName: "pencil").imageScale(.small)
-                    }
-                    .font(.footnote.weight(.medium)).foregroundStyle(.secondary)
+                VStack(spacing: 0) {
+                    Text(value).font(.number(52, weight: .bold)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(Page.text)
+                    Text(label).font(.footnote).foregroundStyle(Page.secondary)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -331,18 +326,16 @@ struct WorkoutView: View {
             .accessibilityHint("Tap to type a value")
             stepButton("plus", label: "More \(label.lowercased())", enabled: canStep) { onStep(1) }
         }
-        .padding(16)
-        .background(Theme.lift.opacity(0.12), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Theme.lift.opacity(0.25)))
+        .padding(.vertical, 14)
     }
 
     private func stepButton(_ icon: String, label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: icon).font(.title2.weight(.semibold)).frame(width: 52, height: 52)
+            Image(systemName: icon).font(.title3.weight(.medium)).foregroundStyle(Page.text)
+                .frame(width: 52, height: 52)
+                .background(Page.fill, in: Circle())
         }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.circle)
-        .tint(Theme.lift)
+        .buttonStyle(.plain)
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0)
         .accessibilityLabel(label)
@@ -359,44 +352,37 @@ struct WorkoutView: View {
     // MARK: All Sets
 
     private func allSetsList(groups: [ExGroup], session: Session, day: Day, activeId: String?) -> some View {
-        List {
-            ForEach(Array(groups.enumerated()), id: \.element.id) { i, g in
-                Section {
-                    ForEach(Array(g.sets.enumerated()), id: \.element.id) { n, st in
-                        setRow(st, number: n + 1, ex: g.ex, isActive: st.id == activeId)
-                            .swipeActions {
-                                if g.sets.count > 1 {
-                                    Button("Delete", role: .destructive) { store.mutate { $0.removeSet(st.id) } }
-                                }
-                            }
-                    }
-                    Button { store.mutate { $0.addSetToSession(session.id, exerciseId: g.ex.id) } } label: {
-                        Label("Add Set", systemImage: "plus")
-                    }
-                } header: {
-                    HStack {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                ForEach(Array(groups.enumerated()), id: \.element.id) { i, g in
+                    let a = store.db.liftAdvice(for: g.ex, deload: session.deload ?? false, today: session.slotDate)
+                    PageSection(g.ex.name, trailing: { exerciseMenu(g.ex, session: session, index: i, count: groups.count) }) {
                         Button { historyTarget = g.ex } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack {
-                                    Text(g.ex.name).font(.headline).foregroundStyle(.primary)
-                                    if g.isDone { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.lift) }
-                                }
-                                let a = store.db.liftAdvice(for: g.ex, deload: session.deload ?? false, today: session.slotDate)
-                                Label(a.target + (a.range.map { "  ·  \($0)" } ?? ""), systemImage: a.icon)
-                                    .font(.caption).labelStyle(CoachLabelStyle())
-                            }
-                            .textCase(nil)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            Text("Shoot for \(a.target)" + (a.range.map { " · \($0)" } ?? ""))
+                                .font(.subheadline).foregroundStyle(Page.secondary)
                         }
                         .buttonStyle(.plain)
-                        Spacer()
-                        exerciseMenu(g.ex, session: session, index: i, count: groups.count)
+                        VStack(spacing: 0) {
+                            ForEach(Array(g.sets.enumerated()), id: \.element.id) { n, st in
+                                setRow(st, number: n + 1, ex: g.ex, isActive: st.id == activeId)
+                                    .contextMenu {
+                                        if g.sets.count > 1 {
+                                            Button("Delete Set", systemImage: "trash", role: .destructive) { store.mutate { $0.removeSet(st.id) } }
+                                        }
+                                    }
+                            }
+                            Button { store.mutate { $0.addSetToSession(session.id, exerciseId: g.ex.id) } } label: {
+                                Label("Add set", systemImage: "plus").font(.subheadline).foregroundStyle(Page.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
             }
+            .padding(.horizontal, 20).padding(.vertical, 8)
         }
-        .listStyle(.insetGrouped)
-        .pageBackground()
+        .background(Page.bg)
     }
 
     private func exerciseMenu(_ ex: Exercise, session: Session, index: Int, count: Int) -> some View {
@@ -413,36 +399,38 @@ struct WorkoutView: View {
                 store.mutate { $0.removeExerciseFromSession(session.id, exerciseId: ex.id) }
             } label: { Label("Remove", systemImage: "trash") }
         } label: {
-            Image(systemName: "ellipsis.circle").font(.title3)
+            Image(systemName: "ellipsis").foregroundStyle(Page.secondary).frame(width: 30, height: 24)
         }
-        .textCase(nil)
     }
 
+    /// A Notion-style to-do: square checkbox, set number, load and reps; done sets are struck through.
     private func setRow(_ st: WorkoutSet, number: Int, ex: Exercise, isActive: Bool) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             Button { toggle(st, ex: ex) } label: {
-                Image(systemName: st.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.title2)
-                    .foregroundStyle(st.isDone ? Theme.lift : isActive ? Theme.lift : Color(.systemGray3))
+                Image(systemName: st.isDone ? "checkmark.square.fill" : "square")
+                    .font(.title3)
+                    .foregroundStyle(st.isDone ? Page.text : isActive ? Page.text : Page.tertiary)
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .accessibilityLabel(st.isDone ? "Mark set \(number) not done" : "Mark set \(number) done")
 
-            Text("Set \(number)").foregroundStyle(.secondary).frame(width: 50, alignment: .leading)
-
+            Text("Set \(number)").foregroundStyle(Page.secondary).frame(width: 50, alignment: .leading)
             Button(st.weight.isEmpty ? "—" : st.weight) { loadTarget = SetEdit(row: st, ex: ex) }
-                .buttonStyle(.borderless)
-                .font(.number(20))
-                .foregroundStyle(st.weight.isEmpty ? .secondary : .primary)
+                .buttonStyle(.plain)
+                .font(.number(19))
+                .foregroundStyle(st.weight.isEmpty ? Page.secondary : Page.text)
+                .strikethrough(st.isDone, color: Page.secondary)
             Spacer()
             Button(st.reps.isEmpty ? "Reps" : st.reps) { repsTarget = SetEdit(row: st, ex: ex) }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .font(.number(17))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Page.secondary)
+                .strikethrough(st.isDone, color: Page.secondary)
         }
-        .padding(.vertical, 4)
-        .listRowBackground(isActive ? Theme.lift.opacity(0.12) : nil)
-        .opacity(st.isDone ? 0.55 : 1)
+        .padding(.vertical, 8)
+        .padding(.horizontal, isActive ? 8 : 0)
+        .background(isActive ? Page.fill : .clear, in: RoundedRectangle(cornerRadius: 6))
+        .opacity(st.isDone ? 0.6 : 1)
     }
 
     // MARK: Actions
