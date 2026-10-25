@@ -6,7 +6,7 @@ import SwiftUI
 final class AppNav {
     var showWorkout = false
     var showSettings = false
-    /// Set right after finishing, for the "Saved · Undo" toast.
+    /// Set right after finishing; opens the finish summary sheet.
     var completed: (sessionId: String, label: String)?
 }
 
@@ -17,6 +17,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var nav = AppNav()
     @State private var loading = true
+    @State private var showSummary = false
 
     var body: some View {
         ZStack {
@@ -64,7 +65,21 @@ struct RootView: View {
         .sheet(isPresented: $nav.showSettings) {
             SettingsView().tint(Theme.lift)
         }
-        .overlay(alignment: .top) { CompletionToast().environment(nav) }
+        .sheet(isPresented: $showSummary, onDismiss: { nav.completed = nil }) {
+            if let id = nav.completed?.sessionId {
+                WorkoutSummaryView(sessionId: id)
+                    .presentationDetents([.medium, .large])
+                    .tint(Theme.lift)
+            }
+        }
+        .onChange(of: nav.completed?.sessionId) { _, id in
+            guard id != nil else { return }
+            // Wait for the workout cover to finish dismissing; SwiftUI drops a sheet presented mid-dismiss.
+            Task {
+                try? await Task.sleep(for: .milliseconds(600))
+                showSummary = true
+            }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await store.sync(); await connections.refresh() } }
         }
@@ -123,32 +138,3 @@ struct ResumeBanner: View {
     }
 }
 
-struct CompletionToast: View {
-    @Environment(AppNav.self) private var nav
-    @Environment(Store.self) private var store
-
-    var body: some View {
-        if let done = nav.completed {
-            HStack(spacing: 10) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.lift)
-                Text("Saved").font(.subheadline.weight(.semibold))
-                Spacer()
-                Button("Undo") {
-                    store.mutate { $0.reopenSession(done.sessionId) }
-                    nav.completed = nil
-                    nav.showWorkout = true
-                }
-                .font(.subheadline.weight(.semibold))
-            }
-            .padding(.horizontal, 16).frame(height: 48)
-            .background(.regularMaterial, in: Capsule())
-            .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
-            .padding(.horizontal, 16)
-            .transition(.move(edge: .top).combined(with: .opacity))
-            .task(id: done.sessionId) {
-                try? await Task.sleep(for: .seconds(5))
-                withAnimation { nav.completed = nil }
-            }
-        }
-    }
-}

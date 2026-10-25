@@ -159,6 +159,18 @@ struct CoachTests {
 
     var today: String { "2026-10-20" }
 
+    @Test func prsNeedAHeavierTopSetThanEverBefore() {
+        var heavier = db([[6, 6], [6, 6]], start: "2026-10-01")
+        for i in heavier.sets.indices where heavier.sets[i].sessionId == "s1" { heavier.sets[i].weight = "205 lb" }
+        let prs = heavier.prs(sessionId: "s1")
+        #expect(prs.count == 1)
+        #expect(prs.first?.before == 200 && prs.first?.now == 205)
+
+        let same = db([[6, 6], [6, 6]], start: "2026-10-01")
+        #expect(same.prs(sessionId: "s1").isEmpty)
+        #expect(same.prs(sessionId: "s0").isEmpty) // first session has nothing to beat
+    }
+
     @Test func noHistoryKeepsWeight() {
         let a = db([]).liftAdvice(for: bench, today: today)
         #expect(a.kind == .new && a.steps == 0 && a.target == "200 lb × 6")

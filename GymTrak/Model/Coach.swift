@@ -128,6 +128,27 @@ extension Snapshot {
         return out
     }
 
+    /// Exercises in this session whose top set beats every earlier session.
+    /// Needs at least one earlier score to count as a PR.
+    func prs(sessionId: String) -> [(Exercise, before: Double, now: Double)] {
+        guard let session = sessions.first(where: { $0.id == sessionId }) else { return [] }
+        var out: [(Exercise, before: Double, now: Double)] = []
+        for ex in exercises {
+            let type = ex.effectiveLoadType
+            let now = sets
+                .filter { $0.sessionId == sessionId && $0.isDone && $0.exerciseId == ex.id }
+                .compactMap { loadScore($0.weight, type: type) }
+                .max()
+            guard let now else { continue }
+            let before = liftHistory(for: ex, before: session.slotDate, limit: .max)
+                .flatMap { $0.sets.compactMap(\.score) }
+                .max()
+            guard let before, now > before else { continue }
+            out.append((ex, before: before, now: now))
+        }
+        return out
+    }
+
     /// What to aim for next time on this exercise.
     func liftAdvice(for ex: Exercise, deload: Bool = false, today: String = DateKey.key(Date())) -> LiftAdvice {
         var a = rawLiftAdvice(for: ex, deload: deload, today: today)

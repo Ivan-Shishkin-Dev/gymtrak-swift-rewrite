@@ -15,6 +15,7 @@
 		34FABD8E26490FD6B57AFE04 /* GymTrakApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4836D52C7BF3E488E905D2BC /* GymTrakApp.swift */; };
 		4923A5649468C60FAA651017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4BBD71E83D7AFD52D2D19AEE /* Assets.xcassets */; };
 		4F7ECD4E12365318CCB01CF6 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF44F70C7C73332C3A04906 /* ScheduleView.swift */; };
+		6509A80DEE09F76C8CBC5F5D /* WorkoutSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47818A6E2CFB2AD0E263058F /* WorkoutSummaryView.swift */; };
 		688F959739EB02D5DFE1647C /* Load.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1A96275B820FD5C193DC82 /* Load.swift */; };
 		702733365E5871A883C67444 /* GymTrakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203CC4A1164B17AB43E1679B /* GymTrakTests.swift */; };
 		86D71F68FB438DAEA933B58C /* Program.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A76751019FB132D5513D1F /* Program.swift */; };
@@ -50,6 +51,7 @@
 		2DA5A37017F06901DB8C32FE /* LoadEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadEditorSheet.swift; sourceTree = "<group>"; };
 		39BDA911196A0C13FB2E8ADA /* RestTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimer.swift; sourceTree = "<group>"; };
 		42768E1AD24129112AA73471 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		47818A6E2CFB2AD0E263058F /* WorkoutSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSummaryView.swift; sourceTree = "<group>"; };
 		4836D52C7BF3E488E905D2BC /* GymTrakApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymTrakApp.swift; sourceTree = "<group>"; };
 		4A1FD75C622FE7E2FE81AC08 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		4BBD71E83D7AFD52D2D19AEE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -68,7 +70,7 @@
 		EB1A96275B820FD5C193DC82 /* Load.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Load.swift; sourceTree = "<group>"; };
 		ED9FEFA66FBE1F68F31AC163 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		F0BE589482F4E09EF006D1D7 /* GymTrak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GymTrak.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_85C1D215-69C9-4929-A38F-8972CD57BEC6" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_6C5359AA-5D8B-4A31-8EA5-2AC9D789CBF6" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -157,15 +159,16 @@
 				C85E1EE3AF6C4E833BC29146 /* SignInView.swift */,
 				4A1FD75C622FE7E2FE81AC08 /* Theme.swift */,
 				2098609CF3E400CDDC0CC8A4 /* TodayView.swift */,
+				47818A6E2CFB2AD0E263058F /* WorkoutSummaryView.swift */,
 				DFCB9EEFE0143092E1947D78 /* WorkoutView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
 		};
-		"TEMP_FB6A7D71-B651-43DA-99D7-F21F29ADB1DD" /* gymtrak-swift-rewrite */ = {
+		"TEMP_8718C3B7-B1ED-46E9-A92F-AEA4FE854E15" /* gymtrak-swift-rewrite */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_85C1D215-69C9-4929-A38F-8972CD57BEC6" /* Config.xcconfig */,
+				"TEMP_6C5359AA-5D8B-4A31-8EA5-2AC9D789CBF6" /* Config.xcconfig */,
 			);
 			path = "gymtrak-swift-rewrite";
 			sourceTree = "<group>";
@@ -296,6 +299,7 @@
 				2EF0F19D95DBBDCB8FEB8CCE /* Store.swift in Sources */,
 				F5190E67C991966105BC9732 /* Theme.swift in Sources */,
 				B9C90E0454D9DEE2A8AA7197 /* TodayView.swift in Sources */,
+				6509A80DEE09F76C8CBC5F5D /* WorkoutSummaryView.swift in Sources */,
 				EA0256E15D2441B3F38DAA8F /* WorkoutView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -474,7 +478,7 @@
 		};
 		C51B4C3A1A037D7EDB9E81F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_85C1D215-69C9-4929-A38F-8972CD57BEC6" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_6C5359AA-5D8B-4A31-8EA5-2AC9D789CBF6" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -493,7 +497,7 @@
 		};
 		DE1DAE831E7778559F295B52 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_85C1D215-69C9-4929-A38F-8972CD57BEC6" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_6C5359AA-5D8B-4A31-8EA5-2AC9D789CBF6" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
