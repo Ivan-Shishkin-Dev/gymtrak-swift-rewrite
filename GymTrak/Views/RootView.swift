@@ -15,8 +15,32 @@ struct RootView: View {
     @Environment(RestTimer.self) private var rest
     @Environment(\.scenePhase) private var scenePhase
     @State private var nav = AppNav()
+    @State private var loading = true
 
     var body: some View {
+        ZStack {
+            tabs
+            if loading {
+                LoadingView().transition(.opacity.combined(with: .scale(scale: 1.05)))
+            }
+        }
+        .task {
+            // Show at least one rep, then wait for the first sync — but never more than 5 s.
+            let sync = Task { await store.sync() }
+            try? await Task.sleep(for: .seconds(1.3))
+            var waited = 1.3
+            while store.syncStatus == .syncing && waited < 5 {
+                try? await Task.sleep(for: .milliseconds(100))
+                waited += 0.1
+            }
+            // Launch with -holdLoading to keep the splash up (for tweaking it).
+            if ProcessInfo.processInfo.arguments.contains("-holdLoading") { return }
+            withAnimation(.easeInOut(duration: 0.4)) { loading = false }
+            await sync.value
+        }
+    }
+
+    private var tabs: some View {
         TabView {
             Tab("Today", systemImage: "house.fill") {
                 TodayView().safeAreaInset(edge: .bottom) { dock }
@@ -34,12 +58,8 @@ struct RootView: View {
             SettingsView().tint(Theme.lift)
         }
         .overlay(alignment: .top) { CompletionToast().environment(nav) }
-        .task { await store.sync() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await store.sync() } }
-        }
-        .onAppear {
-            if !store.canEdit && store.db.days.isEmpty { nav.showSettings = true }
         }
     }
 
