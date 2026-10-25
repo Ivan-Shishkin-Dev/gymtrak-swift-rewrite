@@ -35,6 +35,7 @@ struct RootView: View {
             if ProcessInfo.processInfo.arguments.contains("-holdLoading") { return }
             withAnimation(.easeInOut(duration: 0.4)) { loading = false }
             await connections.refresh()
+            WidgetBridge.publish(store.db, runs: connections.runs)
         }
     }
 
@@ -77,8 +78,11 @@ struct RootView: View {
                 showSummary = true
             }
         }
+        .onChange(of: store.db.maxUpdatedAt) { WidgetBridge.publish(store.db, runs: connections.runs) }
+        .onChange(of: connections.runs.count) { WidgetBridge.publish(store.db, runs: connections.runs) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await connections.refresh() } }
+            if phase == .background { WidgetBridge.publish(store.db, runs: connections.runs) }
         }
     }
 

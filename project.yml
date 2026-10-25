@@ -17,6 +17,9 @@ targets:
     sources:
       - path: GymTrak
         excludes: [GymTrak.entitlements]
+      - path: Shared
+    dependencies:
+      - target: GymTrakWidgets
     configFiles:
       Debug: Config.xcconfig
       Release: Config.xcconfig
@@ -45,6 +48,29 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+  GymTrakWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widgets
+        excludes: [GymTrakWidgets.entitlements]
+      - path: Shared
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: GymTrak
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.ivanshishkin.gymtrak.widgets
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_ENTITLEMENTS: Widgets/GymTrakWidgets.entitlements
+        DEVELOPMENT_TEAM: WSGA5S62WA
+        SKIP_INSTALL: YES
   GymTrakTests:
     type: bundle.unit-test
     platform: iOS

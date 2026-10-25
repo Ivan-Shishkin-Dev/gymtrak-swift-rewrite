@@ -111,7 +111,7 @@ extension Snapshot {
             // A timer left running (the old web app did this) logs days, not minutes: use the plan instead.
             let min = logged > 300 ? Double(r.plannedMin) : logged
             return RunRecord(id: s.id, date: s.slotDate, minutes: min, miles: r.actualMi ?? 0, avgHR: r.avgHr,
-                             name: r.label.rawValue.capitalized + " Run")
+                             name: r.label.rawValue)
         }
         return (logged + synced.map(RunRecord.init)).sorted { $0.date > $1.date }
     }
