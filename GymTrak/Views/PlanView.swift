@@ -40,7 +40,7 @@ struct PlanView: View {
                                 Text("Schedule")
                                 Text(scheduleSummary(db.weeks)).font(.caption).foregroundStyle(.secondary)
                             }
-                        } icon: { Image(systemName: "calendar") }
+                        } icon: { IconBadge(systemName: "calendar", color: Theme.run) }
                     }
                 } header: { Text("Program") }
 
@@ -79,10 +79,13 @@ struct PlanView: View {
     private func dayRow(_ day: Day) -> some View {
         let count = store.db.exercises(of: day.id).count
         let dows = store.db.weeks.first.map { w in w.slots.filter { $0.liftDayId == day.id }.map { $0.dow.short } } ?? []
-        return VStack(alignment: .leading, spacing: 3) {
+        return HStack(spacing: 14) {
+          IconBadge(systemName: "dumbbell.fill", color: Theme.lift, size: 36)
+          VStack(alignment: .leading, spacing: 3) {
             Text(day.name).font(.headline)
             Text([dows.joined(separator: ", "), "\(count) exercises", day.focus].filter { !$0.isEmpty }.joined(separator: " · "))
                 .font(.subheadline).foregroundStyle(.secondary)
+          }
         }
         .padding(.vertical, 4)
     }

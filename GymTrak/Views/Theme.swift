@@ -8,6 +8,21 @@ enum Theme {
     static let warning = Color.orange
 }
 
+/// Settings-app style icon: white symbol on a colored rounded square.
+struct IconBadge: View {
+    let systemName: String
+    let color: Color
+    var size: CGFloat = 30
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: size * 0.5, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: size, height: size)
+            .background(color.gradient, in: RoundedRectangle(cornerRadius: size * 0.27, style: .continuous))
+    }
+}
+
 extension Font {
     /// Big rounded numbers for loads, reps and timers.
     static func number(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {

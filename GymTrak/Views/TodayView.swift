@@ -64,34 +64,46 @@ struct TodayView: View {
             db.sessions.first { $0.slotDate == date && $0.finishedAt != nil && !$0.isDeleted && !$0.isRun && $0.dayId == d.id }
         }
 
+        // The hero card: green for a lift, blue for a run-only day, grey for rest.
+        let heroColor: Color = liftDay != nil ? Theme.lift : slot?.run != nil ? Theme.run : .gray
         Section {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text(isToday ? "Today, \(dow.label)" : "\(dow.label), \(DateKey.label(date, "MMMM d"))")
+                    Text(isToday ? "Today · \(dow.label)" : "\(dow.label) · \(DateKey.label(date, "MMM d"))")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(isToday ? Theme.lift : .secondary)
+                        .foregroundStyle(.white.opacity(0.85))
                     Spacer()
                     if doneLift != nil {
                         Label("Done", systemImage: "checkmark.circle.fill")
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.lift)
+                            .font(.subheadline.weight(.bold)).foregroundStyle(.white)
                     }
                 }
-                Text(liftDay?.name ?? slot?.run?.label.rawValue ?? "Rest Day")
-                    .font(.largeTitle.bold())
-                if let liftDay, !liftDay.focus.isEmpty {
-                    Text(liftDay.focus).foregroundStyle(.secondary)
+                HStack(alignment: .center, spacing: 14) {
+                    Image(systemName: liftDay != nil ? "dumbbell.fill" : slot?.run != nil ? "figure.run" : "moon.zzz.fill")
+                        .font(.system(size: 30, weight: .semibold))
+                        .rotationEffect(.degrees(liftDay != nil ? -45 : 0))
+                        .frame(width: 56, height: 56)
+                        .background(.white.opacity(0.2), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(liftDay?.name ?? slot?.run?.label.rawValue ?? "Rest Day")
+                            .font(.largeTitle.bold())
+                        if let liftDay, !liftDay.focus.isEmpty {
+                            Text(liftDay.focus).font(.subheadline).foregroundStyle(.white.opacity(0.85))
+                        }
+                    }
+                }
+                .foregroundStyle(.white)
+                if let liftDay {
+                    startButton(liftDay, week: week, date: date, done: doneLift != nil)
                 }
             }
-            .padding(.vertical, 6)
+            .padding(.vertical, 8)
+            .listRowBackground(
+                LinearGradient(colors: [heroColor.mix(with: .white, by: 0.12), heroColor.mix(with: .black, by: 0.25)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+            )
         } footer: {
-            if week.isDeload { Label(deloadNote, systemImage: "arrow.down.circle") }
-        }
-
-        if let liftDay {
-            Section {
-                startButton(liftDay, week: week, date: date, done: doneLift != nil)
-            }
-            .listSectionSpacing(.compact)
+            if week.isDeload { Label(deloadNote, systemImage: "arrow.down.circle").foregroundStyle(Theme.warning) }
         }
 
         if !exercises.isEmpty {
@@ -104,7 +116,7 @@ struct TodayView: View {
                         }
                     }
                 } label: {
-                    Label("\(exercises.count) Exercises", systemImage: "dumbbell")
+                    Label { Text("\(exercises.count) Exercises") } icon: { IconBadge(systemName: "list.bullet", color: Theme.lift) }
                 }
             }
         }
@@ -120,34 +132,36 @@ struct TodayView: View {
                     Text("\(run.label.effort) · \(zoneLabel(run.hrZoneMin, run.hrZoneMax)) bpm" +
                          (run.label.isEasy ? " · about \(Zone2.milesLabel(run.durationMin))" : ""))
                         .font(.subheadline).foregroundStyle(.secondary)
+                    if let notes = run.notes { Text(notes).font(.subheadline).padding(.top, 4) }
+                    if run.strides { Text("Then \(stridesNote)").font(.subheadline).padding(.top, 4) }
                 }
-                .padding(.vertical, 2)
-                if let notes = run.notes { Text(notes).font(.subheadline) }
-                if run.strides { Text("Then \(stridesNote)").font(.subheadline) }
+                .padding(.vertical, 4)
+                .listRowBackground(Theme.run.opacity(0.14))
             } header: {
-                Label(liftDay != nil ? "Then Run" : "Run", systemImage: "figure.run")
+                Label(liftDay != nil ? "Then Run" : "Run", systemImage: "figure.run").foregroundStyle(Theme.run)
             }
         }
     }
 
-    /// Start, Resume, Do Again, or Unlock — whichever applies right now.
+    /// Start, Resume, Do Again, or Unlock — whichever applies right now. White on the colored card.
     private func startButton(_ day: Day, week: ProgramWeek, date: String, done: Bool) -> some View {
         let open = store.db.openLift()
         let isOpen = open?.dayId == day.id && open?.slotDate == date
-        let title = !store.canEdit ? "Unlock to Start" : isOpen ? "Resume" : done ? "Do Again" : "Start"
+        let title = !store.canEdit ? "Unlock to Start" : isOpen ? "Resume" : done ? "Do Again" : "Start Workout"
         let icon = !store.canEdit ? "lock.fill" : isOpen ? "arrow.uturn.forward" : "play.fill"
         return Button {
             if !store.canEdit { nav.showSettings = true }
             else if isOpen { nav.showWorkout = true }
             else { start(day, week: week, date: date) }
         } label: {
-            Label(title, systemImage: icon).font(.headline).frame(maxWidth: .infinity)
+            Label(title, systemImage: icon)
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .foregroundStyle(done && !isOpen ? .white : Theme.lift.mix(with: .black, by: 0.35))
+                .background(done && !isOpen ? .white.opacity(0.22) : .white, in: Capsule())
         }
-        .buttonStyle(.borderedProminent)
-        .tint(!store.canEdit || (done && !isOpen) ? .gray : Theme.lift)
-        .controlSize(.large)
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets())
+        .buttonStyle(.plain)
         .confirmationDialog("Discard other workout?", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("Discard and Start", role: .destructive) { proceed(day, week: week, date: date) }
         }
@@ -175,6 +189,9 @@ struct TodayView: View {
                         .frame(width: 36)
                         .foregroundStyle(date == todayKey ? Theme.lift : .secondary)
 
+                        IconBadge(systemName: dayName != nil ? "dumbbell.fill" : slot?.run != nil ? "figure.run" : "moon.zzz.fill",
+                                  color: dayName != nil ? Theme.lift : slot?.run != nil ? Theme.run : Color(.systemGray3),
+                                  size: 28)
                         VStack(alignment: .leading, spacing: 2) {
                             if let dayName {
                                 Text(dayName).foregroundStyle(.primary)
@@ -196,7 +213,7 @@ struct TodayView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .listRowBackground(dow == selected ? Theme.lift.opacity(0.15) : nil)
+                .listRowBackground(dow == selected ? Theme.lift.opacity(0.2) : nil)
             }
         } header: {
             HStack {

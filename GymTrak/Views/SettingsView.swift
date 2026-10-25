@@ -13,19 +13,30 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    HStack(spacing: 14) {
+                        Image("Logo").resizable().frame(width: 60, height: 60)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("GymTrak").font(.title2.bold())
+                            Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")")
+                                .font(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
                 accessSection
                 syncSection
                 Section("Rest timer") {
                     Stepper(value: Binding(get: { rest.defaultSec }, set: { rest.setDefault($0) }),
                             in: RestTimer.minSec...RestTimer.maxSec, step: 15) {
-                        LabeledContent("Default rest", value: fmtClock(Double(rest.defaultSec)))
+                        Label { LabeledContent("Default Rest", value: fmtClock(Double(rest.defaultSec))) } icon: { IconBadge(systemName: "timer", color: .orange) }
                     }
                 }
                 programSection
                 dataSection
                 Section("About") {
-                    LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
-                    LabeledContent("Lift days", value: "\(store.db.activeDays.count)")
+                                        LabeledContent("Lift days", value: "\(store.db.activeDays.count)")
                     LabeledContent("Workouts", value: "\(store.db.sessions.filter { $0.finishedAt != nil && !$0.isDeleted }.count)")
                     Link("GitHub", destination: URL(string: "https://github.com/Ivan-Shishkin-Dev/gymtrak-swift-rewrite")!)
                 }
@@ -44,7 +55,7 @@ struct SettingsView: View {
     @ViewBuilder private var accessSection: some View {
         Section {
             if store.canEdit {
-                Label("Editing On", systemImage: "lock.open.fill").foregroundStyle(Theme.lift)
+                Label { Text("Editing On") } icon: { IconBadge(systemName: "lock.open.fill", color: Theme.lift) }
                 Button("Lock", role: .destructive) { store.lock() }
             } else {
                 SecureField("Edit code", text: $code).keyboardType(.numberPad)
@@ -78,7 +89,9 @@ struct SettingsView: View {
             if let last = store.lastSyncedAt {
                 LabeledContent("Last synced", value: last.formatted(date: .omitted, time: .shortened))
             }
-            Button("Sync now") { Task { await store.sync() } }
+            Button { Task { await store.sync() } } label: {
+                Label { Text("Sync Now") } icon: { IconBadge(systemName: "arrow.triangle.2.circlepath", color: Theme.run) }
+            }
             Button("Reset from Cloud", role: .destructive) { confirmReset = true }
                 .confirmationDialog("Use the cloud copy?", isPresented: $confirmReset, titleVisibility: .visible) {
                     Button("Replace local data", role: .destructive) { Task { await store.forcePull() } }
@@ -91,7 +104,9 @@ struct SettingsView: View {
             if store.db.weeks.isEmpty {
                 Text("No program installed.").foregroundStyle(.secondary)
             } else {
-                DatePicker("Week 1 starts", selection: $startMonday, displayedComponents: .date)
+                DatePicker(selection: $startMonday, displayedComponents: .date) {
+                    Label { Text("Week 1 Starts") } icon: { IconBadge(systemName: "calendar", color: .red) }
+                }
                 Button("Move Program") { confirmReanchor = true }
                     .disabled(!store.canEdit)
                     .confirmationDialog("Re-anchor the program?", isPresented: $confirmReanchor, titleVisibility: .visible) {
@@ -110,7 +125,7 @@ struct SettingsView: View {
     @ViewBuilder private var dataSection: some View {
         Section {
             if let url = exportURL() {
-                ShareLink(item: url) { Label("Export Backup", systemImage: "square.and.arrow.up") }
+                ShareLink(item: url) { Label { Text("Export Backup") } icon: { IconBadge(systemName: "square.and.arrow.up", color: .indigo) } }
             }
         } header: {
             Text("Data")

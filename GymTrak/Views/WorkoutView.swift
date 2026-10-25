@@ -73,7 +73,7 @@ struct WorkoutView: View {
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 10) {
-                    ProgressView(value: Double(done), total: Double(max(total, 1))).tint(Theme.lift)
+                    ProgressView(value: Double(done), total: Double(max(total, 1))).tint(Theme.lift).scaleEffect(y: 1.8)
                     Picker("View", selection: $mode) {
                         ForEach(Mode.allCases, id: \.self) { Text($0.rawValue) }
                     }
@@ -203,7 +203,7 @@ struct WorkoutView: View {
                 VStack(spacing: 28) {
                     VStack(spacing: 6) {
                         Text(group.ex.name).font(.title.bold()).multilineTextAlignment(.center)
-                        Text("Set \(index) of \(group.sets.count)").font(.headline).foregroundStyle(.secondary)
+                        Text("Set \(index) of \(group.sets.count)").font(.headline).foregroundStyle(Theme.lift)
                         setDots(group.sets, current: active.row.id)
                     }
 
@@ -286,7 +286,8 @@ struct WorkoutView: View {
             stepButton("plus", label: "More \(label.lowercased())", enabled: canStep) { onStep(1) }
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Theme.lift.opacity(0.12), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Theme.lift.opacity(0.25)))
     }
 
     private func stepButton(_ icon: String, label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
@@ -295,7 +296,7 @@ struct WorkoutView: View {
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.circle)
-        .tint(.primary)
+        .tint(Theme.lift)
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0)
         .accessibilityLabel(label)
