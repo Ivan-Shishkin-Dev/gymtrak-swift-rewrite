@@ -153,13 +153,17 @@ extension Snapshot {
         let session = sessions[si]
         let byExercise = Dictionary(grouping: sets(of: id), by: \.exerciseId)
         for (exerciseId, exSets) in byExercise {
-            let rows = exSets.sorted { $0.setIndex < $1.setIndex }.map { s in
-                s.isDone ? SetRow(weight: s.weight, reps: s.reps)
-                         : SetRow(weight: s.targetWeight ?? s.weight, reps: s.targetReps ?? s.reps)
+            guard let ei = exercises.firstIndex(where: { $0.id == exerciseId }) else { continue }
+            // Unticked sets keep the plan's old row: a coach target that was never lifted must not
+            // become the new baseline, or the coach would push from it next time.
+            let prev = exercises[ei].rows
+            let rows = exSets.sorted { $0.setIndex < $1.setIndex }.enumerated().map { i, s in
+                if s.isDone { return SetRow(weight: s.weight, reps: s.reps) }
+                if i < prev.count { return prev[i] }
+                return SetRow(weight: s.targetWeight ?? s.weight, reps: s.targetReps ?? s.reps)
             }
-            guard !rows.isEmpty, let ei = exercises.firstIndex(where: { $0.id == exerciseId }) else { continue }
+            guard !rows.isEmpty else { continue }
             // A deload runs a set short: keep the plan's trailing set(s) so the template doesn't shrink.
-            let prev = exercises[ei].setRows ?? []
             let merged = (session.deload ?? false) && prev.count > rows.count ? rows + prev.dropFirst(rows.count) : rows
             exercises[ei].setRows = merged
             exercises[ei].sets = merged.count

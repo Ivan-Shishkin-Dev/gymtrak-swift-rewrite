@@ -240,6 +240,16 @@ struct CoachTests {
         #expect(s.sets(of: id).map(\.weight) == ["205 lb", "205 lb"])
     }
 
+    @Test func finishWithoutLiftingKeepsThePlanUnchanged() {
+        var s = db([[6, 6], [6, 6]], start: "2026-10-15")
+        s.exercises[0].setRows = [SetRow(weight: "200 lb", reps: "× 6"), SetRow(weight: "200 lb", reps: "× 6")]
+        let id = s.startSession(day: s.days[0], options: StartOptions(scheduledDate: today, coach: true))
+        #expect(s.sets(of: id).map(\.weight) == ["205 lb", "205 lb"])
+        s.finishSession(id) // nothing ticked
+        #expect(s.exercises[0].rows.map(\.weight) == ["200 lb", "200 lb"])
+        #expect(s.liftAdvice(for: s.exercises[0], today: DateKey.addDays(today, 3)).target.hasPrefix("205"))
+    }
+
     @Test func liveTipSuggestsAddingAfterEasySet() {
         var s = db([])
         let id = s.startSession(day: s.days[0])
