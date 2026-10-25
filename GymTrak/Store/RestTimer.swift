@@ -28,7 +28,7 @@ final class RestTimer {
         if let saved = UserDefaults.standard.dictionary(forKey: Self.activeKey),
            let start = saved["startedAt"] as? Double, let target = saved["targetSec"] as? Int {
             let age = Date().timeIntervalSince1970 - start
-            if age >= 0 && age < Double(target + 300) {
+            if age >= 0 && age < Double(target + 60) {
                 startedAt = Date(timeIntervalSince1970: start)
                 targetSec = target
             }

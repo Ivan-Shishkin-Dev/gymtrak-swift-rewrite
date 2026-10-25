@@ -208,8 +208,9 @@ struct WorkoutView: View {
                     }
 
                     VStack(spacing: 14) {
-                        valueRow(label: "Weight",
-                                 value: active.row.weight.isEmpty ? "—" : active.row.weight,
+                        let unit = group.ex.effectiveLoadType.valueLabel(for: active.row.weight)
+                        valueRow(label: unit,
+                                 value: displayLoad(active.row.weight, unit: unit),
                                  canStep: store.canEdit && group.ex.effectiveLoadType != .free,
                                  onStep: { stepLoad(active.row, ex: group.ex, $0) },
                                  onTap: { loadTarget = SetEdit(row: active.row, ex: group.ex) })
@@ -271,7 +272,11 @@ struct WorkoutView: View {
             Button(action: onTap) {
                 VStack(spacing: 2) {
                     Text(value).font(.number(44, weight: .bold)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(.primary)
-                    Text(label).font(.footnote.weight(.medium)).foregroundStyle(.secondary)
+                    HStack(spacing: 4) {
+                        Text(label)
+                        if store.canEdit { Image(systemName: "pencil").imageScale(.small) }
+                    }
+                    .font(.footnote.weight(.medium)).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -294,6 +299,14 @@ struct WorkoutView: View {
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0)
         .accessibilityLabel(label)
+    }
+
+    /// "225 lb" shows as a big "225" with "lb" underneath.
+    private func displayLoad(_ raw: String, unit: String) -> String {
+        guard !raw.isEmpty else { return "—" }
+        if unit == "lb", raw.hasSuffix(" lb") { return String(raw.dropLast(3)) }
+        if unit == "Max", raw == "Max" { return "Max" }
+        return raw
     }
 
     // MARK: All Sets

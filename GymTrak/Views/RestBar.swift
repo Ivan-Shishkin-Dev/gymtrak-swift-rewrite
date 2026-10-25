@@ -29,7 +29,7 @@ struct RestBar: View {
             .controlSize(.small)
             .padding(.horizontal).padding(.vertical, 8)
             .background(.bar)
-            .onChange(of: left < -300) { _, stale in if stale { rest.stop() } }
+            .onChange(of: left < -60) { _, stale in if stale { rest.stop() } }
             .sensoryFeedback(.warning, trigger: over)
         }
     }

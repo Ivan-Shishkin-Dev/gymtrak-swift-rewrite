@@ -17,7 +17,10 @@ struct TodayView: View {
         let todayWeek = weekFor(weeks, today)
         // Program not started yet → show its first week rather than an empty screen.
         let nextWeek = todayWeek == nil ? weeks.first { $0.startDate > todayKey } : nil
-        let week = weeks.first { $0.id == viewWeekId } ?? todayWeek ?? nextWeek
+        let homeWeek = todayWeek ?? nextWeek
+        let week = weeks.first { $0.id == viewWeekId } ?? homeWeek
+        let homeDow: Dow = todayWeek != nil ? DateKey.dow(today) : .mon
+        let browsing = week?.id != homeWeek?.id || (selectedDow ?? homeDow) != homeDow
 
         NavigationStack {
             List {
@@ -34,6 +37,13 @@ struct TodayView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("Today")
             .toolbar {
+                if browsing {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Today") {
+                            withAnimation { viewWeekId = nil; selectedDow = nil }
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) { SettingsButton() }
             }
             .refreshable { await store.sync() }
@@ -56,15 +66,20 @@ struct TodayView: View {
 
         Section {
             VStack(alignment: .leading, spacing: 4) {
-                Text(isToday ? "Today, \(dow.label)" : "\(dow.label), \(DateKey.label(date, "MMMM d"))")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(isToday ? Theme.lift : .secondary)
+                HStack {
+                    Text(isToday ? "Today, \(dow.label)" : "\(dow.label), \(DateKey.label(date, "MMMM d"))")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isToday ? Theme.lift : .secondary)
+                    Spacer()
+                    if doneLift != nil {
+                        Label("Done", systemImage: "checkmark.circle.fill")
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(Theme.lift)
+                    }
+                }
                 Text(liftDay?.name ?? slot?.run?.label.rawValue ?? "Rest Day")
                     .font(.largeTitle.bold())
                 if let liftDay, !liftDay.focus.isEmpty {
                     Text(liftDay.focus).foregroundStyle(.secondary)
-                } else if slot?.isRest ?? true {
-                    EmptyView()
                 }
             }
             .padding(.vertical, 6)
@@ -72,34 +87,12 @@ struct TodayView: View {
             if week.isDeload { Label(deloadNote, systemImage: "arrow.down.circle") }
         }
 
-        Section {
-            if let liftDay {
-                if doneLift != nil {
-                    Label("Done", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(Theme.lift)
-                }
-                if store.canEdit {
-                    Button {
-                        start(liftDay, week: week, date: date)
-                    } label: {
-                        Label(doneLift != nil ? "Again"
-                              : "Start",
-                              systemImage: "play.fill")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(doneLift != nil ? .gray : Theme.lift)
-                    .controlSize(.large)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
-                    .confirmationDialog("Discard other workout?", isPresented: $confirmDiscard, titleVisibility: .visible) {
-                        Button("Discard and Start", role: .destructive) { proceed(liftDay, week: week, date: date) }
-                    }
-                }
+        if let liftDay {
+            Section {
+                startButton(liftDay, week: week, date: date, done: doneLift != nil)
             }
+            .listSectionSpacing(.compact)
         }
-        .listSectionSpacing(.compact)
 
         if !exercises.isEmpty {
             Section {
@@ -134,6 +127,29 @@ struct TodayView: View {
             } header: {
                 Label(liftDay != nil ? "Then Run" : "Run", systemImage: "figure.run")
             }
+        }
+    }
+
+    /// Start, Resume, Do Again, or Unlock — whichever applies right now.
+    private func startButton(_ day: Day, week: ProgramWeek, date: String, done: Bool) -> some View {
+        let open = store.db.openLift()
+        let isOpen = open?.dayId == day.id && open?.slotDate == date
+        let title = !store.canEdit ? "Unlock to Start" : isOpen ? "Resume" : done ? "Do Again" : "Start"
+        let icon = !store.canEdit ? "lock.fill" : isOpen ? "arrow.uturn.forward" : "play.fill"
+        return Button {
+            if !store.canEdit { nav.showSettings = true }
+            else if isOpen { nav.showWorkout = true }
+            else { start(day, week: week, date: date) }
+        } label: {
+            Label(title, systemImage: icon).font(.headline).frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(!store.canEdit || (done && !isOpen) ? .gray : Theme.lift)
+        .controlSize(.large)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets())
+        .confirmationDialog("Discard other workout?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+            Button("Discard and Start", role: .destructive) { proceed(day, week: week, date: date) }
         }
     }
 

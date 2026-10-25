@@ -43,13 +43,10 @@ struct RootView: View {
         }
     }
 
-    /// Resume banner + rest timer, docked above the tab bar.
+    /// One bar above the tab bar while a workout is open: progress, rest, Resume.
     @ViewBuilder private var dock: some View {
-        VStack(spacing: 0) {
-            if let open = store.db.openLift() {
-                ResumeBanner(session: open) { nav.showWorkout = true }
-            }
-            if rest.isActive { RestBar() }
+        if let open = store.db.openLift() {
+            ResumeBanner(session: open) { nav.showWorkout = true }
         }
     }
 }
@@ -58,6 +55,7 @@ struct ResumeBanner: View {
     let session: Session
     let onResume: () -> Void
     @Environment(Store.self) private var store
+    @Environment(RestTimer.self) private var rest
 
     var body: some View {
         let sets = store.db.sets(of: session.id)
@@ -68,13 +66,30 @@ struct ResumeBanner: View {
                     .font(.title3).foregroundStyle(Theme.lift)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(store.db.day(session.dayId)?.name ?? session.dayNameSnapshot ?? "Workout").font(.headline)
-                    Text("\(done)/\(sets.count) sets").font(.caption).foregroundStyle(.secondary)
+                    TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                        let left = rest.remaining(at: ctx.date)
+                        HStack(spacing: 6) {
+                            Text("\(done)/\(sets.count) sets")
+                            if rest.isActive {
+                                Text("·")
+                                Text(left >= 0 ? "Rest \(fmtClock(left))" : "Rest over")
+                                    .foregroundStyle(left >= 0 ? Theme.lift : Theme.warning)
+                                    .monospacedDigit()
+                            }
+                        }
+                        .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
-                Text("Resume").font(.subheadline.weight(.semibold)).foregroundStyle(Theme.lift)
+                Text("Resume")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, 14).padding(.vertical, 7)
+                    .background(Theme.lift, in: Capsule())
+                    .foregroundStyle(.white)
             }
             .padding(.horizontal).padding(.vertical, 10)
-            .background(.bar)
+            .background(Color(.secondarySystemBackground))
+            .overlay(alignment: .top) { Rectangle().fill(Color(.separator)).frame(height: 0.5) }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
