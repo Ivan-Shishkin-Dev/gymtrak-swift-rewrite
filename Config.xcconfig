@@ -1,9 +1,9 @@
-// Shared build settings. Supabase and Strava values come from Secrets.xcconfig (gitignored).
+// Shared build settings. Supabase, Strava and Spotify values come from Secrets.xcconfig (gitignored).
 // Copy Secrets.example.xcconfig to Secrets.xcconfig and fill it in.
 
-// Apple Health needs a paid developer team. Once you have one:
-//   HEALTH_ENABLED = YES
-//   CODE_SIGN_ENTITLEMENTS = GymTrak/GymTrak.entitlements
-HEALTH_ENABLED = NO
+// Paid Apple Developer team (Ivan Shishkin). Needed for Apple Health and installing on the iPhone.
+DEVELOPMENT_TEAM = WSGA5S62WA
+HEALTH_ENABLED = YES
+CODE_SIGN_ENTITLEMENTS = GymTrak/GymTrak.entitlements
 
 #include? "Secrets.xcconfig"
