@@ -37,6 +37,10 @@ final class RestTimer {
 
     static func clamp(_ s: Int) -> Int { min(maxSec, max(minSec, s)) }
 
+    /// Start rest automatically when a set is ticked done. Defaults on.
+    static let autoKey = "gt_rest_auto"
+    static var autoStart: Bool { UserDefaults.standard.object(forKey: autoKey) as? Bool ?? true }
+
     /// Seconds left; negative once overrun.
     func remaining(at now: Date) -> Double {
         guard let startedAt else { return Double(targetSec) }

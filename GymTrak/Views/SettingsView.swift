@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var confirmReanchor = false
     @State private var confirmReset = false
     @State private var coachTick = 0
+    @AppStorage(RestTimer.autoKey) private var restAuto = true
 
     var body: some View {
         NavigationStack {
@@ -42,6 +43,9 @@ struct SettingsView: View {
                     Stepper(value: Binding(get: { rest.defaultSec }, set: { rest.setDefault($0) }),
                             in: RestTimer.minSec...RestTimer.maxSec, step: 15) {
                         Label { LabeledContent("Default Rest", value: fmtClock(Double(rest.defaultSec))) } icon: { IconBadge(systemName: "timer", color: .orange) }
+                    }
+                    Toggle(isOn: $restAuto) {
+                        Label { Text("Auto-Start") } icon: { IconBadge(systemName: "play.fill", color: Theme.lift) }
                     }
                 }
                 dataSection

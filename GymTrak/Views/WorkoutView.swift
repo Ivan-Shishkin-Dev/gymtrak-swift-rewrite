@@ -20,6 +20,7 @@ struct WorkoutView: View {
     @State private var renaming: Exercise?
     @State private var nameDraft = ""
     @State private var tick = 0
+    @State private var stepTick = 0
 
     enum Mode: String, CaseIterable { case current = "Set", all = "All" }
 
@@ -140,6 +141,7 @@ struct WorkoutView: View {
             }
         }
         .sensoryFeedback(.success, trigger: tick)
+        .sensoryFeedback(.impact(weight: .light), trigger: stepTick)
     }
 
     @ToolbarContentBuilder
@@ -452,20 +454,24 @@ struct WorkoutView: View {
         let nowDone = store.mutate { $0.toggleSet(st.id) } ?? false
         if nowDone {
             tick += 1
-            let restSec = (ex ?? store.db.exercises.first { $0.id == st.exerciseId })?.restSeconds
-            rest.start(restSec)
+            if RestTimer.autoStart {
+                let restSec = (ex ?? store.db.exercises.first { $0.id == st.exerciseId })?.restSeconds
+                rest.start(restSec)
+            }
         }
     }
 
     private func stepLoad(_ st: WorkoutSet, ex: Exercise, _ dir: Int) {
         guard let w = GymTrak.stepLoad(st.weight, type: ex.effectiveLoadType, increment: ex.effectiveIncrement, direction: dir) else { return }
         store.mutate { $0.updateSetLoad(st.id, weight: w, reps: st.reps) }
+        stepTick += 1
     }
 
     private func stepReps(_ st: WorkoutSet, _ dir: Int) {
         let bare = bareReps(st.reps)
         guard let n = bare.isEmpty ? 0 : Int(bare) else { return }
         store.mutate { $0.updateSetLoad(st.id, weight: st.weight, reps: "× \(max(0, n + dir))") }
+        stepTick += 1
     }
 
     private func startRename(_ ex: Exercise) {
