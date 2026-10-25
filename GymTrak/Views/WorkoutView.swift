@@ -274,8 +274,9 @@ struct WorkoutView: View {
                     Spacer()
                     if setIndex == 0, let range = a.range { Text(range).font(.subheadline).foregroundStyle(.secondary) }
                 }
-                Text([a.why, a.trend].compactMap { $0 }.joined(separator: " · "))
-                    .font(.subheadline).foregroundStyle(.secondary)
+                if let note = a.note {
+                    Text(note).font(.subheadline).foregroundStyle(.secondary)
+                }
                 if let tip, store.canEdit {
                     Button {
                         store.mutate { $0.shiftSets(tip.setIds, ex: ex, steps: tip.steps) }

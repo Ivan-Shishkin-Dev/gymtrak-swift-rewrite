@@ -34,6 +34,11 @@ struct LiftAdvice: Equatable {
     var reps: [Int]? = nil
     /// Per-set targets ("230 lb × 6"), filled in by `liftAdvice`.
     var sets: [String] = []
+    /// Show `why` in the UI. Only when it changes what you do; the arrow and target cover the rest.
+    var explain = false
+
+    /// The one-line reason, or nil when the arrow and target already say it.
+    var note: String? { explain ? why : nil }
 
     func target(forSet i: Int) -> String { sets.indices.contains(i) ? sets[i] : target }
 
@@ -204,7 +209,7 @@ extension Snapshot {
         }
         guard let last = real.first else {
             return LiftAdvice(kind: .new, steps: 0, target: target(0), range: repRange(baseReps, baseReps.map { $0 + 2 }),
-                              why: "No history yet. Find a solid set.", trend: nil)
+                              why: "First time. Find a solid set.", trend: nil, explain: true)
         }
 
         let gap = DateKey.calendar.dateComponents([.day], from: DateKey.date(last.date), to: DateKey.date(today)).day ?? 0
@@ -215,7 +220,7 @@ extension Snapshot {
 
         if gap > 14 {
             return LiftAdvice(kind: .hold, steps: 0, target: target(0), range: loadRange(-1, 0),
-                              why: "\(gap) days off. Match last time.", trend: trend, reps: goals)
+                              why: "\(gap) days off. Match last time.", trend: trend, reps: goals, explain: true)
         }
         // Working back up after a dip: one step at a time toward a weight you've already hit.
         if hitAll, let cur = top.score, cur < 10_000,
@@ -227,7 +232,7 @@ extension Snapshot {
         }
         if switched {
             return LiftAdvice(kind: .hold, steps: 0, target: target(0), range: nil,
-                              why: "New setup. Repeat it, then build.", trend: nil, reps: goals)
+                              why: "New setup. Repeat it, then build.", trend: nil, reps: goals, explain: true)
         }
         // Add weight only after two clean sessions in a row at this weight.
         let prev = real.dropFirst().first
@@ -247,7 +252,7 @@ extension Snapshot {
            let a = top.score, let b = prev.sets.first?.score, a >= b {
             let s = -pctSteps(0.05, score: top.score)
             return LiftAdvice(kind: .backoff, steps: s, target: target(s), range: loadRange(s, 0),
-                              why: "Missed twice. Drop a bit, build back.", trend: trend, reps: goals)
+                              why: "Missed twice. Drop a bit.", trend: trend, reps: goals, explain: true)
         }
         if top.target - top.reps <= 1 && missedSets * 2 <= last.sets.count + 1 {
             return LiftAdvice(kind: .reps, steps: 0, target: target(0, reps: top.target),
@@ -355,6 +360,9 @@ struct RunAdvice: Equatable {
     var why: String
     /// Up to three short how-to lines.
     var cues: [String]
+    /// Show `why` only when it changes the run (heart rate ran high last time).
+    var explain = false
+    var note: String? { explain ? why : nil }
 }
 
 enum RunCoach {
@@ -383,7 +391,7 @@ enum RunCoach {
         let zone = "HR \(rx.hrZoneMin)–\(rx.hrZoneMax)"
 
         if rx.label.isEasy {
-            cues = [zone + ". Could hold a chat.", "Slow down on hills."]
+            cues = [zone + ". Could hold a chat."]
             if rx.strides { cues.append("Finish with 4 × 20 s strides.") }
             guard let last = same.first else {
                 let m = deload ? round5(Double(rx.durationMin) * 0.8) : rx.durationMin
@@ -404,7 +412,7 @@ enum RunCoach {
             var pace = easyPace.map { paceRange($0, -0.15, 0.15) }
             if hrHigh, let lp = last.miles > 0.3 ? last.minutes / last.miles : nil { pace = paceRange(lp, 0.25, 0.5) }
             return RunAdvice(target: "\(t) min", range: "\(round5(base))–\(max(t, round5(base)) + 5) min",
-                             pace: pace, why: why, cues: cues)
+                             pace: pace, why: why, cues: cues, explain: hrHigh && !deload)
         }
 
         // Hard days: keep the plan's structure, set the pace from what you've run.

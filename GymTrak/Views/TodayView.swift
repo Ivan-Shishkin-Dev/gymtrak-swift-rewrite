@@ -198,7 +198,7 @@ struct DaySections: View {
                                 Image(systemName: a.icon).foregroundStyle(Theme.lift)
                             }
                             .labelStyle(CoachLabelStyle())
-                            Text(a.why).font(.caption).foregroundStyle(.secondary)
+                            if let note = a.note { Text(note).font(.caption).foregroundStyle(.secondary) }
                         }
                     }
                 } label: {
@@ -341,7 +341,7 @@ struct CoachLabelStyle: LabelStyle {
     }
 }
 
-/// "Shoot for 40 min" with the range, pace, why, and a few how-to lines.
+/// "Shoot for 40 min" with the range, pace, a note when it matters, and a few how-to lines.
 struct RunCoachRow: View {
     let advice: RunAdvice
 
@@ -355,7 +355,7 @@ struct RunCoachRow: View {
             if let pace = advice.pace {
                 Label(pace, systemImage: "speedometer").font(.subheadline.weight(.semibold))
             }
-            Text(advice.why).font(.subheadline).foregroundStyle(.secondary)
+            if let note = advice.note { Text(note).font(.subheadline).foregroundStyle(.secondary) }
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(advice.cues, id: \.self) { cue in
                     Label(cue, systemImage: "checkmark").font(.subheadline).labelStyle(CoachLabelStyle())

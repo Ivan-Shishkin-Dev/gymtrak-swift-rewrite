@@ -56,7 +56,8 @@ struct WorkoutSummaryView: View {
                                         Image(systemName: a.icon).foregroundStyle(Theme.lift)
                                     }
                                     .labelStyle(CoachLabelStyle())
-                                    Text("\(ex.name) · \(a.why)").font(.caption).foregroundStyle(.secondary)
+                                    Text([ex.name, a.note].compactMap { $0 }.joined(separator: " · "))
+                                        .font(.caption).foregroundStyle(.secondary)
                                 }
                             }
                         }

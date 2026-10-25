@@ -290,14 +290,14 @@ struct CoachTests {
         // 135 → 125 (nailed it) → work back up 5 lb at a time.
         let s = dbW([("135 lb", [6, 6]), ("125 lb", [6, 6])])
         let a = s.liftAdvice(for: s.exercises[0], today: today)
-        #expect(a.target == "130 lb × 6" && a.why.contains("Working back"))
+        #expect(a.target == "130 lb × 6" && a.why.contains("Working back") && a.note == nil)
     }
 
     @Test func machineSwitchStartsFresh() {
         // 200 lb, missed twice… then a new machine at 90 lb: no "missed twice" back-off from old history.
         let s = dbW([("200 lb", [4, 4]), ("200 lb", [4, 3]), ("90 lb", [5, 6])])
         let a = s.liftAdvice(for: s.exercises[0], today: today)
-        #expect(a.kind == .hold && a.target == "90 lb × 6" && a.why.contains("New setup"))
+        #expect(a.kind == .hold && a.target == "90 lb × 6" && a.note?.contains("New setup") == true)
         let b = dbW([("200 lb", [6, 6]), ("90 lb", [6, 6]), ("90 lb", [6, 6])])
         #expect(b.liftAdvice(for: b.exercises[0], today: today).target == "95 lb × 6")
     }
