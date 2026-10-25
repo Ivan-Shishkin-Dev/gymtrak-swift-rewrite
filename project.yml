@@ -45,6 +45,7 @@ targets:
         HealthEnabled: $(HEALTH_ENABLED)
         StravaClientID: $(STRAVA_CLIENT_ID)
         StravaClientSecret: $(STRAVA_CLIENT_SECRET)
+        SpotifyClientID: $(SPOTIFY_CLIENT_ID)
         SupabaseHost: $(SUPABASE_HOST)
         SupabaseKey: $(SUPABASE_KEY)
     settings:

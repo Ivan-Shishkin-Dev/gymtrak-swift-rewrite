@@ -383,3 +383,49 @@ struct DotTests {
         #expect(s.streakWeeks(today: today) == 1)
     }
 }
+
+struct SpotifyAuthTests {
+    @Test func challengeMatchesRFC7636Vector() {
+        // RFC 7636, appendix B.
+        #expect(SpotifyAuth.challenge(for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk") == "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+    }
+
+    @Test func verifierIsUnreservedAndLong() {
+        let v = SpotifyAuth.makeVerifier()
+        #expect(v.count == 64)
+        #expect(v.allSatisfy { $0.isLetter || $0.isNumber || "-._~".contains($0) })
+    }
+
+    @Test(arguments: [nil, "", "$(SPOTIFY_CLIENT_ID)"] as [String?])
+    func emptyClientIDIsNotConfigured(raw: String?) {
+        let info: [String: Any]? = raw.map { ["SpotifyClientID": $0] }
+        #expect(SpotifyAuth.clientID(from: info) == nil)
+    }
+
+    @Test func clientIDIsReadWhenSet() {
+        #expect(SpotifyAuth.clientID(from: ["SpotifyClientID": "abc123"]) == "abc123")
+    }
+
+    @Test func codeComesFromCallback() {
+        #expect(SpotifyAuth.code(from: URL(string: "gymtrak://spotify?code=xyz")!) == "xyz")
+        #expect(SpotifyAuth.code(from: URL(string: "gymtrak://spotify?error=access_denied")!) == nil)
+    }
+
+    @Test func decodesPlayerStateWithTrack() throws {
+        let json = """
+        {"is_playing": true, "item": {"name": "Lose Yourself", "artists": [{"name": "Eminem"}, {"name": "Guest"}],
+         "album": {"images": [{"url": "https://i.scdn.co/image/a"}, {"url": "https://i.scdn.co/image/b"}]}}}
+        """
+        let state = try JSONDecoder().decode(SpotifyPlayerState.self, from: Data(json.utf8))
+        let pb = try #require(state.playback)
+        #expect(pb.track == "Lose Yourself")
+        #expect(pb.artist == "Eminem, Guest")
+        #expect(pb.isPlaying)
+        #expect(pb.artURL == URL(string: "https://i.scdn.co/image/a"))
+    }
+
+    @Test func nullItemMeansNoPlayback() throws {
+        let state = try JSONDecoder().decode(SpotifyPlayerState.self, from: Data(#"{"is_playing": false, "item": null}"#.utf8))
+        #expect(state.playback == nil)
+    }
+}

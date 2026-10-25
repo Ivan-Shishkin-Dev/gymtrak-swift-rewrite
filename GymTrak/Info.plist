@@ -37,6 +37,8 @@
 	<string>GymTrak reads your runs and heart rate to tick off run days.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>GymTrak saves your lifts to Apple Health.</string>
+	<key>SpotifyClientID</key>
+	<string>$(SPOTIFY_CLIENT_ID)</string>
 	<key>StravaClientID</key>
 	<string>$(STRAVA_CLIENT_ID)</string>
 	<key>StravaClientSecret</key>

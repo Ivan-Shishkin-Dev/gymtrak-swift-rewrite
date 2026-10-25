@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(Store.self) private var store
     @Environment(RestTimer.self) private var rest
     @Environment(Connections.self) private var connections
+    @Environment(Spotify.self) private var spotify
     @Environment(\.webAuthenticationSession) private var webAuth
     @Environment(\.dismiss) private var dismiss
     @State private var confirmSignOut = false
@@ -114,6 +115,18 @@ struct SettingsView: View {
                     }
                 }
             }
+            HStack {
+                Label { Text("Spotify") } icon: { IconBadge(systemName: "music.note", color: Theme.lift) }
+                Spacer()
+                if spotify.connected {
+                    Text("Connected").foregroundStyle(.secondary)
+                } else if spotify.configured {
+                    Button("Connect") { Task { await spotify.connect { try await webAuth.authenticate(using: $0, callbackURLScheme: $1) } } }
+                } else {
+                    Text("Needs client ID").font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .swipeActions { if spotify.connected { Button("Disconnect", role: .destructive) { spotify.disconnect() } } }
             if let error = connections.lastError {
                 Text(error).font(.footnote).foregroundStyle(Theme.warning)
             }
