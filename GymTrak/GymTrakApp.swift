@@ -14,6 +14,7 @@ struct GymTrakApp: App {
                 .environment(rest)
                 .environment(connections)
                 .environment(spotify)
+                .task { WatchBridge.shared.start(store: store, rest: rest) }
                 .onOpenURL { url in
                     // gymtrak://spotify?code=… when the Spotify sign-in session isn't catching it.
                     if url.host == "spotify" { Task { await spotify.finishSpotify(callback: url) } }

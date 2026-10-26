@@ -82,6 +82,7 @@ struct RootView: View {
         }
         .onChange(of: store.db.maxUpdatedAt) { refreshOutputs() }
         .onChange(of: connections.runs.count) { refreshOutputs() }
+        .onChange(of: rest.endsAt) { WatchBridge.shared.push() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await connections.refresh() } }
             if phase == .background { refreshOutputs() }
@@ -92,6 +93,7 @@ struct RootView: View {
     /// Widgets and reminders follow the data.
     private func refreshOutputs() {
         WidgetBridge.publish(store.db, runs: connections.runs)
+        WatchBridge.shared.push(runs: connections.runs)
         let db = store.db, runs = connections.runs
         Task { await Notifier.reschedule(db, runs: runs) }
     }

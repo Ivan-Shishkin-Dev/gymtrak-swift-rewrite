@@ -15,6 +15,8 @@ final class RestTimer {
     private(set) var defaultSec: Int
 
     var isActive: Bool { startedAt != nil }
+    /// When rest is over, for the watch's countdown.
+    var endsAt: Date? { startedAt?.addingTimeInterval(TimeInterval(targetSec)) }
 
     private static let defaultKey = "gt_rest_default"
     private static let activeKey = "gt_rest_active"

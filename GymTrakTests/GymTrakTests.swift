@@ -571,3 +571,51 @@ struct SpotifyAuthTests {
         #expect(Notifier.plan(snap(), runs: [], prefs: prefs, now: now).isEmpty)
     }
 }
+
+@Suite struct WatchStateTests {
+    /// Upper A on Mondays: Bench (2 sets) then Row (1 set).
+    func snap() -> Snapshot {
+        Snapshot(days: [Day(id: 1, name: "Upper A", focus: "")],
+                 exercises: [Exercise(id: "b", dayId: 1, order: 0, name: "Bench", sets: 2, weight: "200 lb", reps: "× 6",
+                                      setRows: [SetRow(weight: "200 lb", reps: "× 6"), SetRow(weight: "190 lb", reps: "× 8")],
+                                      loadType: .weight, updatedAt: 0),
+                             Exercise(id: "r", dayId: 1, order: 1, name: "Row", sets: 1, weight: "150 lb", reps: "× 10",
+                                      loadType: .weight, updatedAt: 0)],
+                 programWeeks: [ProgramWeek(id: 1, phase: "", startDate: "2026-10-05", isDeload: false,
+                                            slots: [ProgramSlot(dow: .mon, liftDayId: 1, run: nil)], updatedAt: 0)])
+    }
+    let monday = DateKey.date("2026-10-26").addingTimeInterval(9 * 3600)
+
+    @Test func todayWithoutWorkout() {
+        let s = snap().watchState(now: monday)
+        #expect(s.todayTitle == "Upper A" && s.todayDetail == "2 lifts" && s.canStart)
+        #expect(s.workout == nil && s.weekPlanned == 1 && s.weekDone == 0)
+    }
+
+    @Test func walksThroughSetsInOrder() {
+        var db = snap()
+        let id = db.startSession(day: db.days[0], options: StartOptions(scheduledDate: "2026-10-26"))
+        var w = db.watchState(now: monday).workout
+        #expect(w?.sessionId == id && w?.total == 3 && w?.done == 0)
+        #expect(w?.current?.exercise == "Bench" && w?.current?.setNumber == 1 && w?.current?.setCount == 2)
+        #expect(w?.current?.weight == "200 lb" && w?.current?.reps == "6")
+        #expect(w?.next == "Set 2 · 190 lb × 8")
+
+        db.toggleSet(w!.current!.setId)
+        w = db.watchState(now: monday).workout
+        #expect(w?.done == 1 && w?.current?.setNumber == 2 && w?.next == "Row")
+
+        db.toggleSet(w!.current!.setId)
+        db.toggleSet(db.watchState(now: monday).workout!.current!.setId)
+        w = db.watchState(now: monday).workout
+        #expect(w?.done == 3 && w?.current == nil && w?.next == nil)
+    }
+
+    @Test func roundTripsOverTheWire() {
+        let s = snap().watchState(now: monday)
+        let back = WatchWire.decode(WatchState.self, from: WatchWire.encode(s))
+        #expect(back == s)
+        let a = WatchAction.stepLoad(setId: "x", direction: -1)
+        #expect(WatchWire.decode(WatchAction.self, from: WatchWire.encode(a)) == a)
+    }
+}
