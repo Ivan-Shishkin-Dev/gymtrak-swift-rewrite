@@ -61,8 +61,8 @@ struct TodayView: View {
         VStack(alignment: .leading, spacing: 0) {
             NavigationLink(value: todayKey) {
                 PropertyRow(icon: "calendar", label: "Today") {
-                    HStack(spacing: 6) {
-                        Text(todayTitle(slot, liftDay: liftDay)).fontWeight(.medium)
+                    HStack(alignment: .center, spacing: 6) {
+                        Text(todayTitle(slot, liftDay: liftDay)).fontWeight(.medium).lineLimit(1)
                         if done.contains(todayKey) { Image(systemName: "checkmark").foregroundStyle(Page.secondary) }
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Page.tertiary)
@@ -83,7 +83,7 @@ struct TodayView: View {
             }
 
             PropertyRow(icon: "target", label: "Weekly goal") {
-                HStack(spacing: 10) {
+                HStack(alignment: .center, spacing: 10) {
                     Text("\(Int((pct * 100).rounded()))%").fontWeight(.medium)
                     ProgressView(value: pct).tint(Page.text).frame(maxWidth: 90)
                     Text("\(doneCount) of \(planned.count)").foregroundStyle(Page.secondary)
@@ -201,7 +201,7 @@ struct TodayView: View {
                     let date = week.date(of: dow)
                     let isToday = date == todayKey
                     NavigationLink(value: date) {
-                        HStack(spacing: 12) {
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
                             Text("\(dow.short) \(DateKey.label(date, "d"))")
                                 .font(.subheadline.monospacedDigit())
                                 .foregroundStyle(isToday ? Page.text : Page.secondary)
@@ -319,17 +319,22 @@ struct DayScreen: View {
                         VStack(spacing: 0) {
                             ForEach(exercises) { ex in
                                 let a = db.liftAdvice(for: ex, today: date)
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(ex.name).foregroundStyle(Page.text)
-                                    HStack(spacing: 6) {
-                                        Image(systemName: a.icon).font(.caption).foregroundStyle(Page.secondary)
-                                        Text(a.target).font(.subheadline.weight(.semibold)).foregroundStyle(Page.text)
-                                        if let r = a.range { Text(r).font(.subheadline).foregroundStyle(Page.secondary) }
+                                // Two columns: name left, target right. Every row lines up the same way.
+                                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(ex.name).foregroundStyle(Page.text).lineLimit(1)
+                                        if let note = a.note { Text(note).font(.caption).foregroundStyle(Page.secondary) }
                                     }
-                                    if let note = a.note { Text(note).font(.caption).foregroundStyle(Page.secondary) }
+                                    Spacer(minLength: 8)
+                                    VStack(alignment: .trailing, spacing: 3) {
+                                        Text(a.target).fontWeight(.semibold).foregroundStyle(Page.text).monospacedDigit()
+                                        if let r = a.range {
+                                            Text(r).font(.caption).foregroundStyle(Page.secondary).monospacedDigit()
+                                        }
+                                    }
+                                    .lineLimit(1)
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, 9)
+                                .padding(.vertical, 10)
                                 if ex.id != exercises.last?.id { Rectangle().fill(Page.divider).frame(height: 1) }
                             }
                         }

@@ -171,6 +171,7 @@ struct SetView: View {
             Spacer(minLength: 0)
             Button("Skip") { model.send(.skipRest) }
         }
+        .padding(.horizontal, 4)
     }
 }
 

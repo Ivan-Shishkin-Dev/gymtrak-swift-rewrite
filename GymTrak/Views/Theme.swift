@@ -135,11 +135,18 @@ struct PropertyRow<Value: View>: View {
     let label: String
     @ViewBuilder var value: Value
 
+    /// Top-aligned with a one-line-tall icon box, so label and value always start on the same line
+    /// (baseline alignment drifted when a value held a progress bar or a chevron).
+    @ScaledMetric(relativeTo: .body) private var line: CGFloat = 22
+
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: icon).font(.system(size: 15)).foregroundStyle(Page.secondary).frame(width: 20)
-            Text(label).foregroundStyle(Page.secondary).frame(width: 104, alignment: .leading)
-            value.foregroundStyle(Page.text).frame(maxWidth: .infinity, alignment: .leading)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon).font(.system(size: 15)).foregroundStyle(Page.secondary)
+                .frame(width: 20, height: line)
+            Text(label).foregroundStyle(Page.secondary).lineLimit(1)
+                .frame(width: 104, height: line, alignment: .leading)
+            value.foregroundStyle(Page.text)
+                .frame(maxWidth: .infinity, minHeight: line, alignment: .leading)
         }
         .font(.body)
         .padding(.vertical, 7)
