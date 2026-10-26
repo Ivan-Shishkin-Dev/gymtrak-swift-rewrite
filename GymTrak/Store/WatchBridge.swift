@@ -32,19 +32,23 @@ extension Snapshot {
                                todayDone: done.contains(todayKey), weekDone: weekDone, weekPlanned: planned.count,
                                streak: streakWeeks(today: now, doneExtra: Set(runs.map(\.date))),
                                restEndsAt: restEndsAt, widget: widgetData(runs: runs, now: now))
+        state.lifts = liftDay.map { exercises(of: $0.id).count }
+        state.runMinutes = slot?.run?.durationMin
 
         if let open = openLift() {
             let ordered = orderedSets(open)
             let pending = ordered.filter { !$0.set.isDone }
-            var current: WatchState.Current?
-            if let a = pending.first {
+            var advice: [String: LiftAdvice] = [:]
+            let queue: [WatchState.Current] = pending.map { a in
                 let siblings = ordered.filter { $0.ex.id == a.ex.id }
                 let n = (siblings.firstIndex { $0.set.id == a.set.id } ?? 0) + 1
-                let advice = liftAdvice(for: a.ex, deload: open.deload ?? false, today: open.slotDate)
-                current = .init(setId: a.set.id, exercise: a.ex.name, setNumber: n, setCount: siblings.count,
-                                weight: a.set.weight, reps: bareReps(a.set.reps), target: advice.target(forSet: n - 1),
-                                canStepLoad: a.ex.effectiveLoadType != .free, restSeconds: a.ex.restSeconds)
+                let adv = advice[a.ex.id] ?? liftAdvice(for: a.ex, deload: open.deload ?? false, today: open.slotDate)
+                advice[a.ex.id] = adv
+                return .init(setId: a.set.id, exercise: a.ex.name, setNumber: n, setCount: siblings.count,
+                             weight: a.set.weight, reps: bareReps(a.set.reps), target: adv.target(forSet: n - 1),
+                             canStepLoad: a.ex.effectiveLoadType != .free, restSeconds: a.ex.restSeconds)
             }
+            let current = queue.first
             var next: String?
             if pending.count > 1 {
                 let b = pending[1]
@@ -57,7 +61,8 @@ extension Snapshot {
             }
             state.workout = .init(sessionId: open.id, dayName: open.dayNameSnapshot ?? day(open.dayId)?.name ?? "Workout",
                                   startedAt: Date(timeIntervalSince1970: open.startedAt / 1000),
-                                  done: ordered.count - pending.count, total: ordered.count, current: current, next: next)
+                                  done: ordered.count - pending.count, total: ordered.count, current: current, next: next,
+                                  queue: queue)
         }
         return state
     }
@@ -107,6 +112,8 @@ final class WatchBridge: NSObject, WCSessionDelegate {
                   let day = store.db.day(week.slot(DateKey.dow(Date()))?.liftDayId) else { break }
             store.mutate { $0.startSession(day: day, options: StartOptions(scheduledDate: DateKey.key(Date()), coach: Coach.autoApply)) }
         case .toggle(let id):
+            // The watch only sends this for sets still to do; a retried message must not undo it.
+            guard store.db.sets.first(where: { $0.id == id })?.isDone == false else { break }
             let nowDone = store.mutate { $0.toggleSet(id) } ?? false
             if nowDone, RestTimer.autoStart {
                 let ex = store.db.sets.first { $0.id == id }.flatMap { s in store.db.exercises.first { $0.id == s.exerciseId } }
@@ -123,6 +130,8 @@ final class WatchBridge: NSObject, WCSessionDelegate {
             store.mutate { $0.updateSetLoad(id, weight: st.weight, reps: "× \(max(0, n + dir))") }
         case .skipRest:
             rest?.stop()
+        case .addRest(let s):
+            rest?.add(s)
         case .finish:
             rest?.stop()
             if let open = store.db.openLift() { store.mutate { $0.finishSession(open.id) } }

@@ -24,10 +24,14 @@ struct WatchState: Codable, Equatable, Sendable {
         var current: Current?
         /// "Set 2 · 125 lb × 6" or the next exercise's name.
         var next: String?
+        /// Every set still to do, in order (current first), so the watch can move on without waiting for the phone.
+        var queue: [Current] = []
     }
 
     var todayTitle: String          // "Upper A", "Long Run", "Rest Day"
     var todayDetail: String         // "8 lifts", "45 min"
+    var lifts: Int? = nil           // exercises in today's lift
+    var runMinutes: Int? = nil      // today's run length
     var canStart: Bool              // a lift is planned today
     var todayDone: Bool
     var weekDone: Int
@@ -56,6 +60,7 @@ enum WatchAction: Codable, Equatable, Sendable {
     case stepLoad(setId: String, direction: Int)
     case stepReps(setId: String, direction: Int)
     case skipRest
+    case addRest(seconds: Int)
     case finish
 }
 

@@ -600,6 +600,7 @@ struct SpotifyAuthTests {
         #expect(w?.current?.exercise == "Bench" && w?.current?.setNumber == 1 && w?.current?.setCount == 2)
         #expect(w?.current?.weight == "200 lb" && w?.current?.reps == "6")
         #expect(w?.next == "Set 2 · 190 lb × 8")
+        #expect(w?.queue.map(\.exercise) == ["Bench", "Bench", "Row"] && w?.queue.first == w?.current)
 
         db.toggleSet(w!.current!.setId)
         w = db.watchState(now: monday).workout

@@ -13,6 +13,9 @@ final class WatchModel: NSObject, WCSessionDelegate {
     private(set) var state: WatchState = .empty
     private(set) var reachable = false
     private var restTask: Task<Void, Never>?
+    /// Sets ticked on the watch that the phone hasn't confirmed yet.
+    private var pendingDone: Set<String> = []
+    private var pendingSince = Date.distantPast
 
     func activate() {
         guard WCSession.isSupported() else { return }
@@ -47,12 +50,24 @@ final class WatchModel: NSObject, WCSessionDelegate {
 
     /// Mark the current set done (the big button, and the Action Button shortcut).
     func logSet() {
-        guard let id = state.workout?.current?.setId else { return }
+        guard var w = state.workout, let cur = w.current else { return }
         WKInterfaceDevice.current().play(.success)
-        send(.toggle(setId: id))
+        send(.toggle(setId: cur.setId))
+        // Move on right away; the phone's state catches up and replaces this.
+        pendingDone.insert(cur.setId)
+        pendingSince = .now
+        var s = state
+        w.queue.removeAll { $0.setId == cur.setId }
+        w.current = w.queue.first
+        w.done += 1
+        s.workout = w
+        s.restEndsAt = .now.addingTimeInterval(TimeInterval(cur.restSeconds ?? 180))
+        apply(s, local: true)
     }
 
-    func apply(_ new: WatchState) {
+    func apply(_ incoming: WatchState, local: Bool = false) {
+        var new = incoming
+        if !local { new = mergingPending(incoming) }
         let old = state
         state = new
         if let w = new.widget, w != old.widget {
@@ -74,6 +89,24 @@ final class WatchModel: NSObject, WCSessionDelegate {
             try? await Task.sleep(for: .milliseconds(600))
             WKInterfaceDevice.current().play(.notification)
         }
+    }
+
+    /// Keep sets the watch already ticked out of the queue until the phone reports them done
+    /// (or 20 s pass, in case the tap never arrived).
+    private func mergingPending(_ incoming: WatchState) -> WatchState {
+        guard var w = incoming.workout, !pendingDone.isEmpty else { return incoming }
+        let stillPending = Set(w.queue.map(\.setId)).intersection(pendingDone)
+        if stillPending.isEmpty || Date.now.timeIntervalSince(pendingSince) > 20 {
+            pendingDone.removeAll()
+            return incoming
+        }
+        var s = incoming
+        w.queue.removeAll { stillPending.contains($0.setId) }
+        w.current = w.queue.first
+        w.done += stillPending.count
+        s.workout = w
+        if s.restEndsAt == nil { s.restEndsAt = state.restEndsAt }
+        return s
     }
 
     // MARK: WCSessionDelegate
