@@ -29,9 +29,17 @@ final class WatchModel: NSObject, WCSessionDelegate {
             session.transferUserInfo(payload)
             return
         }
+        Self.sendLive(session, payload) { state in
+            Task { @MainActor in WatchModel.shared.apply(state) }
+        }
+    }
+
+    /// WatchConnectivity calls these handlers on its own background queue, so they must not be
+    /// main-actor closures (Swift 6 traps on the isolation check). Built here, outside the actor.
+    nonisolated private static func sendLive(_ session: WCSession, _ payload: [String: Any],
+                                             onState: @escaping @Sendable (WatchState) -> Void) {
         session.sendMessage(payload, replyHandler: { reply in
-            let state = WatchWire.decode(WatchState.self, from: reply[WatchWire.stateKey])
-            Task { @MainActor in if let state { self.apply(state) } }
+            if let state = WatchWire.decode(WatchState.self, from: reply[WatchWire.stateKey]) { onState(state) }
         }, errorHandler: { _ in
             session.transferUserInfo(payload)
         })
