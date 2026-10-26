@@ -124,43 +124,40 @@ struct SetView: View {
     @ViewBuilder
     private func set(_ c: WatchState.Current, now: Date) -> some View {
         let (load, unit) = split(c.weight)
-        VStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 0)
+            metric(load, unit: unit ?? "", active: !editingReps) { editingReps = false }
+            metric(c.reps.isEmpty ? "—" : c.reps, unit: "reps", active: editingReps) { editingReps = true }
+            if let target = c.target, target != "\(c.weight) × \(c.reps)" {
+                Label(target, systemImage: "scope").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            }
             HStack(spacing: 8) {
                 SetPills(current: c.setNumber, count: c.setCount)
                 Spacer(minLength: 0)
                 heart
             }
-            Spacer(minLength: 0)
-            HStack(alignment: .top, spacing: 14) {
-                field(load, unit: unit, active: !editingReps) { editingReps = false }
-                field(c.reps.isEmpty ? "—" : c.reps, unit: "reps", active: editingReps) { editingReps = true }
-            }
-            .focusable()
-            .focused($crownFocused)
-            .digitalCrownRotation($crown, from: -1000, through: 1000, by: 1, sensitivity: .low,
-                                  isContinuous: true, isHapticFeedbackEnabled: true)
-            .onChange(of: crown) { old, new in
-                let steps = Int(new.rounded()) - Int(old.rounded())
-                guard steps != 0 else { return }
-                let dir = steps > 0 ? 1 : -1
-                let reps = editingReps || !c.canStepLoad
-                model.send(reps ? .stepReps(setId: c.setId, direction: dir) : .stepLoad(setId: c.setId, direction: dir))
-            }
-            .onAppear { crownFocused = true }
-            // Only when the coach wants something other than what's loaded.
-            if let target = c.target, target != "\(c.weight) × \(c.reps)" {
-                Text("Goal \(target)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-            }
+            .padding(.top, 6)
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8)
+        .focusable()
+        .focused($crownFocused)
+        .digitalCrownRotation($crown, from: -1000, through: 1000, by: 1, sensitivity: .low,
+                              isContinuous: true, isHapticFeedbackEnabled: true)
+        .onChange(of: crown) { old, new in
+            let steps = Int(new.rounded()) - Int(old.rounded())
+            guard steps != 0 else { return }
+            let dir = steps > 0 ? 1 : -1
+            let reps = editingReps || !c.canStepLoad
+            model.send(reps ? .stepReps(setId: c.setId, direction: dir) : .stepLoad(setId: c.setId, direction: dir))
+        }
+        .onAppear { crownFocused = true }
         .navigationTitle(c.exercise)
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
-                Button { editingReps.toggle() } label: {
-                    Image(systemName: "arrow.left.arrow.right")
-                }
-                .accessibilityLabel(editingReps ? "Edit weight" : "Edit reps")
+                Button { editingReps.toggle() } label: { Image(systemName: "arrow.up.arrow.down") }
+                    .accessibilityLabel(editingReps ? "Crown edits weight" : "Crown edits reps")
                 Spacer()
                 Button { model.logSet() } label: { Image(systemName: "checkmark") }
                     .tint(.green)
@@ -169,19 +166,24 @@ struct SetView: View {
         }
     }
 
-    /// One editable number. The one the Crown is changing gets an underline.
-    private func field(_ value: String, unit: String?, active: Bool, select: @escaping () -> Void) -> some View {
-        VStack(spacing: 0) {
+    /// One big number with its unit, Workout-app style. The one the Crown moves is bright, with a crown mark.
+    private func metric(_ value: String, unit: String, active: Bool, select: @escaping () -> Void) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(value)
-                .font(.system(size: 38, weight: .bold, design: .rounded)).monospacedDigit()
-                .minimumScaleFactor(0.45).lineLimit(1)
-                .frame(height: 44)
-                .foregroundStyle(active ? .primary : .secondary)
-            Text(unit ?? "load").font(.caption2).foregroundStyle(.secondary)
-            Capsule().fill(active ? Color.white : .clear).frame(width: 22, height: 2).padding(.top, 2)
+                .font(.system(size: 44, weight: .semibold, design: .rounded)).monospacedDigit()
+                .minimumScaleFactor(0.5).lineLimit(1)
+            Text(unit.uppercased()).font(.system(size: 14, weight: .semibold, design: .rounded))
+            Spacer(minLength: 0)
+            if active {
+                Image(systemName: "digitalcrown.horizontal.arrow.clockwise.fill")
+                    .font(.caption).foregroundStyle(.green)
+            }
         }
+        .foregroundStyle(active ? .primary : .secondary)
         .contentShape(Rectangle())
         .onTapGesture(perform: select)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 
     /// "135 lb" → ("135", "lb"); "2 pl + 30" → ("2 pl + 30", nil).
@@ -196,28 +198,31 @@ struct SetView: View {
     // MARK: Rest
 
     private func rest(end: Date, now: Date) -> some View {
-        let total = max(1, end.timeIntervalSince(workout.startedAt) > 0 ? Double(workout.current?.restSeconds ?? 180) : 180)
+        let total = Double(workout.current?.restSeconds ?? 180)
         let left = end.timeIntervalSince(now)
-        return VStack(spacing: 6) {
-            HStack { Spacer(); heart }
-            Spacer(minLength: 0)
+        let progress = max(0, min(1, left / total))
+        return GeometryReader { geo in
+            let d = min(geo.size.width, geo.size.height) - 4
             ZStack {
-                Circle().stroke(.white.opacity(0.15), lineWidth: 6)
-                Circle().trim(from: 0, to: max(0, min(1, left / total)))
-                    .stroke(.white, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                Circle().stroke(.white.opacity(0.12), lineWidth: 10)
+                Circle().trim(from: 0, to: progress)
+                    .stroke(left < 10 ? Color.green : .white, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 1), value: left)
-                Text(clock(left)).font(.system(size: 30, weight: .bold, design: .rounded)).monospacedDigit()
+                    .animation(.linear(duration: 1), value: progress)
+                VStack(spacing: 2) {
+                    Text("REST").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                    Text(clock(left)).font(.system(size: 44, weight: .semibold, design: .rounded)).monospacedDigit()
+                    if let next = workout.current {
+                        Text(next.exercise).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        Text("\(next.weight) × \(next.reps)").font(.footnote.weight(.semibold).monospacedDigit())
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                    }
+                }
+                .padding(.horizontal, 22)
             }
-            .frame(width: 104, height: 104)
-            if let next = workout.current {
-                Label(next.exercise, systemImage: "arrow.turn.down.right")
-                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer(minLength: 0)
+            .frame(width: d, height: d)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.horizontal, 6)
-        .navigationTitle("Rest")
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 Button { model.send(.addRest(seconds: 15)) } label: { Image(systemName: "plus") }
