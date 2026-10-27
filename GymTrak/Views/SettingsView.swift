@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Appearance, connections, coach, rest timer, data backup, and app info.
+/// Name, appearance, connections, coach, notifications, rest timer and data backup.
 struct SettingsView: View {
     @Environment(Store.self) private var store
     @Environment(RestTimer.self) private var rest
@@ -15,17 +15,6 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    HStack(spacing: 14) {
-                        LogoView(size: 60)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("GymTrak").font(.title2.bold())
-                            Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")")
-                                .font(.subheadline).foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
                 Section {
                     TextField("Name", text: $name)
                         .textContentType(.givenName)

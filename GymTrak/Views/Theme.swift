@@ -229,24 +229,6 @@ extension Font {
     }
 }
 
-/// The app logo, drawn live so it follows the chosen accent.
-struct LogoView: View {
-    var size: CGFloat = 60
-
-    var body: some View {
-        Image(systemName: "dumbbell.fill")
-            .font(.system(size: size * 0.46, weight: .bold))
-            .rotationEffect(.degrees(-45))
-            .foregroundStyle(Appearance.shared.isMatte ? Theme.lift : Theme.onSurface)
-            .frame(width: size, height: size)
-            .background(
-                LinearGradient(colors: [Theme.surface.mix(with: .white, by: 0.1), Theme.surface.mix(with: .black, by: 0.45)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing),
-                in: RoundedRectangle(cornerRadius: size * 0.225, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous).strokeBorder(.white.opacity(0.08)))
-    }
-}
-
 extension View {
     /// Puts the screen's big title in the top-left of the nav bar row (beside the trailing buttons)
     /// instead of a large title underneath, so the top of the screen isn't empty.
