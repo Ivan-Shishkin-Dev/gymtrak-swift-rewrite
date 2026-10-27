@@ -17,46 +17,51 @@ struct TodayView: View {
         let todayKey = DateKey.key(now)
 
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    // Greeting and settings share one row at the top of the page.
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(name.isEmpty ? "Today" : "Hi, \(name)")
-                                .font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text)
-                            Text(DateKey.label(todayKey, "EEEE, MMMM d"))
-                                .font(.title3).foregroundStyle(Page.secondary)
-                        }
-                        .accessibilityAddTraits(.isHeader)
-                        Spacer()
-                        SettingsButton()
-                            .font(.title3)
-                            .frame(width: 44, height: 44)
-                            .background(Page.fill, in: Circle())
-                            .foregroundStyle(Page.text)
-                    }
-                    .padding(.top, 20)
-
-                    if let week = db.scheduleWeek(now) {
-                        properties(week, todayKey: todayKey)
-                        let record = db.liftRecord(today: now)
-                        if !record.isEmpty {
-                            PageSection("Adherence") { TrackRecord(days: record) }
-                        }
-                    } else {
-                        noSchedule
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 110)
+            // Sits still in the middle of the screen; scrolls only if a small phone can't fit it.
+            ViewThatFits(in: .vertical) {
+                page(db, now: now, todayKey: todayKey)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ScrollView { page(db, now: now, todayKey: todayKey).padding(.top, 20).padding(.bottom, 110) }
             }
-            .refreshable { await connections.refresh() }
             .background(Page.bg)
             .navigationTitle("Today")
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: String.self) { DayScreen(date: $0) }
             .navigationDestination(for: SessionRef.self) { SessionDetailView(sessionId: $0.id) }
         }
+    }
+
+    @ViewBuilder
+    private func page(_ db: Snapshot, now: Date, todayKey: String) -> some View {
+        VStack(alignment: .leading, spacing: 28) {
+            // Greeting and settings share one row at the top of the page.
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name.isEmpty ? "Today" : "Hi, \(name)")
+                        .font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text)
+                    Text(DateKey.label(todayKey, "EEEE, MMMM d"))
+                        .font(.title3).foregroundStyle(Page.secondary)
+                }
+                .accessibilityAddTraits(.isHeader)
+                Spacer()
+                SettingsButton()
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
+                    .background(Page.fill, in: Circle())
+                    .foregroundStyle(Page.text)
+            }
+
+            if let week = db.scheduleWeek(now) {
+                properties(week, todayKey: todayKey)
+                let record = db.liftRecord(today: now)
+                if !record.isEmpty {
+                    PageSection("Adherence") { TrackRecord(days: record) }
+                }
+            } else {
+                noSchedule
+            }
+        }
+        .padding(.horizontal, 20)
     }
 
     // MARK: Properties
