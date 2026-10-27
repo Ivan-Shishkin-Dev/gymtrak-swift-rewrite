@@ -39,6 +39,10 @@ struct TodayView: View {
 
                     if let week = db.scheduleWeek(now) {
                         properties(week, todayKey: todayKey)
+                        let record = db.liftRecord(today: now)
+                        if !record.isEmpty {
+                            PageSection("Adherence") { TrackRecord(days: record) }
+                        }
                         recent
                     } else {
                         noSchedule
@@ -92,9 +96,6 @@ struct TodayView: View {
                 }
                 .padding(.top, 18)
             }
-
-            let record = db.liftRecord(today: Date())
-            if !record.isEmpty { TrackRecord(days: record).padding(.top, 18) }
         }
     }
 
@@ -432,7 +433,6 @@ struct TrackRecord: View {
         let month = cal.date(byAdding: .month, value: monthOffset, to: thisMonth) ?? thisMonth
         let monthKey = String(DateKey.key(month).prefix(7))
         let byDate = Dictionary(days.map { ($0.date, $0) }, uniquingKeysWith: { a, _ in a })
-        let inMonth = days.filter { $0.date.hasPrefix(monthKey) }
         let weeks = Self.weeks(of: month)
         let todayKey = DateKey.key(Date())
         let earliest = days.first.map { String($0.date.prefix(7)) } ?? monthKey
@@ -467,19 +467,6 @@ struct TrackRecord: View {
                 }
             }
 
-            HStack(spacing: 22) {
-                ForEach(LiftOutcome.allCases.reversed(), id: \.self) { o in
-                    let n = inMonth.filter { $0.outcome == o }.count
-                    HStack(spacing: 6) {
-                        Circle().fill(o.color).frame(width: 9, height: 9)
-                        Text("\(n)").fontWeight(.semibold).foregroundStyle(Page.text)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(n) \(o.label.lowercased())")
-                }
-            }
-            .font(.subheadline.monospacedDigit())
-            .frame(maxWidth: .infinity)
         }
     }
 
