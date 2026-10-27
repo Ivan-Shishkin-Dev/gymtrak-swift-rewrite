@@ -51,61 +51,59 @@ struct TodayView: View {
         let db = store.db
         let slot = week.slot(DateKey.dow(Date()))
         let liftDay = db.day(slot?.liftDayId)
-        let done = db.doneDates.union(connections.runDates)
         let today = connections.activity[todayKey]
-        let planned = Dow.allCases.filter { !(week.slot($0)?.isRest ?? true) }
-        let doneCount = planned.filter { done.contains(week.date(of: $0)) }.count
-        let pct = planned.isEmpty ? 0 : Double(doneCount) / Double(planned.count)
-        let streak = db.streakWeeks(today: Date(), doneExtra: connections.runDates)
 
         VStack(alignment: .leading, spacing: 0) {
             NavigationLink(value: todayKey) {
-                PropertyRow(icon: "calendar", label: "Today") {
-                    HStack(alignment: .center, spacing: 6) {
-                        Text(todayTitle(slot, liftDay: liftDay)).fontWeight(.medium).lineLimit(1)
-                        if done.contains(todayKey) { Image(systemName: "checkmark").foregroundStyle(Page.secondary) }
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(Page.tertiary)
-                    }
+                HStack(alignment: .top, spacing: 10) {
+                    liftTile(liftDay, done: db.doneDates.contains(todayKey), todayKey: todayKey)
+                    runTile(slot?.run, done: connections.runDates.contains(todayKey), todayKey: todayKey)
                 }
+                .fixedSize(horizontal: false, vertical: true)
             }
             .buttonStyle(.plain)
 
+            if let liftDay {
+                StartButton(day: liftDay, date: todayKey).padding(.top, 12)
+            }
+
             if connections.healthConnected {
-                PropertyRow(icon: "shoeprints.fill", label: "Steps") { Text(today.map { $0.steps.formatted() } ?? "—") }
-                PropertyRow(icon: "flame", label: "Calories") { Text(today.map { "\(Int($0.calories.rounded()).formatted()) kcal" } ?? "—") }
-                PropertyRow(icon: "location", label: "Distance") { Text(today.map { String(format: "%.1f mi", $0.miles) } ?? "—") }
+                VStack(spacing: 0) {
+                    PropertyRow(icon: "shoeprints.fill", label: "Steps") { Text(today.map { $0.steps.formatted() } ?? "—") }
+                    PropertyRow(icon: "flame", label: "Calories") { Text(today.map { "\(Int($0.calories.rounded()).formatted()) kcal" } ?? "—") }
+                }
+                .padding(.top, 14)
             } else if connections.healthAvailable {
                 PropertyRow(icon: "heart", label: "Activity") {
                     Button("Connect Apple Health") { Task { await connections.connectHealth() } }
                         .foregroundStyle(Page.text).underline()
                 }
-            }
-
-            PropertyRow(icon: "target", label: "Weekly goal") {
-                HStack(alignment: .center, spacing: 10) {
-                    Text("\(Int((pct * 100).rounded()))%").fontWeight(.medium)
-                    ProgressView(value: pct).tint(Page.text).frame(maxWidth: 90)
-                    Text("\(doneCount) of \(planned.count)").foregroundStyle(Page.secondary)
-                }
-            }
-            if streak > 0 {
-                PropertyRow(icon: "flame.fill", label: "Streak") { Text(streak == 1 ? "1 week" : "\(streak) weeks") }
-            }
-
-            if let liftDay {
-                StartButton(day: liftDay, date: todayKey).padding(.top, 14)
+                .padding(.top, 14)
             }
         }
     }
 
-    private func todayTitle(_ slot: ProgramSlot?, liftDay: Day?) -> String {
-        if let liftDay {
-            let n = store.db.exercises(of: liftDay.id).count
-            return "\(liftDay.name) · \(n) lifts" + (slot?.run.map { " + \($0.durationMin) min run" } ?? "")
-        }
-        if let run = slot?.run { return "\(run.label.rawValue) · \(run.durationMin) min" }
-        return "Rest Day"
+    private func liftTile(_ day: Day?, done: Bool, todayKey: String) -> some View {
+        let count = day.map { store.db.exercises(of: $0.id).count } ?? 0
+        return TodayTile(icon: "dumbbell", label: "Lift", done: done,
+                         title: day?.name ?? "Off",
+                         detail: day == nil ? Self.pick(Self.liftOff, todayKey) : (count == 1 ? "1 exercise" : "\(count) exercises"),
+                         resting: day == nil)
+    }
+
+    private func runTile(_ run: RunPrescription?, done: Bool, todayKey: String) -> some View {
+        TodayTile(icon: run == nil ? "sofa" : "figure.run", label: "Run", done: done,
+                  title: run?.label.rawValue ?? "Rest",
+                  detail: run.map { "\($0.durationMin) min" } ?? Self.pick(Self.runOff, todayKey),
+                  resting: run == nil)
+    }
+
+    private static let liftOff = ["Iron gets a day off", "The bar is resting too", "Muscles under construction", "Grow, don't go"]
+    private static let runOff = ["Legs on vacation", "Shoes are napping", "Zero miles, full credit", "Couch is the route"]
+
+    /// Same line all day, a different one tomorrow.
+    private static func pick(_ lines: [String], _ key: String) -> String {
+        lines[abs(key.unicodeScalars.reduce(0) { $0 &* 31 &+ Int($1.value) }) % lines.count]
     }
 
     // MARK: Week chart
@@ -437,5 +435,37 @@ struct RunCoachRow: View {
                 Text("• \(cue)").font(.subheadline).foregroundStyle(Page.secondary)
             }
         }
+    }
+}
+
+/// One half of Today: what's planned for lifting or running, or a rest line.
+private struct TodayTile: View {
+    let icon: String
+    let label: String
+    let done: Bool
+    let title: String
+    let detail: String
+    let resting: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).font(.subheadline)
+                Text(label).font(.subheadline)
+                Spacer(minLength: 0)
+                if done { Image(systemName: "checkmark.circle.fill").foregroundStyle(Page.text) }
+            }
+            .foregroundStyle(Page.secondary)
+            Spacer(minLength: 4)
+            Text(title).font(.title3.weight(.bold))
+                .foregroundStyle(resting ? Page.secondary : Page.text)
+                .lineLimit(1).minimumScaleFactor(0.75)
+            Text(detail).font(.subheadline).foregroundStyle(Page.secondary)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Page.fill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .contentShape(Rectangle())
     }
 }
