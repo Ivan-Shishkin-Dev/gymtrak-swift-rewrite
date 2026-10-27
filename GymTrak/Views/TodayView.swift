@@ -420,39 +420,62 @@ extension LiftOutcome {
     }
 }
 
-/// Recent lift days as colored bars with their weekday, then the counts. Tap a bar to open that day.
+/// A month of lift days, one row per week (Mon–Sun). Green finished, yellow almost, red skipped;
+/// rest days, unknown days and the future stay gray. Tap a colored day to open it.
 struct TrackRecord: View {
     let days: [LiftDay]
-    var slots = 24
+    @State private var monthOffset = 0
 
     var body: some View {
-        let recent = Array(days.suffix(slots))
+        let cal = DateKey.calendar
+        let thisMonth = cal.date(from: cal.dateComponents([.year, .month], from: Date())) ?? Date()
+        let month = cal.date(byAdding: .month, value: monthOffset, to: thisMonth) ?? thisMonth
+        let monthKey = String(DateKey.key(month).prefix(7))
+        let byDate = Dictionary(days.map { ($0.date, $0) }, uniquingKeysWith: { a, _ in a })
+        let inMonth = days.filter { $0.date.hasPrefix(monthKey) }
+        let weeks = Self.weeks(of: month)
+        let todayKey = DateKey.key(Date())
+        let earliest = days.first.map { String($0.date.prefix(7)) } ?? monthKey
+
         VStack(spacing: 10) {
-            HStack(spacing: 3) {
-                ForEach(0..<(slots - recent.count), id: \.self) { _ in
-                    column(bar(Page.fill), letter: " ")
+            HStack {
+                Button { monthOffset -= 1 } label: { Image(systemName: "chevron.left") }
+                    .disabled(monthKey <= earliest)
+                Spacer()
+                Text(DateKey.label(DateKey.key(month), "MMMM yyyy")).font(.subheadline.weight(.semibold)).foregroundStyle(Page.text)
+                Spacer()
+                Button { monthOffset += 1 } label: { Image(systemName: "chevron.right") }
+                    .disabled(monthOffset >= 0)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Page.secondary)
+            .buttonStyle(.plain)
+
+            Grid(horizontalSpacing: 4, verticalSpacing: 4) {
+                GridRow {
+                    ForEach(["M", "T", "W", "T", "F", "S", "S"].indices, id: \.self) { i in
+                        Text(["M", "T", "W", "T", "F", "S", "S"][i])
+                            .font(.caption2.weight(.medium)).foregroundStyle(Page.tertiary)
+                    }
                 }
-                ForEach(recent, id: \.date) { d in
-                    let letter = DateKey.label(d.date, "EEEEE")
-                    Group {
-                        if let id = d.sessionId {
-                            NavigationLink(value: SessionRef(id: id)) { column(bar(d.outcome.color), letter: letter) }
-                        } else {
-                            NavigationLink(value: d.date) { column(bar(d.outcome.color), letter: letter) }
+                ForEach(weeks, id: \.self) { week in
+                    GridRow {
+                        ForEach(week, id: \.self) { key in
+                            cell(key, inMonth: key.hasPrefix(monthKey), day: byDate[key], isToday: key == todayKey)
                         }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(DateKey.label(d.date, "EEEE, MMMM d")), \(d.outcome.label)")
                 }
             }
+
             HStack(spacing: 22) {
                 ForEach(LiftOutcome.allCases.reversed(), id: \.self) { o in
+                    let n = inMonth.filter { $0.outcome == o }.count
                     HStack(spacing: 6) {
                         Circle().fill(o.color).frame(width: 9, height: 9)
-                        Text("\(days.filter { $0.outcome == o }.count)").fontWeight(.semibold).foregroundStyle(Page.text)
+                        Text("\(n)").fontWeight(.semibold).foregroundStyle(Page.text)
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(days.filter { $0.outcome == o }.count) \(o.label.lowercased())")
+                    .accessibilityLabel("\(n) \(o.label.lowercased())")
                 }
             }
             .font(.subheadline.monospacedDigit())
@@ -460,16 +483,49 @@ struct TrackRecord: View {
         }
     }
 
-    private func column(_ bar: some View, letter: String) -> some View {
-        VStack(spacing: 4) {
-            bar.frame(height: 20)
-            Text(letter).font(.system(size: 9, weight: .medium)).foregroundStyle(Page.tertiary)
+    @ViewBuilder
+    private func cell(_ key: String, inMonth: Bool, day: LiftDay?, isToday: Bool) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+        let tile = shape
+            .fill(inMonth ? (day?.outcome.color ?? Page.fill) : .clear)
+            .overlay(shape.strokeBorder(isToday ? Page.text : .clear, lineWidth: 1.5))
+            .overlay {
+                if inMonth {
+                    Text(DateKey.label(key, "d"))
+                        .font(.caption2.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(day == nil ? Page.tertiary : .black.opacity(0.7))
+                }
+            }
+            .frame(height: 30)
+            .frame(maxWidth: .infinity)
+            .contentShape(shape)
+
+        if inMonth, let day {
+            Group {
+                if let id = day.sessionId {
+                    NavigationLink(value: SessionRef(id: id)) { tile }
+                } else {
+                    NavigationLink(value: key) { tile }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(DateKey.label(key, "EEEE, MMMM d")), \(day.outcome.label)")
+        } else {
+            tile.accessibilityHidden(!inMonth)
         }
-        .contentShape(Rectangle())
     }
 
-    private func bar(_ c: Color) -> some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous).fill(c).frame(maxWidth: .infinity)
+    /// The month's days as Monday-first weeks, padded with the neighboring months' days.
+    static func weeks(of month: Date) -> [[String]] {
+        let cal = DateKey.calendar
+        let last = DateKey.key(cal.date(byAdding: DateComponents(month: 1, day: -1), to: month) ?? month)
+        var start = DateKey.mondayKey(month)
+        var out: [[String]] = []
+        while start <= last {
+            out.append((0..<7).map { DateKey.addDays(start, $0) })
+            start = DateKey.addDays(start, 7)
+        }
+        return out
     }
 }
 
