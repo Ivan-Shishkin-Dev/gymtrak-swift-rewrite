@@ -41,6 +41,7 @@ Every exercise picks how its weight is written (`LoadType` in `Models.swift`, gr
 | Type | Examples |
 | --- | --- |
 | Weight | `225 lb` |
+| Dumbbell | `70 lb` (each hand) |
 | Machine | `10` (pin) · `120 lb` · `Max` · `Max + 10` |
 | Plates | `6 pl` · `5 pl + 25` |
 | Body | `BW` · `+70` (added) · `−25` (assisted) |
