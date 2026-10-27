@@ -319,11 +319,14 @@ private struct TodayTile: View {
             }
             .foregroundStyle(Page.secondary)
             Spacer(minLength: 4)
-            Text(title).font(.title3.weight(.bold))
+            // A rest tile has no detail line, so its title grows to fill the same space.
+            Text(title).font(detail.isEmpty ? .system(size: 30, weight: .bold) : .title3.weight(.bold))
                 .foregroundStyle(resting ? Page.secondary : Page.text)
                 .lineLimit(1).minimumScaleFactor(0.75)
-            Text(detail).font(.subheadline).foregroundStyle(Page.secondary)
-                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            if !detail.isEmpty {
+                Text(detail).font(.subheadline).foregroundStyle(Page.secondary)
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
