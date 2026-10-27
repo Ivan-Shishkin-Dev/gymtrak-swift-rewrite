@@ -519,6 +519,23 @@ struct SpotifyAuthTests {
         #expect(r.map(\.sessionId) == [nil, "a", "b"])
     }
 
+    @Test func restDaysAreUnplannedLiftDaysFromTheStart() {
+        let s = Snapshot(days: [Day(id: 1, name: "Upper A", focus: "")], exercises: [],
+                         programWeeks: [ProgramWeek(id: 1, phase: "", startDate: "2026-10-05", isDeload: false,
+                                                    slots: [ProgramSlot(dow: .mon, liftDayId: 1, run: nil)], updatedAt: 0)])
+        #expect(s.isRestDay("2026-10-06"))
+        #expect(s.isRestDay("2026-11-03"))
+        #expect(!s.isRestDay("2026-10-12"))
+        #expect(!s.isRestDay("2026-10-04"))
+    }
+
+    @Test @MainActor func calendarWeeksStartOnSunday() {
+        let w = TrackRecord.weeks(of: DateKey.date("2026-10-01").addingTimeInterval(6 * 3600))
+        #expect(w.first?.first == "2026-09-27")
+        #expect(w.last?.last == "2026-10-31")
+        #expect(w.count == 5)
+    }
+
     @Test func historyMergesLiftsAndRunsNewestFirst() {
         let h = snap().historyEntries(synced: [run("2026-10-10", 3.1, 30)])
         #expect(h.map(\.date) == ["2026-10-15", "2026-10-10", "2026-10-08", "2026-10-01"])

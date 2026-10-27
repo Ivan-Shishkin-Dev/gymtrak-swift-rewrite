@@ -47,7 +47,7 @@ struct TodayView: View {
                 properties(week, todayKey: todayKey)
                 let record = db.liftRecord(today: now)
                 if !record.isEmpty {
-                    PageSection("Adherence") { TrackRecord(days: record) }
+                    PageSection("Adherence") { TrackRecord(days: record, isRest: db.isRestDay) }
                 }
             } else {
                 noSchedule
@@ -381,6 +381,7 @@ extension LiftOutcome {
 /// rest days, unknown days and the future stay gray. Tap a colored day to open it.
 struct TrackRecord: View {
     let days: [LiftDay]
+    var isRest: (String) -> Bool = { _ in false }
     @State private var monthOffset = 0
 
     var body: some View {
@@ -409,8 +410,8 @@ struct TrackRecord: View {
 
             Grid(horizontalSpacing: 4, verticalSpacing: 4) {
                 GridRow {
-                    ForEach(["M", "T", "W", "T", "F", "S", "S"].indices, id: \.self) { i in
-                        Text(["M", "T", "W", "T", "F", "S", "S"][i])
+                    ForEach(["S", "M", "T", "W", "T", "F", "S"].indices, id: \.self) { i in
+                        Text(["S", "M", "T", "W", "T", "F", "S"][i])
                             .font(.caption2.weight(.medium)).foregroundStyle(Page.tertiary)
                     }
                 }
@@ -429,14 +430,20 @@ struct TrackRecord: View {
     @ViewBuilder
     private func cell(_ key: String, inMonth: Bool, day: LiftDay?, isToday: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+        let resting = inMonth && day == nil && isRest(key)
         let tile = shape
-            .fill(inMonth ? (day?.outcome.color ?? Page.fill) : .clear)
+            .fill(inMonth ? (day?.outcome.color ?? (resting ? Self.restFill : Page.fill)) : .clear)
             .overlay(shape.strokeBorder(isToday ? Page.text : .clear, lineWidth: 1.5))
             .overlay {
                 if inMonth {
-                    Text(DateKey.label(key, "d"))
-                        .font(.caption2.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(day == nil ? Page.tertiary : .black.opacity(0.7))
+                    VStack(spacing: 1) {
+                        Text(DateKey.label(key, "d"))
+                            .font(.caption2.weight(.semibold).monospacedDigit())
+                        if resting {
+                            Image(systemName: "moon.zzz.fill").font(.system(size: 9, weight: .semibold))
+                        }
+                    }
+                    .foregroundStyle(day != nil ? Color.black.opacity(0.7) : resting ? Self.restInk : Page.tertiary)
                 }
             }
             .frame(minHeight: 30, maxHeight: 46)
@@ -455,14 +462,20 @@ struct TrackRecord: View {
             .accessibilityLabel("\(DateKey.label(key, "EEEE, MMMM d")), \(day.outcome.label)")
         } else {
             tile.accessibilityHidden(!inMonth)
+                .accessibilityLabel(resting ? "\(DateKey.label(key, "EEEE, MMMM d")), Rest" : DateKey.label(key, "EEEE, MMMM d"))
         }
     }
 
-    /// The month's days as Monday-first weeks, padded with the neighboring months' days.
+    /// Rest days: a quiet blue with a sleeping moon, so they never read as a missed day.
+    private static let restFill = Color(light: 0xDCE4F5, dark: 0x252C3D)
+    private static let restInk = Color(light: 0x5A6B8C, dark: 0x8A9CC2)
+
+    /// The month's days as Sunday-first weeks, padded with the neighboring months' days.
     static func weeks(of month: Date) -> [[String]] {
         let cal = DateKey.calendar
         let last = DateKey.key(cal.date(byAdding: DateComponents(month: 1, day: -1), to: month) ?? month)
-        var start = DateKey.mondayKey(month)
+        // Calendar weekday: 1 = Sunday, so step back to the Sunday on or before the 1st.
+        var start = DateKey.addDays(DateKey.key(month), 1 - cal.component(.weekday, from: month))
         var out: [[String]] = []
         while start <= last {
             out.append((0..<7).map { DateKey.addDays(start, $0) })
