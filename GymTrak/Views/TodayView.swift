@@ -17,10 +17,11 @@ struct TodayView: View {
         let todayKey = DateKey.key(now)
 
         NavigationStack {
-            // Sits still in the middle of the screen; scrolls only if a small phone can't fit it.
+            // Pinned to the top and stretched to the bottom; scrolls only if a small phone can't fit it.
             ViewThatFits(in: .vertical) {
                 page(db, now: now, todayKey: todayKey)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.top, 8).padding(.bottom, 12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 ScrollView { page(db, now: now, todayKey: todayKey).padding(.top, 20).padding(.bottom, 110) }
             }
             .background(Page.bg)
@@ -59,6 +60,7 @@ struct TodayView: View {
                 }
             } else {
                 noSchedule
+                Spacer(minLength: 0)
             }
         }
         .padding(.horizontal, 20)
@@ -79,7 +81,8 @@ struct TodayView: View {
                     liftTile(liftDay, done: db.doneDates.contains(todayKey), todayKey: todayKey)
                     runTile(slot?.run, done: connections.runDates.contains(todayKey), todayKey: todayKey)
                 }
-                .fixedSize(horizontal: false, vertical: true)
+                // Tiles take the spare height so the page reaches the bottom of the screen.
+                .frame(minHeight: 110, maxHeight: 220)
             }
             .buttonStyle(.plain)
 
@@ -462,7 +465,7 @@ struct TrackRecord: View {
                         .foregroundStyle(day == nil ? Page.tertiary : .black.opacity(0.7))
                 }
             }
-            .frame(height: 30)
+            .frame(minHeight: 30, maxHeight: 46)
             .frame(maxWidth: .infinity)
             .contentShape(shape)
 
