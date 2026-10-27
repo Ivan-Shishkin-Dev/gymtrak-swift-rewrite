@@ -21,19 +21,19 @@ struct TodayView: View {
         NavigationStack {
             Group {
                 if let week = db.scheduleWeek(now) {
-                    // Top half: today. Bottom half: recent activity, scrolling on its own.
+                    // One page that scrolls: today fills the first half of the screen, then every past workout.
                     GeometryReader { geo in
-                        VStack(spacing: 0) {
-                            ScrollView {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 0) {
                                 properties(week, todayKey: todayKey)
-                                    .padding(.horizontal, 20)
                                     .padding(.top, 24)
+                                    .frame(minHeight: geo.size.height / 2, alignment: .top)
+                                recent
                             }
-                            .scrollBounceBehavior(.basedOnSize)
-                            .frame(height: geo.size.height / 2)
-                            recent
-                                .frame(height: geo.size.height / 2)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 110)
                         }
+                        .refreshable { await connections.refresh() }
                     }
                 } else {
                     ScrollView {
@@ -121,33 +121,25 @@ struct TodayView: View {
             case .lifts: if case .lift = $0.kind { true } else { false }
             case .runs: $0.kind == .run
             }
-        }.prefix(30)
+        }
 
-        return VStack(alignment: .leading, spacing: 10) {
-            PageSection("Recent", trailing: {
-                Button("See all") { nav.tab = .history }.buttonStyle(.plain).underline()
-            }) {
-                HStack(spacing: 8) {
-                    ForEach(RecentFilter.allCases, id: \.self) { f in
-                        Chip(title: f.rawValue, selected: filter == f) { filter = f }
-                    }
+        return PageSection("Recent", trailing: {
+            Button("See all") { nav.tab = .history }.buttonStyle(.plain).underline()
+        }) {
+            HStack(spacing: 8) {
+                ForEach(RecentFilter.allCases, id: \.self) { f in
+                    Chip(title: f.rawValue, selected: filter == f) { filter = f }
                 }
             }
-            .padding(.horizontal, 20)
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if rows.isEmpty {
-                        Text("Nothing yet.").foregroundStyle(Page.secondary).padding(.vertical, 6)
-                    }
-                    ForEach(Array(rows)) { e in
-                        HistoryRow(entry: e)
-                    }
-                }
-                .padding(.horizontal, 20)
+            .padding(.bottom, 2)
+            if rows.isEmpty {
+                Text("Nothing yet.").foregroundStyle(Page.secondary).padding(.vertical, 6)
             }
-            .scrollBounceBehavior(.basedOnSize)
-            .refreshable { await connections.refresh() }
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(rows) { e in
+                    HistoryRow(entry: e)
+                }
+            }
         }
     }
 
