@@ -74,6 +74,13 @@ struct SettingsView: View {
                     }
                 }
             }
+            NavigationLink { KisiSetupView() } label: {
+                LabeledContent {
+                    Text(Kisi.shared.signedIn ? (Kisi.shared.door?.name ?? "Pick a door") : "Not set up")
+                } label: {
+                    Label { Text("Kisi") } icon: { IconBadge(systemName: "door.left.hand.closed", color: .blue) }
+                }
+            }
             if let error = connections.lastError {
                 Text(error).font(.footnote).foregroundStyle(Theme.warning)
             }

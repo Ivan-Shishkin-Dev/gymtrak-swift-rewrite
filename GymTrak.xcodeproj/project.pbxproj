@@ -11,6 +11,7 @@
 		0C88C512996870FEC3591113 /* RestActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C799F5B27C1E8B81A2227F8 /* RestActivity.swift */; };
 		159B053D613655F60AF50D43 /* WorkoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC9824BB09C1C1D73EC9786 /* WorkoutManager.swift */; };
 		1722343CEFEA463C858BC97F /* ExerciseHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */; };
+		1AEDD7FFAB54951EC762A7A9 /* Kisi.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A4995D1E5C0AEEBE5661C1 /* Kisi.swift */; };
 		1B9688E4388A591CF9B798B5 /* PlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C5A2741915293CDDE1B7DFA /* PlanView.swift */; };
 		1BA0B39500B53C25FF30C9A8 /* Notifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0AC1A3DE18E3A9ADE60597B /* Notifier.swift */; };
 		26B12830260B17C5B489D3BF /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A770C3F2D54C20078AF11BE7 /* LoadingView.swift */; };
@@ -50,6 +51,7 @@
 		CEF8CA53CA813215ACDB514B /* LoadEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DA5A37017F06901DB8C32FE /* LoadEditorSheet.swift */; };
 		DBD47D716B1756BC10767C10 /* WatchBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDFE8D2FE2BB354EB17FFCBA /* WatchBridge.swift */; };
 		DC686BACA7D314D6EA51795A /* RestBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9684EC3870EF7C69871D5B8E /* RestBar.swift */; };
+		DE603DD583C5255611DD8FD1 /* KisiViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B08F0BA3686F55A4C56117 /* KisiViews.swift */; };
 		DF3DFB3B1065AFB1E26D1440 /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08221149117D5CB26B879071 /* WidgetData.swift */; };
 		E2EE11C3200105E288C45351 /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9410D5F184122EE5F5481C4B /* Intents.swift */; };
 		E83B70F73262DAC056764B67 /* RestActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C799F5B27C1E8B81A2227F8 /* RestActivity.swift */; };
@@ -161,9 +163,11 @@
 		972035EEB2C47A17E43327D8 /* Coach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Coach.swift; sourceTree = "<group>"; };
 		A0713C97850C4C8868AC1A18 /* GymTrakWatchWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GymTrakWatchWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0AC1A3DE18E3A9ADE60597B /* Notifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Notifier.swift; sourceTree = "<group>"; };
+		A6A4995D1E5C0AEEBE5661C1 /* Kisi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kisi.swift; sourceTree = "<group>"; };
 		A770C3F2D54C20078AF11BE7 /* LoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingView.swift; sourceTree = "<group>"; };
 		AB1F2D6C6025486A879CAD6E /* GymTrakWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GymTrakWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AD03EEE4E079A4F0B82E0D9C /* WatchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchModel.swift; sourceTree = "<group>"; };
+		B0B08F0BA3686F55A4C56117 /* KisiViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KisiViews.swift; sourceTree = "<group>"; };
 		B4A76751019FB132D5513D1F /* Program.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Program.swift; sourceTree = "<group>"; };
 		B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistoryView.swift; sourceTree = "<group>"; };
 		B9852C57291AC247289AFB11 /* Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Actions.swift; sourceTree = "<group>"; };
@@ -178,7 +182,7 @@
 		F0BE589482F4E09EF006D1D7 /* GymTrak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GymTrak.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F78A06DBBEF9B775622AE392 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FDFE8D2FE2BB354EB17FFCBA /* WatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchBridge.swift; sourceTree = "<group>"; };
-		"TEMP_00627CDB-DF91-439A-811B-03768B2F32A6" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_D513F947-4B93-481C-93BB-C7ADEF051D6A" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -204,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				CE59531A26F3C74DB59C5E4C /* Connections.swift */,
+				A6A4995D1E5C0AEEBE5661C1 /* Kisi.swift */,
 				01CAED1D07E0B620C389829A /* LiveRest.swift */,
 				A0AC1A3DE18E3A9ADE60597B /* Notifier.swift */,
 				39BDA911196A0C13FB2E8ADA /* RestTimer.swift */,
@@ -283,6 +288,7 @@
 			children = (
 				B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */,
 				606F69DCA4E0A99FD79CBBF8 /* HistoryView.swift */,
+				B0B08F0BA3686F55A4C56117 /* KisiViews.swift */,
 				2DA5A37017F06901DB8C32FE /* LoadEditorSheet.swift */,
 				A770C3F2D54C20078AF11BE7 /* LoadingView.swift */,
 				5C5A2741915293CDDE1B7DFA /* PlanView.swift */,
@@ -317,10 +323,10 @@
 			path = Widgets;
 			sourceTree = "<group>";
 		};
-		"TEMP_23C51288-96E7-42CD-96A9-72D59B4795DD" /* gymtrak-swift-rewrite */ = {
+		"TEMP_F0E1D5BF-6F91-441B-88D1-1F261152C735" /* gymtrak-swift-rewrite */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_00627CDB-DF91-439A-811B-03768B2F32A6" /* Config.xcconfig */,
+				"TEMP_D513F947-4B93-481C-93BB-C7ADEF051D6A" /* Config.xcconfig */,
 			);
 			path = "gymtrak-swift-rewrite";
 			sourceTree = "<group>";
@@ -539,6 +545,8 @@
 				34FABD8E26490FD6B57AFE04 /* GymTrakApp.swift in Sources */,
 				ECA0A82C19DB1B7611954759 /* History.swift in Sources */,
 				33E5035E30FF178A9A7D74AB /* HistoryView.swift in Sources */,
+				1AEDD7FFAB54951EC762A7A9 /* Kisi.swift in Sources */,
+				DE603DD583C5255611DD8FD1 /* KisiViews.swift in Sources */,
 				0090DBDA59AB9E4E2A18CE76 /* LiveRest.swift in Sources */,
 				688F959739EB02D5DFE1647C /* Load.swift in Sources */,
 				CEF8CA53CA813215ACDB514B /* LoadEditorSheet.swift in Sources */,
@@ -853,7 +861,7 @@
 		};
 		C51B4C3A1A037D7EDB9E81F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_00627CDB-DF91-439A-811B-03768B2F32A6" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_D513F947-4B93-481C-93BB-C7ADEF051D6A" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -872,7 +880,7 @@
 		};
 		DE1DAE831E7778559F295B52 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_00627CDB-DF91-439A-811B-03768B2F32A6" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_D513F947-4B93-481C-93BB-C7ADEF051D6A" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

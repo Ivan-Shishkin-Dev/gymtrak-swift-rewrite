@@ -662,3 +662,11 @@ struct DotTests {
         #expect(fmtSleep(45) == "45m")
     }
 }
+
+struct KisiTests {
+    @Test func errorTextIsFoundWhereverKisiPutsIt() {
+        #expect(Kisi.message(in: Data(#"{"message":"Invalid email or password"}"#.utf8)) == "Invalid email or password")
+        #expect(Kisi.message(in: Data(#"{"errors":{"base":["Too far from the door"]}}"#.utf8)) == "Too far from the door")
+        #expect(Kisi.message(in: Data("not json".utf8)) == "")
+    }
+}
