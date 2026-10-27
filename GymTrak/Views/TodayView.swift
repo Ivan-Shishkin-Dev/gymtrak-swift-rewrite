@@ -39,6 +39,9 @@ struct TodayView: View {
                     }
                     .padding(.top, 20)
 
+                    let record = db.liftRecord(today: now)
+                    if !record.isEmpty { TrackRecord(days: record).padding(.top, -10) }
+
                     if let week = db.scheduleWeek(now) {
                         properties(week, todayKey: todayKey)
                         recent
@@ -123,7 +126,8 @@ struct TodayView: View {
     // MARK: Recent
 
     private var recent: some View {
-        let all = store.db.historyEntries(synced: connections.runs)
+        let since = DateKey.addDays(DateKey.key(Date()), -4)   // today and the 4 days before
+        let all = store.db.historyEntries(synced: connections.runs).filter { $0.date >= since }
         let rows = all.filter {
             switch filter {
             case .all: true
@@ -142,7 +146,7 @@ struct TodayView: View {
             }
             .padding(.bottom, 2)
             if rows.isEmpty {
-                Text("Nothing yet.").foregroundStyle(Page.secondary).padding(.vertical, 6)
+                Text("Nothing in the last 5 days.").foregroundStyle(Page.secondary).padding(.vertical, 6)
             }
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(rows) { e in
@@ -185,7 +189,10 @@ struct HistoryRow: View {
             Image(systemName: entry.kind == .run ? "figure.run" : "dumbbell")
                 .foregroundStyle(Page.secondary).frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.title).foregroundStyle(Page.text)
+                HStack(spacing: 8) {
+                    Text(entry.title).foregroundStyle(Page.text)
+                    if let o = entry.outcome { Tag(text: o.label, tint: o.color) }
+                }
                 Text(entry.detail).font(.subheadline).foregroundStyle(Page.secondary).lineLimit(1)
             }
             Spacer(minLength: 4)
@@ -392,12 +399,63 @@ private struct TodayTile: View {
 /// A small gray capsule for a short label, like a weekday or "Zone 2".
 struct Tag: View {
     let text: String
+    var tint: Color? = nil
 
     var body: some View {
         Text(text)
             .font(.caption.weight(.medium))
-            .foregroundStyle(Page.text)
+            .foregroundStyle(tint ?? Page.text)
             .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(Page.fill, in: Capsule())
+            .background(tint.map { $0.opacity(0.16) } ?? Page.fill, in: Capsule())
+    }
+}
+
+extension LiftOutcome {
+    var label: String {
+        switch self {
+        case .finished: "Finished"
+        case .almost: "Almost"
+        case .skipped: "Skipped"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .finished: Color(light: 0x2DA44E, dark: 0x3FB950)
+        case .almost: Color(light: 0xBF8700, dark: 0xE3B341)
+        case .skipped: Color(light: 0xCF222E, dark: 0xF85149)
+        }
+    }
+}
+
+/// Recent lift days as a row of colored bars, then how many finished, almost, and skipped.
+struct TrackRecord: View {
+    let days: [LiftDay]
+    var slots = 24
+
+    var body: some View {
+        let recent = Array(days.suffix(slots))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 3) {
+                ForEach(0..<(slots - recent.count), id: \.self) { _ in bar(Page.fill) }
+                ForEach(recent, id: \.date) { bar($0.outcome.color) }
+            }
+            .frame(height: 20)
+            HStack(spacing: 16) {
+                ForEach(LiftOutcome.allCases.reversed(), id: \.self) { o in
+                    HStack(spacing: 6) {
+                        Circle().fill(o.color).frame(width: 8, height: 8)
+                        Text("\(days.filter { $0.outcome == o }.count)").fontWeight(.semibold).foregroundStyle(Page.text)
+                        Text(o.label.lowercased()).foregroundStyle(Page.secondary)
+                    }
+                }
+            }
+            .font(.subheadline.monospacedDigit())
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func bar(_ c: Color) -> some View {
+        RoundedRectangle(cornerRadius: 3, style: .continuous).fill(c).frame(maxWidth: .infinity)
     }
 }

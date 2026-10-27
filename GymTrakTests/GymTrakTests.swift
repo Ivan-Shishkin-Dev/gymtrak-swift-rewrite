@@ -492,6 +492,32 @@ struct SpotifyAuthTests {
         #expect(setPounds("90 lb", type: .machine) == 90)
     }
 
+    @Test func outcomeCountsCheckedSets() {
+        var s = snap()
+        #expect(s.outcome("s2") == .almost)          // one set never ticked
+        s.sets.removeAll { $0.id == "s2-x" }
+        #expect(s.outcome("s2") == .finished)
+        for i in s.sets.indices where s.sets[i].sessionId == "s1" { s.sets[i].completedAt = nil }
+        #expect(s.outcome("s1") == .skipped)
+    }
+
+    @Test func trackRecordMarksMissedLiftDaysSkipped() {
+        // Mondays are lift days from Oct 5. Oct 5: nothing. Oct 12: all sets. Oct 19: half. Oct 26 (today): nothing yet.
+        var s = Snapshot(days: [Day(id: 1, name: "Upper A", focus: "")], exercises: [],
+                         programWeeks: [ProgramWeek(id: 1, phase: "", startDate: "2026-10-05", isDeload: false,
+                                                    slots: [ProgramSlot(dow: .mon, liftDayId: 1, run: nil)], updatedAt: 0)])
+        for (id, date, ticked) in [("a", "2026-10-12", 2), ("b", "2026-10-19", 1)] {
+            s.sessions.append(Session(id: id, dayId: 1, date: date, startedAt: 0, finishedAt: 1, updatedAt: 0, type: .lift))
+            for i in 0..<2 {
+                s.sets.append(WorkoutSet(id: "\(id)\(i)", sessionId: id, exerciseId: "b", exerciseName: "Bench", setIndex: i,
+                                         weight: "100 lb", reps: "× 5", completedAt: i < ticked ? 1 : nil, updatedAt: 0))
+            }
+        }
+        let r = s.liftRecord(today: DateKey.date("2026-10-26").addingTimeInterval(6 * 3600))
+        #expect(r.map(\.date) == ["2026-10-05", "2026-10-12", "2026-10-19"])
+        #expect(r.map(\.outcome) == [.skipped, .finished, .almost])
+    }
+
     @Test func historyMergesLiftsAndRunsNewestFirst() {
         let h = snap().historyEntries(synced: [run("2026-10-10", 3.1, 30)])
         #expect(h.map(\.date) == ["2026-10-15", "2026-10-10", "2026-10-08", "2026-10-01"])

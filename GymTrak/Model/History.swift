@@ -36,6 +36,19 @@ struct HistoryEntry: Identifiable, Hashable, Sendable {
     var date: String
     var title: String
     var detail: String
+    /// Lifts only: how much of the workout got checked off.
+    var outcome: LiftOutcome? = nil
+}
+
+/// How a lift day went: every set checked, some, or none.
+enum LiftOutcome: Int, Sendable, Hashable, CaseIterable {
+    case skipped, almost, finished
+}
+
+/// One lift day in the track record.
+struct LiftDay: Hashable, Sendable {
+    var date: String
+    var outcome: LiftOutcome
 }
 
 /// The most-improved lift: first vs. latest top set.
@@ -117,6 +130,40 @@ extension Snapshot {
     }
 
     /// Done sets in a session, with their pounds.
+    /// Every set checked off is finished, some is almost, none is skipped.
+    func outcome(_ sessionId: String) -> LiftOutcome {
+        let all = sets.filter { $0.sessionId == sessionId }
+        let done = all.filter(\.isDone).count
+        if done == 0 { return .skipped }
+        return done == all.count ? .finished : .almost
+    }
+
+    /// Every lift day from the program start to today, oldest first. A day with workouts takes its best one;
+    /// a planned lift day that passed with no workout is skipped. Today only counts once something is logged.
+    func liftRecord(today: Date) -> [LiftDay] {
+        guard let start = programStart else { return [] }
+        let todayKey = DateKey.key(today)
+        var best: [String: LiftOutcome] = [:]
+        for s in finishedLifts {
+            let o = outcome(s.id)
+            if o.rawValue > (best[s.slotDate]?.rawValue ?? -1) { best[s.slotDate] = o }
+        }
+        var out: [LiftDay] = []
+        var key = start
+        while key <= todayKey {
+            if let o = best[key] {
+                out.append(LiftDay(date: key, outcome: o))
+            } else if key < todayKey {
+                let d = DateKey.date(key)
+                if scheduleWeek(d)?.slot(DateKey.dow(d))?.liftDayId != nil {
+                    out.append(LiftDay(date: key, outcome: .skipped))
+                }
+            }
+            key = DateKey.addDays(key, 1)
+        }
+        return out
+    }
+
     private func doneSets(_ sessionId: String) -> [(WorkoutSet, Double?)] {
         let types = Dictionary(exercises.map { ($0.id, $0.effectiveLoadType) }, uniquingKeysWith: { a, _ in a })
         return sets.filter { $0.sessionId == sessionId && $0.isDone }.map { st in
@@ -148,7 +195,7 @@ extension Snapshot {
             if let d = s.durationSec, d >= 60 { parts.append("\(Int((d / 60).rounded())) min") }
             let title = s.dayNameSnapshot ?? day(s.dayId)?.name ?? "Workout"
             return HistoryEntry(id: s.id, kind: .lift(sessionId: s.id), date: s.slotDate, title: title,
-                                detail: parts.joined(separator: " · "))
+                                detail: parts.joined(separator: " · "), outcome: outcome(s.id))
         }
         let runs = allRuns(synced: synced).map {
             HistoryEntry(id: "run-\($0.id)", kind: .run, date: $0.date, title: $0.name, detail: $0.summary)

@@ -88,7 +88,10 @@ struct SessionDetailView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(title).font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text).padding(.bottom, 10)
                         PropertyRow(icon: "calendar", label: "Date") { Text(DateKey.label(session.slotDate, "EEEE, MMMM d")) }
-                        PropertyRow(icon: "number", label: "Sets") { Text("\(done.count)") }
+                        let total = db.sets.filter { $0.sessionId == sessionId }.count
+                        let o = db.outcome(sessionId)
+                        PropertyRow(icon: "checkmark.circle", label: "Status") { Tag(text: o.label, tint: o.color) }
+                        PropertyRow(icon: "number", label: "Sets") { Text(done.count == total ? "\(done.count)" : "\(done.count) of \(total)") }
                         if let d = session.durationSec, d >= 60, d < 4 * 3600 {
                             PropertyRow(icon: "clock", label: "Time") { Text("\(Int((d / 60).rounded())) min") }
                         }
