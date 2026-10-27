@@ -64,7 +64,7 @@ struct LiftPerformance {
 func loadScore(_ raw: String, type: LoadType) -> Double? {
     let p = parseLoad(raw, type: type)
     switch type {
-    case .weight: return p.n
+    case .weight, .dumbbell: return p.n
     case .machine: return p.max ? 10_000 + (p.add ?? 0) : p.n
     case .plates: return p.n.map { $0 * 45 + (p.add ?? 0) }
     case .bodyweight: return p.add ?? 0

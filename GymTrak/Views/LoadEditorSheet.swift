@@ -24,7 +24,7 @@ struct LoadEditorSheet: View {
         NavigationStack {
             Form {
                 switch loadType {
-                case .weight:
+                case .weight, .dumbbell:
                     field("Weight", $n, hint: parsed.n, unit: "lb")
                 case .machine:
                     Picker("Type", selection: $machine) {
@@ -90,8 +90,8 @@ struct LoadEditorSheet: View {
         let num = Double(n.replacingOccurrences(of: ",", with: ".")) ?? (machine == .max ? nil : parsed.n)
         let extra = Double(add.replacingOccurrences(of: ",", with: "."))
         switch loadType {
-        case .weight:
-            return formatLoad(StructuredLoad(type: .weight, n: num))
+        case .weight, .dumbbell:
+            return formatLoad(StructuredLoad(type: loadType, n: num))
         case .machine:
             if machine == .max { return formatLoad(StructuredLoad(type: .machine, max: true, add: extra ?? (parsed.max ? parsed.add : nil))) }
             return formatLoad(StructuredLoad(type: .machine, n: num, lb: machine == .pounds))
@@ -151,7 +151,7 @@ extension LoadType {
     /// What the big number in a workout means for this load type.
     func valueLabel(for raw: String) -> String {
         switch self {
-        case .weight: return "lb"
+        case .weight, .dumbbell: return "lb"
         case .machine:
             let p = parseLoad(raw, type: .machine)
             return p.max ? "Max" : p.lb ? "lb" : "Level"

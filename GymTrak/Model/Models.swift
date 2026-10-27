@@ -30,11 +30,12 @@ struct SetRow: Codable, Hashable, Sendable {
 
 /// How an exercise's load is entered. See `Load.swift` for the grammar of each.
 enum LoadType: String, Codable, CaseIterable, Sendable {
-    case weight, machine, plates, bodyweight, free
+    case weight, dumbbell, machine, plates, bodyweight, free
 
     var label: String {
         switch self {
         case .weight: "Weight"
+        case .dumbbell: "Dumbbell"
         case .machine: "Machine"
         case .plates: "Plates"
         case .bodyweight: "Body"

@@ -115,7 +115,7 @@ struct LifetimeStats: Equatable, Sendable {
 func setPounds(_ weight: String, type: LoadType) -> Double? {
     let p = parseLoad(weight, type: type)
     switch type {
-    case .weight: return p.n
+    case .weight, .dumbbell: return p.n
     case .plates: return p.n.map { $0 * 45 + (p.add ?? 0) }
     case .machine: return p.lb && !p.max ? p.n : nil
     case .bodyweight, .free: return nil
@@ -296,7 +296,7 @@ extension Snapshot {
     /// The lift with the biggest top-set gain from its first to its latest session (pound loads only, 3+ sessions).
     func mostImproved() -> Improvement? {
         var best: Improvement?
-        for ex in exercises where [.weight, .plates, .machine].contains(ex.effectiveLoadType) {
+        for ex in exercises where [.weight, .dumbbell, .plates, .machine].contains(ex.effectiveLoadType) {
             let h = liftHistory(for: ex, before: "9999-12-31", limit: .max)
             guard h.count >= 3, let first = h.last, let latest = h.first,
                   let a = first.sets.compactMap({ setPounds($0.weight, type: ex.effectiveLoadType) }).max(),

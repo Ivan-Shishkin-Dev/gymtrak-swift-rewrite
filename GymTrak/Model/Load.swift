@@ -62,9 +62,9 @@ func parseLoad(_ raw: String, type: LoadType? = nil) -> StructuredLoad {
     let s = raw.trimmingCharacters(in: .whitespaces)
     let t = type ?? inferLoadType(s)
     switch t {
-    case .weight:
+    case .weight, .dumbbell:
         let stripped = s.replacingOccurrences(of: "lbs|lb", with: "", options: [.regularExpression, .caseInsensitive])
-        return StructuredLoad(type: .weight, n: firstNum(stripped))
+        return StructuredLoad(type: t, n: firstNum(stripped))
     case .machine:
         if matches(s, #"^Max\b"#, .caseInsensitive) {
             let add = capture(s, #"\+\s*(\d+(?:\.\d+)?)"#)?[1].flatMap(Double.init)
@@ -91,7 +91,7 @@ func parseLoad(_ raw: String, type: LoadType? = nil) -> StructuredLoad {
 /// Format structured fields back to the canonical string.
 func formatLoad(_ load: StructuredLoad) -> String {
     switch load.type {
-    case .weight:
+    case .weight, .dumbbell:
         return load.n.map { "\(fmtNum($0)) lb" } ?? ""
     case .machine:
         if load.max { return load.add.map { "Max + \(fmtNum($0))" } ?? "Max" }
@@ -117,7 +117,7 @@ func stepLoad(_ raw: String, type: LoadType, increment: Double, direction: Int) 
     guard type != .free else { return nil }
     var p = parseLoad(raw, type: type)
     let delta = increment * Double(direction)
-    if type == .weight || type == .plates || (type == .machine && !p.max) {
+    if type == .weight || type == .dumbbell || type == .plates || (type == .machine && !p.max) {
         p.n = Swift.max(0, (p.n ?? 0) + delta)
     } else {
         p.add = (p.add ?? 0) + delta

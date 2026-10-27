@@ -257,6 +257,7 @@ struct ExerciseEditorView: View {
     private func loadTypeHelp(_ t: LoadType) -> String {
         switch t {
         case .weight: "e.g. 225 lb"
+        case .dumbbell: "e.g. 70 lb (each)"
         case .machine: "e.g. 12, 120 lb, Max + 10"
         case .plates: "e.g. 5 pl + 25"
         case .bodyweight: "e.g. BW, +70, −25"

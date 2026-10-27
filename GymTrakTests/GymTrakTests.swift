@@ -484,6 +484,12 @@ struct SpotifyAuthTests {
         RunActivity(id: date, source: .strava, name: "Morning Run", date: date, start: DateKey.date(date), minutes: min, miles: mi)
     }
 
+    @Test func dumbbellLoadsParseAndStep() {
+        #expect(formatLoad(parseLoad("70 lb", type: .dumbbell)) == "70 lb")
+        #expect(stepLoad("70 lb", type: .dumbbell, increment: 5, direction: 1) == "75 lb")
+        #expect(setPounds("70 lb", type: .dumbbell) == 70)
+    }
+
     @Test func weekStatsCountOnlyThatWeek() {
         let w = snap().weekStats(monday: "2026-10-12", synced: [run("2026-10-12", 3, 30), run("2026-10-19", 5, 50)])
         #expect(w == WeekStats(workouts: 1, runs: 1, runMiles: 3, avgWorkoutMinutes: 50))

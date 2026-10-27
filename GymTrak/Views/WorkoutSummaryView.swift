@@ -36,7 +36,7 @@ struct WorkoutSummaryView: View {
                                     Text(pr.0.name)
                                     Image(systemName: "trophy.fill").foregroundStyle(Theme.lift)
                                     Spacer()
-                                    Text(pr.0.effectiveLoadType == .weight
+                                    Text([.weight, .dumbbell].contains(pr.0.effectiveLoadType)
                                          ? "\(fmtNum(pr.before)) → \(fmtNum(pr.now))"
                                          : "New best")
                                         .foregroundStyle(.secondary).monospacedDigit()
@@ -56,7 +56,7 @@ struct WorkoutSummaryView: View {
                                         Image(systemName: a.icon).foregroundStyle(Theme.lift)
                                     }
                                     .labelStyle(CoachLabelStyle())
-                                    Text([ex.name, a.note].compactMap { $0 }.joined(separator: " · "))
+                                    Text(ex.name)
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                             }
