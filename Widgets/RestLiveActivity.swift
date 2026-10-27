@@ -46,12 +46,14 @@ private struct LockScreenRest: View {
     var body: some View {
         let s = context.state
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Rest").font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.6))
-                    countdown(s).font(.system(size: 44, weight: .semibold, design: .rounded))
+                    // The timer text claims extra width, so pin it to the left edge under "Rest".
+                    countdown(s, alignment: .leading).font(.system(size: 44, weight: .semibold, design: .rounded))
+                        .frame(width: 130, alignment: .leading)
                 }
-                Spacer()
+                Spacer(minLength: 0)
                 NextSet(state: s, trailing: true)
             }
             bar(s)
@@ -60,7 +62,7 @@ private struct LockScreenRest: View {
     }
 }
 
-/// "Up next" with the exercise and load.
+/// "Next" with the exercise and load. Long names wrap to two lines instead of cutting off.
 private struct NextSet: View {
     let state: RestActivityAttributes.ContentState
     var trailing = false
@@ -68,8 +70,10 @@ private struct NextSet: View {
     var body: some View {
         if let name = state.nextExercise {
             VStack(alignment: trailing ? .trailing : .leading, spacing: 2) {
-                Text("Up next").font(.caption.weight(.semibold)).foregroundStyle(.white.opacity(0.6))
-                Text(name).font(.headline).foregroundStyle(.white).lineLimit(1)
+                Text("Next").font(.caption.weight(.semibold)).foregroundStyle(.white.opacity(0.6))
+                Text(name).font(.headline).foregroundStyle(.white)
+                    .lineLimit(2).minimumScaleFactor(0.85)
+                    .multilineTextAlignment(trailing ? .trailing : .leading)
                 if let load = state.nextLoad {
                     Text(load).font(.subheadline.monospacedDigit()).foregroundStyle(.white.opacity(0.8))
                 }
@@ -79,11 +83,11 @@ private struct NextSet: View {
 }
 
 /// Counts down to zero and stops there.
-private func countdown(_ s: RestActivityAttributes.ContentState) -> some View {
+private func countdown(_ s: RestActivityAttributes.ContentState, alignment: TextAlignment = .trailing) -> some View {
     Text(timerInterval: s.startedAt...max(s.startedAt, s.endsAt), countsDown: true)
         .monospacedDigit()
         .foregroundStyle(.white)
-        .multilineTextAlignment(.trailing)
+        .multilineTextAlignment(alignment)
 }
 
 private func bar(_ s: RestActivityAttributes.ContentState) -> some View {

@@ -224,10 +224,17 @@ struct WorkoutView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         coachRows(group.ex, setIndex: index - 1)
                         if let next {
-                            let nextIndex = (groups.first { $0.ex.id == next.ex.id }?.sets.firstIndex { $0.id == next.row.id } ?? 0) + 1
+                            // Same exercise: just the load. A new exercise: its name, then the load.
+                            let load = "\(next.row.weight.isEmpty ? "—" : next.row.weight) × \(bareReps(next.row.reps))"
                             PropertyRow(icon: "arrow.turn.down.right", label: "Next") {
-                                Text("\(next.ex.id == group.ex.id ? "Set \(nextIndex)" : next.ex.name) · \(next.row.weight.isEmpty ? "—" : next.row.weight) × \(bareReps(next.row.reps))")
-                                    .lineLimit(1)
+                                if next.ex.id == group.ex.id {
+                                    Text(load).lineLimit(1)
+                                } else {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(next.ex.name).lineLimit(1)
+                                        Text(load).font(.subheadline).foregroundStyle(Page.secondary).lineLimit(1)
+                                    }
+                                }
                             }
                         }
                     }
