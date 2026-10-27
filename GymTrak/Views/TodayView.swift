@@ -21,20 +21,16 @@ struct TodayView: View {
         NavigationStack {
             Group {
                 if let week = db.scheduleWeek(now) {
-                    // One page that scrolls: today fills the first half of the screen, then every past workout.
-                    GeometryReader { geo in
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                properties(week, todayKey: todayKey)
-                                    .padding(.top, 24)
-                                    .frame(minHeight: geo.size.height / 2, alignment: .top)
-                                recent
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 110)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 28) {
+                            properties(week, todayKey: todayKey)
+                            recent
                         }
-                        .refreshable { await connections.refresh() }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 24)
+                        .padding(.bottom, 110)
                     }
+                    .refreshable { await connections.refresh() }
                 } else {
                     ScrollView {
                         noSchedule.padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 110)
