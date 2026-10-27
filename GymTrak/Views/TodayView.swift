@@ -72,8 +72,7 @@ struct TodayView: View {
                     liftTile(liftDay, done: db.doneDates.contains(todayKey), todayKey: todayKey)
                     runTile(slot?.run, done: connections.runDates.contains(todayKey), todayKey: todayKey)
                 }
-                // Tiles take the spare height so the page reaches the bottom of the screen.
-                .frame(minHeight: 110, maxHeight: 220)
+                .fixedSize(horizontal: false, vertical: true)
             }
             .buttonStyle(.plain)
 
@@ -396,13 +395,14 @@ struct TrackRecord: View {
 
         VStack(spacing: 10) {
             HStack {
+                // Arrows only show when there's a month to go to.
                 Button { monthOffset -= 1 } label: { Image(systemName: "chevron.left") }
-                    .disabled(monthKey <= earliest)
+                    .disabled(monthKey <= earliest).opacity(monthKey <= earliest ? 0 : 1)
                 Spacer()
                 Text(DateKey.label(DateKey.key(month), "MMMM yyyy")).font(.subheadline.weight(.semibold)).foregroundStyle(Page.text)
                 Spacer()
                 Button { monthOffset += 1 } label: { Image(systemName: "chevron.right") }
-                    .disabled(monthOffset >= 0)
+                    .disabled(monthOffset >= 0).opacity(monthOffset >= 0 ? 0 : 1)
             }
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(Page.secondary)
@@ -446,7 +446,8 @@ struct TrackRecord: View {
                     .foregroundStyle(day != nil ? Color.black.opacity(0.7) : resting ? Self.restInk : Page.tertiary)
                 }
             }
-            .frame(minHeight: 30, maxHeight: 46)
+            // Cells take the spare height so the page reaches the bottom of the screen.
+            .frame(minHeight: 30, maxHeight: 64)
             .frame(maxWidth: .infinity)
             .contentShape(shape)
 
