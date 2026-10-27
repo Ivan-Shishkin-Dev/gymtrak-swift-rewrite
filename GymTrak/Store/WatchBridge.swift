@@ -52,9 +52,9 @@ extension Snapshot {
             var next: String?
             if pending.count > 1 {
                 let b = pending[1]
+                // Same exercise: the next set's load. A new exercise: just its name.
                 if let a = pending.first, b.ex.id == a.ex.id {
-                    let n = (ordered.filter { $0.ex.id == b.ex.id }.firstIndex { $0.set.id == b.set.id } ?? 0) + 1
-                    next = "Set \(n) · \(b.set.weight.isEmpty ? "—" : b.set.weight) × \(bareReps(b.set.reps))"
+                    next = "\(b.set.weight.isEmpty ? "—" : b.set.weight) × \(bareReps(b.set.reps))"
                 } else {
                     next = b.ex.name
                 }
