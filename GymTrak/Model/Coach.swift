@@ -215,7 +215,6 @@ extension Snapshot {
         let gap = DateKey.calendar.dateComponents([.day], from: DateKey.date(last.date), to: DateKey.date(today)).day ?? 0
         let top = last.sets[0]
         let hitAll = last.sets.allSatisfy { $0.reps >= $0.target }
-        let topBeat = top.reps - top.target
         let missedSets = last.sets.filter { $0.reps < $0.target }.count
 
         if gap > 14 {

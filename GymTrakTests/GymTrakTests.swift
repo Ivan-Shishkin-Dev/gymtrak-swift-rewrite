@@ -66,7 +66,6 @@ struct ProgramTests {
         #expect(DateKey.mondayKey(DateKey.date("2026-09-03")) == "2026-08-31")
         #expect(DateKey.upcomingMonday(DateKey.date("2026-08-31")) == "2026-08-31")
         #expect(DateKey.upcomingMonday(DateKey.date("2026-09-01")) == "2026-09-07")
-        #expect(slotSummary(week.slots[0], dayName: "Upper A") == "Upper A")
     }
 
     @Test func seedBuildsTheSplitAndRunBlock() {
@@ -496,10 +495,7 @@ struct SpotifyAuthTests {
         #expect(snap().weekStats(monday: "2026-10-19", synced: []) == WeekStats())
     }
 
-    @Test func poundsCountDoneSetsInPoundsOnly() {
-        let s = snap()
-        // 200×6×2 + 255×10; pin curl and the undone 500 lb set don't count.
-        #expect(s.sessionPounds("s2") == 2400 + 2550)
+    @Test func setPoundsOnlyCountsPoundLoads() {
         #expect(setPounds("12", type: .machine) == nil)
         #expect(setPounds("90 lb", type: .machine) == 90)
     }
@@ -562,19 +558,6 @@ struct SpotifyAuthTests {
         #expect(h.map(\.date) == ["2026-10-15", "2026-10-10", "2026-10-08", "2026-10-01"])
         #expect(h[0].title == "Upper A" && h[0].detail == "4 sets · 50 min")
         #expect(h[1].kind == .run && h[1].detail == "3.1 mi · 30 min · 9:41 /mi")
-    }
-
-    @Test func statsAndFacts() {
-        let st = snap().lifetimeStats(synced: [run("2026-10-10", 6.2, 60), run("2026-10-12", 3, 30)])
-        #expect(st.workouts == 3 && st.sets == 12 && st.runs == 2)
-        #expect(st.heaviestName == "Leg Press" && st.heaviestLb == 255)
-        #expect(st.improved?.name == "Bench" && st.improved?.from == 180 && st.improved?.to == 200)
-        #expect(st.heaviestName == "Leg Press")
-        #expect(st.longestRunMiles == 6.2)
-        #expect(st.mostSetsName == "Bench" && st.mostSetsCount == 6)
-        #expect(st.avgWorkoutMinutes == 50)
-        #expect(st.biggestDayDate == "2026-10-15" && st.biggestDayLb == 4950)
-        #expect(st.prs == 2)  // bench went up twice
     }
 
     @Test func runawayRunTimerFallsBackToPlan() {
@@ -672,7 +655,7 @@ struct SpotifyAuthTests {
         #expect(w?.sessionId == id && w?.total == 3 && w?.done == 0)
         #expect(w?.current?.exercise == "Bench" && w?.current?.setNumber == 1 && w?.current?.setCount == 2)
         #expect(w?.current?.weight == "200 lb" && w?.current?.reps == "6")
-        #expect(w?.next == "Set 2 · 190 lb × 8")
+        #expect(w?.next == "190 lb × 8")
         #expect(w?.queue.map(\.exercise) == ["Bench", "Bench", "Row"] && w?.queue.first == w?.current)
 
         db.toggleSet(w!.current!.setId)
@@ -691,5 +674,24 @@ struct SpotifyAuthTests {
         #expect(back == s)
         let a = WatchAction.stepLoad(setId: "x", direction: -1)
         #expect(WatchWire.decode(WatchAction.self, from: WatchWire.encode(a)) == a)
+    }
+}
+
+@Suite struct StoreTests {
+    @Test @MainActor func unreadableFileIsKeptNotOverwritten() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appending(path: "gymtrak.json")
+        try Data("not json".utf8).write(to: url)
+        let store = Store(fileURL: url, seedIfEmpty: false)
+        #expect(store.loadError != nil)
+        let copies = try FileManager.default.contentsOfDirectory(atPath: dir.path()).filter { $0.contains("unreadable") }
+        #expect(copies.count == 1)
+        #expect(try Data(contentsOf: dir.appending(path: copies[0])) == Data("not json".utf8))
+    }
+
+    @Test @MainActor func missingFileIsNotAnError() {
+        let url = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).json")
+        #expect(Store(fileURL: url, seedIfEmpty: false).loadError == nil)
     }
 }

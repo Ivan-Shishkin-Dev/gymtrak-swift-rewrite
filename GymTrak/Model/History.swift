@@ -65,52 +65,6 @@ struct ActivityDay: Hashable, Sendable {
     var sessionId: String? = nil
 }
 
-/// The most-improved lift: first vs. latest top set.
-struct Improvement: Equatable, Sendable {
-    var name: String
-    var from: Double
-    var to: Double
-    var since: String
-    var pct: Double { from > 0 ? (to - from) / from * 100 : 0 }
-}
-
-/// Lifetime totals behind the History header and the facts.
-struct LifetimeStats: Equatable, Sendable {
-    var workouts = 0
-    var sets = 0
-    var reps = 0
-    var pounds: Double = 0
-    /// Minutes over workouts with a believable timer (1 min to 4 h).
-    var liftMinutes: Double = 0
-    var timedWorkouts = 0
-    var runs = 0
-    var runMiles: Double = 0
-    var runMinutes: Double = 0
-    var longestRunMiles: Double = 0
-    /// Fastest pace (min/mi) over runs of a mile or more.
-    var fastestPace: Double?
-    var firstDate: String?
-    var daysTrained = 0
-    var weekendDays = 0
-    var favoriteDay: Dow?
-    var favoriteDayCount = 0
-    var heaviestName: String?
-    var heaviestLb: Double = 0
-    var mostSetsName: String?
-    var mostSetsCount = 0
-    var biggestDayLb: Double = 0
-    var biggestDayDate: String?
-    /// Minutes after midnight that timed workouts started.
-    var earliestStart: Int?
-    var latestStart: Int?
-    var prs = 0
-    var improved: Improvement?
-
-    var heaviest: (name: String, lb: Double)? { heaviestName.map { ($0, heaviestLb) } }
-    var avgWorkoutMinutes: Double? { timedWorkouts > 0 ? liftMinutes / Double(timedWorkouts) : nil }
-    var avgPace: Double? { runMiles > 0.3 ? runMinutes / runMiles : nil }
-}
-
 /// Pounds actually moved by one set, or nil when the load isn't in pounds (pins, bodyweight, free text).
 func setPounds(_ weight: String, type: LoadType) -> Double? {
     let p = parseLoad(weight, type: type)
@@ -196,21 +150,6 @@ extension Snapshot {
         }
     }
 
-    /// Pounds moved in one session (weight × reps over done sets).
-    func sessionPounds(_ sessionId: String) -> Double {
-        doneSets(sessionId).reduce(0) { sum, pair in
-            sum + (pair.1 ?? 0) * (numericReps(pair.0.reps) ?? 0)
-        }
-    }
-
-    /// Minutes trained per date: timed lifts plus runs.
-    func minutesTrained(runs synced: [RunActivity]) -> [String: Double] {
-        var out: [String: Double] = [:]
-        for l in finishedLifts { if let d = l.durationSec, d >= 60, d < 4 * 3600 { out[l.slotDate, default: 0] += d / 60 } }
-        for r in allRuns(synced: synced) { out[r.date, default: 0] += r.minutes }
-        return out
-    }
-
     /// Every lift and run, newest first.
     func historyEntries(synced: [RunActivity]) -> [HistoryEntry] {
         let lifts = finishedLifts.map { s -> HistoryEntry in
@@ -227,62 +166,6 @@ extension Snapshot {
         return (lifts + runs).sorted { $0.date > $1.date }
     }
 
-    func lifetimeStats(synced: [RunActivity]) -> LifetimeStats {
-        var s = LifetimeStats()
-        let lifts = finishedLifts
-        s.workouts = lifts.count
-        var dayCounts: [Dow: Int] = [:]
-        var setsByName: [String: Int] = [:]
-        for l in lifts {
-            let done = doneSets(l.id)
-            s.sets += done.count
-            s.reps += done.reduce(0) { $0 + Int(numericReps($1.0.reps) ?? 0) }
-            let lb = sessionPounds(l.id)
-            s.pounds += lb
-            if lb > s.biggestDayLb { s.biggestDayLb = lb; s.biggestDayDate = l.slotDate }
-            if let d = l.durationSec, d >= 60, d < 4 * 3600 {
-                s.liftMinutes += d / 60
-                s.timedWorkouts += 1
-                // Start time only means something when the timer ran for a real workout.
-                if d >= 600 {
-                    let start = Date(timeIntervalSince1970: l.startedAt / 1000)
-                    let c = DateKey.calendar.dateComponents([.hour, .minute], from: start)
-                    let m = (c.hour ?? 0) * 60 + (c.minute ?? 0)
-                    s.earliestStart = min(s.earliestStart ?? m, m)
-                    s.latestStart = max(s.latestStart ?? m, m)
-                }
-            }
-            dayCounts[DateKey.dow(DateKey.date(l.slotDate)), default: 0] += 1
-            for (st, lb) in done {
-                setsByName[st.exerciseName, default: 0] += 1
-                if let lb, lb > s.heaviestLb { s.heaviestLb = lb; s.heaviestName = st.exerciseName }
-            }
-            s.prs += prs(sessionId: l.id).count
-        }
-        if let fav = dayCounts.max(by: { ($0.value, -$0.key.index) < ($1.value, -$1.key.index) }) {
-            s.favoriteDay = fav.key
-            s.favoriteDayCount = fav.value
-        }
-        if let top = setsByName.max(by: { ($0.value, $1.key) < ($1.value, $0.key) }) {
-            s.mostSetsName = top.key
-            s.mostSetsCount = top.value
-        }
-
-        let runs = allRuns(synced: synced)
-        s.runs = runs.count
-        s.runMiles = runs.reduce(0) { $0 + $1.miles }
-        s.runMinutes = runs.reduce(0) { $0 + $1.minutes }
-        s.longestRunMiles = runs.map(\.miles).max() ?? 0
-        s.fastestPace = runs.filter { $0.miles >= 1 }.compactMap(\.paceMinPerMile).min()
-
-        let dates = Set(lifts.map(\.slotDate) + runs.map(\.date))
-        s.daysTrained = dates.count
-        s.weekendDays = dates.filter { [.sat, .sun].contains(DateKey.dow(DateKey.date($0))) }.count
-        s.firstDate = dates.min()
-        s.improved = mostImproved()
-        return s
-    }
-
     /// Totals for the Monday–Sunday week starting `monday`.
     func weekStats(monday: String, synced: [RunActivity]) -> WeekStats {
         let sunday = DateKey.addDays(monday, 6)
@@ -293,29 +176,7 @@ extension Snapshot {
                          avgWorkoutMinutes: timed.isEmpty ? nil : timed.reduce(0, +) / Double(timed.count) / 60)
     }
 
-    /// The lift with the biggest top-set gain from its first to its latest session (pound loads only, 3+ sessions).
-    func mostImproved() -> Improvement? {
-        var best: Improvement?
-        for ex in exercises where [.weight, .dumbbell, .plates, .machine].contains(ex.effectiveLoadType) {
-            let h = liftHistory(for: ex, before: "9999-12-31", limit: .max)
-            guard h.count >= 3, let first = h.last, let latest = h.first,
-                  let a = first.sets.compactMap({ setPounds($0.weight, type: ex.effectiveLoadType) }).max(),
-                  let b = latest.sets.compactMap({ setPounds($0.weight, type: ex.effectiveLoadType) }).max(),
-                  a > 0, b > a else { continue }
-            let imp = Improvement(name: ex.name, from: a, to: b, since: first.date)
-            if best == nil || imp.pct > best!.pct { best = imp }
-        }
-        return best
-    }
-}
 
-/// "8,450 lb", "84k lb", "1.2M lb".
-func fmtPounds(_ lb: Double) -> String {
-    switch lb {
-    case 1_000_000...: return String(format: "%.1fM lb", lb / 1_000_000)
-    case 100_000...: return "\(Int((lb / 1000).rounded()))k lb"
-    default: return "\(Int(lb.rounded()).formatted()) lb"
-    }
 }
 
 /// 9.83 → "9:50 /mi".

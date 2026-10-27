@@ -144,14 +144,6 @@ func weekFor(_ weeks: [ProgramWeek], _ d: Date) -> ProgramWeek? {
     return weeks.first { $0.startDate == key }
 }
 
-/// One day in plain words: "Rest" · "Upper A" · "30 min easy run" · "Upper A · 25 min run".
-func slotSummary(_ slot: ProgramSlot?, dayName: String?) -> String {
-    guard let slot, !slot.isRest else { return "Rest" }
-    if let dayName, let run = slot.run { return "\(dayName) · \(run.durationMin) min run" }
-    if let dayName { return dayName }
-    if let run = slot.run { return "\(run.durationMin) min \(run.label.rawValue.lowercased())" }
-    return "Rest"
-}
 
 func zoneLabel(_ lo: Int, _ hi: Int) -> String { "\(lo)–\(hi)" }
 
