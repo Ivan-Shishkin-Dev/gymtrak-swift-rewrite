@@ -122,6 +122,7 @@ struct TodayView: View {
         }
         let range = "\(DateKey.label(week.startDate, "MMM d")) – \(DateKey.label(DateKey.addDays(week.startDate, 6), "MMM d"))"
 
+        if bars.contains(where: { $0.value > 0 }) {
         PageSection("This week", trailing: { Text(range) }) {
             Text(useSteps ? "Steps" : "Minutes trained").font(.subheadline).foregroundStyle(Page.secondary)
             Chart(bars) { b in
@@ -149,6 +150,7 @@ struct TodayView: View {
                 }
             }
             .frame(height: 170)
+        }
         }
     }
 
