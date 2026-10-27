@@ -695,3 +695,16 @@ struct SpotifyAuthTests {
         #expect(Store(fileURL: url, seedIfEmpty: false).loadError == nil)
     }
 }
+
+@Suite struct SleepTests {
+    @Test func overlapsCountOnceAndNightsGoToTheWakeDate() {
+        let bed = DateKey.date("2026-10-26").addingTimeInterval(23 * 3600)      // Mon 11 PM
+        let night = DateInterval(start: bed, duration: 7 * 3600)                  // to Tue 6 AM
+        let phone = DateInterval(start: bed.addingTimeInterval(3600), duration: 2 * 3600)  // inside the watch's night
+        let nap = DateInterval(start: DateKey.date("2026-10-27").addingTimeInterval(14 * 3600), duration: 1800)
+        let s = sleepByWakeDate([night, phone, nap])
+        #expect(s == ["2026-10-27": 7 * 60 + 30])
+        #expect(fmtSleep(432) == "7h 12m")
+        #expect(fmtSleep(45) == "45m")
+    }
+}

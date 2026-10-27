@@ -84,6 +84,7 @@ struct TodayView: View {
                 VStack(spacing: 0) {
                     PropertyRow(icon: "shoeprints.fill", label: "Steps") { Text(today.map { $0.steps.formatted() } ?? "—") }
                     PropertyRow(icon: "flame", label: "Calories") { Text(today.map { "\(Int($0.calories.rounded()).formatted()) kcal" } ?? "—") }
+                    PropertyRow(icon: "bed.double", label: "Sleep") { Text(connections.sleepMinutes[todayKey].map(fmtSleep) ?? "—") }
                 }
                 .padding(.top, 18)
             } else if connections.healthAvailable {
@@ -540,4 +541,10 @@ private struct CalendarKey: View {
             Text(label)
         }
     }
+}
+
+/// 432 → "7h 12m".
+func fmtSleep(_ minutes: Double) -> String {
+    let m = Int(minutes.rounded())
+    return m >= 60 ? "\(m / 60)h \(m % 60)m" : "\(m)m"
 }

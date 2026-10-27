@@ -34,7 +34,7 @@
 	<key>HealthEnabled</key>
 	<string>$(HEALTH_ENABLED)</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>GymTrak reads your runs and heart rate to tick off run days.</string>
+	<string>GymTrak reads your runs, heart rate, steps, calories and sleep.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>GymTrak saves your lifts to Apple Health.</string>
 	<key>NSSupportsLiveActivities</key>

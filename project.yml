@@ -37,7 +37,7 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: dev.ivanshishkin.gymtrak
             CFBundleURLSchemes: [gymtrak]
-        NSHealthShareUsageDescription: GymTrak reads your runs and heart rate to tick off run days.
+        NSHealthShareUsageDescription: GymTrak reads your runs, heart rate, steps, calories and sleep.
         NSHealthUpdateUsageDescription: GymTrak saves your lifts to Apple Health.
         HealthEnabled: $(HEALTH_ENABLED)
         StravaClientID: $(STRAVA_CLIENT_ID)

@@ -182,7 +182,7 @@
 		F7567A3CD8CDF775E5CBFEBF /* Spotify.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spotify.swift; sourceTree = "<group>"; };
 		F78A06DBBEF9B775622AE392 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FDFE8D2FE2BB354EB17FFCBA /* WatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchBridge.swift; sourceTree = "<group>"; };
-		"TEMP_F741F6D9-8F6D-4B9B-8D58-41EDEF6AA1A8" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_541B59F3-8028-48C7-8894-E8526F5F0438" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -323,10 +323,10 @@
 			path = Widgets;
 			sourceTree = "<group>";
 		};
-		"TEMP_DA4A4707-596F-4F6D-9BE8-42B522BF8401" /* gymtrak-swift-rewrite */ = {
+		"TEMP_0FA79FDA-69FB-47F0-BF2D-0A046C70535F" /* gymtrak-swift-rewrite */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_F741F6D9-8F6D-4B9B-8D58-41EDEF6AA1A8" /* Config.xcconfig */,
+				"TEMP_541B59F3-8028-48C7-8894-E8526F5F0438" /* Config.xcconfig */,
 			);
 			path = "gymtrak-swift-rewrite";
 			sourceTree = "<group>";
@@ -861,7 +861,7 @@
 		};
 		C51B4C3A1A037D7EDB9E81F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_F741F6D9-8F6D-4B9B-8D58-41EDEF6AA1A8" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_541B59F3-8028-48C7-8894-E8526F5F0438" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -880,7 +880,7 @@
 		};
 		DE1DAE831E7778559F295B52 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_F741F6D9-8F6D-4B9B-8D58-41EDEF6AA1A8" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_541B59F3-8028-48C7-8894-E8526F5F0438" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

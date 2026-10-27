@@ -40,6 +40,8 @@ final class Connections {
     private(set) var refreshing = false
     /// Steps, active calories and distance by local date, Monday of last week through today.
     private(set) var activity: [String: DayActivity] = [:]
+    /// Minutes asleep, by the date you woke up. Apple's Sleep Score itself isn't readable by other apps.
+    private(set) var sleepMinutes: [String: Double] = [:]
 
     var stravaConnected: Bool { Keychain.get("strava") != nil }
 
@@ -72,8 +74,11 @@ final class Connections {
             do { merged += try await stravaRuns() } catch { lastError = "Strava: \(error.localizedDescription)" }
         }
         if healthConnected {
+            // Asks only for types not answered yet (sleep, for people who connected before it was added).
+            try? await health.requestAuthorization(toShare: Self.healthShare, read: Self.healthRead)
             do { merged += try await healthRuns() } catch { lastError = "Health: \(error.localizedDescription)" }
             activity = await healthActivity()
+            sleepMinutes = await healthSleep()
         }
         // Same run synced to both: keep the Strava copy (it has the name).
         var seen: [String: RunActivity] = [:]
@@ -212,13 +217,15 @@ final class Connections {
         (Bundle.main.infoDictionary?["HealthEnabled"] as? String)?.uppercased() == "YES" && HKHealthStore.isHealthDataAvailable()
     }
 
+    private static let healthRead: Set<HKObjectType> = [
+        HKObjectType.workoutType(), HKQuantityType(.heartRate), HKQuantityType(.distanceWalkingRunning),
+        HKQuantityType(.stepCount), HKQuantityType(.activeEnergyBurned), HKCategoryType(.sleepAnalysis)]
+    private static let healthShare: Set<HKSampleType> = [HKObjectType.workoutType()]
+
     func connectHealth() async {
         guard healthAvailable else { return }
-        let read: Set<HKObjectType> = [HKObjectType.workoutType(), HKQuantityType(.heartRate), HKQuantityType(.distanceWalkingRunning),
-                                       HKQuantityType(.stepCount), HKQuantityType(.activeEnergyBurned)]
-        let share: Set<HKSampleType> = [HKObjectType.workoutType()]
         do {
-            try await health.requestAuthorization(toShare: share, read: read)
+            try await health.requestAuthorization(toShare: Self.healthShare, read: Self.healthRead)
             healthConnected = true
             UserDefaults.standard.set(true, forKey: "gt_health_on")
             await refresh()
@@ -248,6 +255,18 @@ final class Connections {
             return RunActivity(id: "health-\(w.uuid)", source: .health, name: "Run", date: DateKey.key(w.startDate),
                                start: w.startDate, minutes: w.duration / 60, miles: meters / 1609.344, avgHR: hr)
         }
+    }
+
+    /// Time asleep over the last week, by wake date. Overlapping samples (watch + phone) count once.
+    private func healthSleep() async -> [String: Double] {
+        let since = Date().addingTimeInterval(-8 * 86_400)
+        let asleep = HKCategoryValueSleepAnalysis.allAsleepValues.map(\.rawValue)
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.categorySample(type: HKCategoryType(.sleepAnalysis),
+                                         predicate: HKQuery.predicateForSamples(withStart: since, end: nil))],
+            sortDescriptors: [SortDescriptor(\.startDate)])
+        guard let samples = try? await descriptor.result(for: health) else { return [:] }
+        return sleepByWakeDate(samples.filter { asleep.contains($0.value) }.map { DateInterval(start: $0.startDate, end: $0.endDate) })
     }
 
     /// Daily sums for steps, active calories and distance, from last Monday to today.
@@ -313,4 +332,20 @@ enum Keychain {
                                 kSecAttrAccount as String: key]
         SecItemDelete(q as CFDictionary)
     }
+}
+
+/// Minutes asleep per wake date. Overlaps merge first so two sources don't double count.
+/// A stretch belongs to the date six hours after it ends: a night ending 7 AM and an afternoon nap both count for that day.
+func sleepByWakeDate(_ intervals: [DateInterval]) -> [String: Double] {
+    var merged: [DateInterval] = []
+    for i in intervals.sorted(by: { $0.start < $1.start }) {
+        if let last = merged.last, i.start <= last.end {
+            merged[merged.count - 1] = DateInterval(start: last.start, end: max(last.end, i.end))
+        } else {
+            merged.append(i)
+        }
+    }
+    var out: [String: Double] = [:]
+    for m in merged { out[DateKey.key(m.end.addingTimeInterval(6 * 3600)), default: 0] += m.duration / 60 }
+    return out
 }
