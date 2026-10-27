@@ -9,6 +9,8 @@ final class Store {
     private(set) var db: Snapshot
     /// Set when the last save failed; Settings shows it.
     private(set) var saveError: String?
+    /// Set when the data file was there but couldn't be read. A copy of it is kept next to it.
+    private(set) var loadError: String?
 
     private let fileURL: URL
 
@@ -18,10 +20,18 @@ final class Store {
     init(fileURL: URL? = nil, seedIfEmpty: Bool = true) {
         let url = fileURL ?? URL.documentsDirectory.appending(path: Self.isDemo ? "gymtrak-demo.json" : "gymtrak.json")
         self.fileURL = url
-        if let data = try? Data(contentsOf: url), let snap = try? JSONDecoder().decode(Snapshot.self, from: data) {
+        let data = try? Data(contentsOf: url)
+        if let data, let snap = try? JSONDecoder().decode(Snapshot.self, from: data) {
             db = snap
         } else {
             db = seedIfEmpty ? seedSnapshot() : Snapshot(programWeeks: [], schema: 2)
+            // A file that exists but won't read is never thrown away: the next save would overwrite it.
+            if let data {
+                let copy = url.deletingPathExtension()
+                    .appendingPathExtension("unreadable-\(Int(Date().timeIntervalSince1970)).json")
+                try? data.write(to: copy, options: .atomic)
+                loadError = "Couldn't read your data. The original was kept as \(copy.lastPathComponent)."
+            }
         }
     }
 

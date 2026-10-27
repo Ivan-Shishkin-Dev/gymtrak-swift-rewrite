@@ -143,7 +143,7 @@ struct SettingsView: View {
                 do { try store.importBackup(from: result.get()); importError = nil }
                 catch { importError = "Not a GymTrak backup." }
             }
-            if let error = importError ?? store.saveError {
+            if let error = importError ?? store.loadError ?? store.saveError {
                 Text(error).font(.footnote).foregroundStyle(Theme.warning)
             }
         } header: {

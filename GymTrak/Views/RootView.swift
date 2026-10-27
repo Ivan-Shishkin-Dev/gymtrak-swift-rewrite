@@ -55,7 +55,7 @@ struct RootView: View {
                 SettingsView()
             }
             // A failed save shows on the Settings tab.
-            .badge(store.saveError == nil ? 0 : 1)
+            .badge(store.saveError == nil && store.loadError == nil ? 0 : 1)
         }
         .tint(Theme.lift)
         .environment(nav)
