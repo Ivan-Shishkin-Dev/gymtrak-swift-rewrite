@@ -1,5 +1,4 @@
 import SwiftUI
-import Charts
 
 /// Opens a finished workout from anywhere (Today's recent list, History).
 struct SessionRef: Hashable { let id: String }
@@ -20,26 +19,33 @@ struct TodayView: View {
         let todayKey = DateKey.key(now)
 
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    if let week = db.scheduleWeek(now) {
-                        properties(week, todayKey: todayKey)
-                        weekChart(week, todayKey: todayKey)
-                        recent
-                    } else {
-                        noSchedule
+            Group {
+                if let week = db.scheduleWeek(now) {
+                    // Top half: today. Bottom half: recent activity, scrolling on its own.
+                    GeometryReader { geo in
+                        VStack(spacing: 0) {
+                            ScrollView {
+                                properties(week, todayKey: todayKey)
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 24)
+                            }
+                            .scrollBounceBehavior(.basedOnSize)
+                            .frame(height: geo.size.height / 2)
+                            recent
+                                .frame(height: geo.size.height / 2)
+                        }
+                    }
+                } else {
+                    ScrollView {
+                        noSchedule.padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 110)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 24)
-                .padding(.bottom, 110)
             }
             .background(Page.bg)
             .topLeftTitle(name.isEmpty ? "Today" : "Hi, \(name)", subtitle: DateKey.label(todayKey, "EEEE, MMMM d"))
             .toolbar { ToolbarItem(placement: .topBarTrailing) { SettingsButton() } }
             .navigationDestination(for: String.self) { DayScreen(date: $0) }
             .navigationDestination(for: SessionRef.self) { SessionDetailView(sessionId: $0.id) }
-            .refreshable { await connections.refresh() }
         }
     }
 
@@ -105,59 +111,6 @@ struct TodayView: View {
         lines[abs(key.unicodeScalars.reduce(0) { $0 &* 31 &+ Int($1.value) }) % lines.count]
     }
 
-    // MARK: Week chart
-
-    private struct Bar: Identifiable { let id: String; let label: String; let value: Double; let isToday: Bool; let done: Bool }
-
-    @ViewBuilder
-    private func weekChart(_ week: ProgramWeek, todayKey: String) -> some View {
-        let db = store.db
-        let done = db.doneDates.union(connections.runDates)
-        let useSteps = connections.healthConnected && Dow.allCases.contains { (connections.activity[week.date(of: $0)]?.steps ?? 0) > 0 }
-        let minutes = db.minutesTrained(runs: connections.runs)
-        let bars = Dow.allCases.map { dow -> Bar in
-            let key = week.date(of: dow)
-            let v = useSteps ? Double(connections.activity[key]?.steps ?? 0) : minutes[key] ?? 0
-            return Bar(id: key, label: dow.short, value: v, isToday: key == todayKey, done: done.contains(key))
-        }
-        let range = "\(DateKey.label(week.startDate, "MMM d")) – \(DateKey.label(DateKey.addDays(week.startDate, 6), "MMM d"))"
-
-        if bars.contains(where: { $0.value > 0 }) {
-        PageSection("This week", trailing: { Text(range) }) {
-            Text(useSteps ? "Steps" : "Minutes trained").font(.subheadline).foregroundStyle(Page.secondary)
-            Chart(bars) { b in
-                BarMark(x: .value("Day", b.label), y: .value("Value", b.value), width: .ratio(0.62))
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .foregroundStyle(b.isToday ? Page.text : Page.tertiary)
-                    .annotation(position: .top, spacing: 4) {
-                        if b.value > 0 {
-                            Text(compact(b.value)).font(.caption2).foregroundStyle(Page.secondary)
-                        }
-                    }
-            }
-            .chartYAxis(.hidden)
-            .chartXAxis {
-                AxisMarks { v in
-                    AxisValueLabel {
-                        if let s = v.as(String.self) {
-                            let b = bars.first { $0.label == s }
-                            VStack(spacing: 2) {
-                                Text(s).font(.caption).foregroundStyle(b?.isToday == true ? Page.text : Page.secondary)
-                                Circle().fill(b?.done == true ? Page.text : .clear).frame(width: 4, height: 4)
-                            }
-                        }
-                    }
-                }
-            }
-            .frame(height: 170)
-        }
-        }
-    }
-
-    private func compact(_ v: Double) -> String {
-        v >= 1000 ? String(format: "%.1fk", v / 1000) : "\(Int(v.rounded()))"
-    }
-
     // MARK: Recent
 
     private var recent: some View {
@@ -168,23 +121,33 @@ struct TodayView: View {
             case .lifts: if case .lift = $0.kind { true } else { false }
             case .runs: $0.kind == .run
             }
-        }.prefix(3)
+        }.prefix(30)
 
-        return PageSection("Recent", trailing: {
-            Button("See all") { nav.tab = .history }.buttonStyle(.plain).underline()
-        }) {
-            HStack(spacing: 8) {
-                ForEach(RecentFilter.allCases, id: \.self) { f in
-                    Chip(title: f.rawValue, selected: filter == f) { filter = f }
+        return VStack(alignment: .leading, spacing: 10) {
+            PageSection("Recent", trailing: {
+                Button("See all") { nav.tab = .history }.buttonStyle(.plain).underline()
+            }) {
+                HStack(spacing: 8) {
+                    ForEach(RecentFilter.allCases, id: \.self) { f in
+                        Chip(title: f.rawValue, selected: filter == f) { filter = f }
+                    }
                 }
             }
-            .padding(.bottom, 2)
-            if rows.isEmpty {
-                Text("Nothing yet.").foregroundStyle(Page.secondary).padding(.vertical, 6)
+            .padding(.horizontal, 20)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if rows.isEmpty {
+                        Text("Nothing yet.").foregroundStyle(Page.secondary).padding(.vertical, 6)
+                    }
+                    ForEach(Array(rows)) { e in
+                        HistoryRow(entry: e)
+                    }
+                }
+                .padding(.horizontal, 20)
             }
-            ForEach(Array(rows)) { e in
-                HistoryRow(entry: e)
-            }
+            .scrollBounceBehavior(.basedOnSize)
+            .refreshable { await connections.refresh() }
         }
     }
 
