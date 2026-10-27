@@ -684,7 +684,7 @@ struct WarmupTests {
 
     @Test func defaultsScaleTheFirstWorkingSet() {
         let (snap, _) = fixture()
-        #expect(snap.exercises[0].defaultWarmups == [SetRow(weight: "100 lb", reps: "× 8"), SetRow(weight: "150 lb", reps: "× 4")])
+        #expect(snap.exercises[0].defaultWarmups == [SetRow(weight: "100 lb", reps: "× 8"), SetRow(weight: "160 lb", reps: "× 4")])
         let plates = Exercise(id: "p", dayId: 1, order: 1, name: "Press", sets: 1, weight: "4 pl + 15", reps: "× 5", loadType: .plates, updatedAt: 0)
         #expect(plates.defaultWarmups.map(\.weight) == ["2 pl", "3 pl"])
         let pin = Exercise(id: "m", dayId: 1, order: 1, name: "Curl", sets: 1, weight: "Max", reps: "× 5", loadType: .machine, updatedAt: 0)
@@ -729,7 +729,7 @@ struct WarmupTests {
         let ticked = snap.toggleSet(w[0].id)
         #expect(ticked)
         snap.finishSession(id)
-        #expect(snap.exercises[0].warmupRows == [SetRow(weight: "95 lb", reps: "× 10"), SetRow(weight: "150 lb", reps: "× 4")])
+        #expect(snap.exercises[0].warmupRows == [SetRow(weight: "95 lb", reps: "× 10"), SetRow(weight: "160 lb", reps: "× 4")])
         #expect(snap.exercises[0].setRows == [SetRow(weight: "200 lb", reps: "× 5"), SetRow(weight: "190 lb", reps: "× 6")])
         #expect(snap.liftHistory(for: snap.exercises[0]).isEmpty)
         // Next workout starts from what was used.

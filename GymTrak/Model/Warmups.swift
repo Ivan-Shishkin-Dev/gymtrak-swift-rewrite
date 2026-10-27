@@ -11,10 +11,10 @@ extension Exercise {
         return defaultWarmups
     }
 
-    /// About half the first working set for 8, then about three quarters for 4.
+    /// 50% of the top set for 8, then 80% for 4.
     var defaultWarmups: [SetRow] {
         let top = rows.first?.weight ?? ""
-        return [SetRow(weight: scaledLoad(top, 0.5), reps: "× 8"), SetRow(weight: scaledLoad(top, 0.75), reps: "× 4")]
+        return [SetRow(weight: scaledLoad(top, 0.5), reps: "× 8"), SetRow(weight: scaledLoad(top, 0.8), reps: "× 4")]
     }
 
     /// `raw` scaled down and rounded to a load you can actually set. Blank when it can't be scaled (Max, free text).
