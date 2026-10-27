@@ -82,7 +82,7 @@ extension Snapshot {
         return [weeks.first?.startDate, firstSession].compactMap { $0 }.min()
     }
 
-    /// Where one local date stands. `doneExtra` holds dates done outside a session (Strava or Health runs).
+    /// Where one local date stands. `doneExtra` holds dates done outside a session (runs from Apple Health).
     func dotState(_ key: String, todayKey: String, doneExtra: Set<String>) -> DayDot.State {
         if doneDates.contains(key) || doneExtra.contains(key) { return .done }
         let date = DateKey.date(key)

@@ -18,17 +18,6 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>dev.ivanshishkin.gymtrak</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>gymtrak</string>
-			</array>
-		</dict>
-	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>HealthEnabled</key>
@@ -39,12 +28,6 @@
 	<string>GymTrak saves your lifts to Apple Health.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
-	<key>SpotifyClientID</key>
-	<string>$(SPOTIFY_CLIENT_ID)</string>
-	<key>StravaClientID</key>
-	<string>$(STRAVA_CLIENT_ID)</string>
-	<key>StravaClientSecret</key>
-	<string>$(STRAVA_CLIENT_SECRET)</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

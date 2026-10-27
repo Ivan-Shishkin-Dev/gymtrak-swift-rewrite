@@ -34,15 +34,9 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSupportsIndirectInputEvents: true
         NSSupportsLiveActivities: true
-        CFBundleURLTypes:
-          - CFBundleURLName: dev.ivanshishkin.gymtrak
-            CFBundleURLSchemes: [gymtrak]
         NSHealthShareUsageDescription: GymTrak reads your runs, heart rate, steps, calories and sleep.
         NSHealthUpdateUsageDescription: GymTrak saves your lifts to Apple Health.
         HealthEnabled: $(HEALTH_ENABLED)
-        StravaClientID: $(STRAVA_CLIENT_ID)
-        StravaClientSecret: $(STRAVA_CLIENT_SECRET)
-        SpotifyClientID: $(SPOTIFY_CLIENT_ID)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.ivanshishkin.gymtrak

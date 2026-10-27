@@ -1,6 +1,6 @@
 import Foundation
 
-/// A run from anywhere: logged in the app, or synced from Strava / Apple Health.
+/// A run from anywhere: logged in the app, or read from Apple Health.
 struct RunRecord: Hashable, Sendable {
     var id: String
     var date: String

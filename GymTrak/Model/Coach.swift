@@ -365,7 +365,7 @@ struct RunAdvice: Equatable {
 }
 
 enum RunCoach {
-    /// What to aim for on a planned run, from the runs Strava/Health already logged.
+    /// What to aim for on a planned run, from the runs Apple Health already logged.
     static func advice(_ rx: RunPrescription, date: String, deload: Bool = false,
                        schedule: ProgramWeek?, runs: [RunActivity]) -> RunAdvice {
         let past = runs.filter { $0.date < date && $0.minutes >= 8 }.sorted { $0.start > $1.start }
