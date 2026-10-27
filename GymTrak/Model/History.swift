@@ -40,6 +40,14 @@ struct HistoryEntry: Identifiable, Hashable, Sendable {
     var outcome: LiftOutcome? = nil
 }
 
+/// One Monday–Sunday week of training.
+struct WeekStats: Equatable, Sendable {
+    var workouts = 0
+    var runs = 0
+    var runMiles: Double = 0
+    var avgWorkoutMinutes: Double?
+}
+
 /// How a lift day went: every set checked, some, or none.
 enum LiftOutcome: Int, Sendable, Hashable, CaseIterable {
     case skipped, almost, finished
@@ -273,6 +281,16 @@ extension Snapshot {
         s.firstDate = dates.min()
         s.improved = mostImproved()
         return s
+    }
+
+    /// Totals for the Monday–Sunday week starting `monday`.
+    func weekStats(monday: String, synced: [RunActivity]) -> WeekStats {
+        let sunday = DateKey.addDays(monday, 6)
+        let lifts = finishedLifts.filter { $0.slotDate >= monday && $0.slotDate <= sunday }
+        let runs = allRuns(synced: synced).filter { $0.date >= monday && $0.date <= sunday }
+        let timed = lifts.compactMap(\.durationSec).filter { $0 >= 60 && $0 < 4 * 3600 }
+        return WeekStats(workouts: lifts.count, runs: runs.count, runMiles: runs.reduce(0) { $0 + $1.miles },
+                         avgWorkoutMinutes: timed.isEmpty ? nil : timed.reduce(0, +) / Double(timed.count) / 60)
     }
 
     /// The lift with the biggest top-set gain from its first to its latest session (pound loads only, 3+ sessions).

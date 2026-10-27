@@ -1,39 +1,41 @@
 import SwiftUI
 
-/// Every finished workout and run, with lifetime totals on top.
+/// One Monday–Sunday week of workouts and runs, with that week's totals on top. Arrows step back through older weeks.
 struct HistoryView: View {
     @Environment(Store.self) private var store
     @Environment(Connections.self) private var connections
+    @State private var weekOffset = 0
 
     var body: some View {
         let db = store.db
-        let entries = db.historyEntries(synced: connections.runs)
-        let s = db.lifetimeStats(synced: connections.runs)
+        let all = db.historyEntries(synced: connections.runs)
+        let thisMonday = DateKey.mondayKey(Date())
+        let monday = DateKey.addDays(thisMonday, 7 * weekOffset)
+        let sunday = DateKey.addDays(monday, 6)
+        let entries = all.filter { $0.date >= monday && $0.date <= sunday }
+        let earliest = all.last.map { DateKey.mondayKey(DateKey.date($0.date)) } ?? thisMonday
+        let s = db.weekStats(monday: monday, synced: connections.runs)
 
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    if entries.isEmpty {
-                        Text("No workouts yet.").foregroundStyle(Page.secondary).padding(.top, 20)
-                    } else {
+                    VStack(alignment: .leading, spacing: 14) {
+                        weekPicker(monday: monday, sunday: sunday, canGoBack: monday > earliest)
                         VStack(alignment: .leading, spacing: 0) {
                             PropertyRow(icon: "dumbbell", label: "Workouts") { Text("\(s.workouts)") }
                             PropertyRow(icon: "figure.run", label: "Runs") { Text("\(s.runs)") }
-                            PropertyRow(icon: "location", label: "Distance") { Text(s.runMiles > 0 ? String(format: "%.1f mi", s.runMiles) : "—") }
-                            if let avg = s.avgWorkoutMinutes {
-                                PropertyRow(icon: "clock", label: "Avg workout") { Text("\(Int(avg.rounded())) min") }
-                            }
-                            if let h = s.heaviest {
-                                PropertyRow(icon: "trophy", label: "Heaviest") { Text("\(h.name), \(fmtNum(h.lb)) lb") }
-                            }
+                            PropertyRow(icon: "location", label: "Miles") { Text(s.runMiles > 0 ? String(format: "%.1f mi", s.runMiles) : "—") }
+                            PropertyRow(icon: "clock", label: "Avg workout") { Text(s.avgWorkoutMinutes.map { "\(Int($0.rounded())) min" } ?? "—") }
                         }
-                        ForEach(months(entries), id: \.title) { month in
-                            PageSection(month.title, trailing: { Text("\(month.entries.count)") }) {
-                                VStack(spacing: 0) {
-                                    ForEach(month.entries) { e in
-                                        HistoryRow(entry: e)
-                                        if e.id != month.entries.last?.id { Rectangle().fill(Page.divider).frame(height: 1) }
-                                    }
+                    }
+                    PageSection("Activity") {
+                        if entries.isEmpty {
+                            Text("Nothing this week.").foregroundStyle(Page.secondary).padding(.vertical, 8)
+                        } else {
+                            VStack(spacing: 0) {
+                                ForEach(entries) { e in
+                                    HistoryRow(entry: e)
+                                    if e.id != entries.last?.id { Rectangle().fill(Page.divider).frame(height: 1) }
                                 }
                             }
                         }
@@ -50,20 +52,25 @@ struct HistoryView: View {
         }
     }
 
-    private struct Month { let title: String; let entries: [HistoryEntry] }
-
-    /// Group newest-first entries by month: "October 2026".
-    private func months(_ entries: [HistoryEntry]) -> [Month] {
-        var out: [Month] = []
-        for e in entries {
-            let title = DateKey.label(e.date, "MMMM yyyy")
-            if out.last?.title == title {
-                out[out.count - 1] = Month(title: title, entries: out[out.count - 1].entries + [e])
-            } else {
-                out.append(Month(title: title, entries: [e]))
+    /// "This week", "Last week", or the dates, with arrows that only show when there's a week to go to.
+    private func weekPicker(monday: String, sunday: String, canGoBack: Bool) -> some View {
+        HStack {
+            Button { weekOffset -= 1 } label: { Image(systemName: "chevron.left").frame(width: 36, height: 36) }
+                .disabled(!canGoBack).opacity(canGoBack ? 1 : 0)
+            Spacer()
+            VStack(spacing: 1) {
+                Text(weekOffset == 0 ? "This week" : weekOffset == -1 ? "Last week" : DateKey.label(monday, "MMMM d"))
+                    .font(.headline).foregroundStyle(Page.text)
+                Text("\(DateKey.label(monday, "MMM d")) – \(DateKey.label(sunday, "MMM d"))")
+                    .font(.caption).foregroundStyle(Page.secondary)
             }
+            Spacer()
+            Button { weekOffset += 1 } label: { Image(systemName: "chevron.right").frame(width: 36, height: 36) }
+                .disabled(weekOffset >= 0).opacity(weekOffset >= 0 ? 0 : 1)
         }
-        return out
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(Page.secondary)
+        .buttonStyle(.plain)
     }
 }
 

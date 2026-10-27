@@ -484,6 +484,12 @@ struct SpotifyAuthTests {
         RunActivity(id: date, source: .strava, name: "Morning Run", date: date, start: DateKey.date(date), minutes: min, miles: mi)
     }
 
+    @Test func weekStatsCountOnlyThatWeek() {
+        let w = snap().weekStats(monday: "2026-10-12", synced: [run("2026-10-12", 3, 30), run("2026-10-19", 5, 50)])
+        #expect(w == WeekStats(workouts: 1, runs: 1, runMiles: 3, avgWorkoutMinutes: 50))
+        #expect(snap().weekStats(monday: "2026-10-19", synced: []) == WeekStats())
+    }
+
     @Test func poundsCountDoneSetsInPoundsOnly() {
         let s = snap()
         // 200×6×2 + 255×10; pin curl and the undone 500 lb set don't count.
