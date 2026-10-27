@@ -28,6 +28,7 @@ struct WorkoutView: View {
     struct ExGroup: Identifiable {
         let ex: Exercise
         let sets: [WorkoutSet]
+        var warmups: [WorkoutSet] = []
         var id: String { ex.id }
         var isDone: Bool { sets.allSatisfy(\.isDone) }
     }
@@ -43,9 +44,11 @@ struct WorkoutView: View {
 
     private func groups(_ session: Session, _ day: Day) -> [ExGroup] {
         let sets = store.db.sets(of: session.id)
+        let warm = store.db.warmups(of: session.id)
         return store.db.exercises(of: day.id).compactMap { ex in
             let s = sets.filter { $0.exerciseId == ex.id }.sorted { $0.setIndex < $1.setIndex }
-            return s.isEmpty ? nil : ExGroup(ex: ex, sets: s)
+            let w = warm.filter { $0.exerciseId == ex.id }.sorted { $0.setIndex < $1.setIndex }
+            return s.isEmpty ? nil : ExGroup(ex: ex, sets: s, warmups: w)
         }
     }
 
@@ -53,10 +56,11 @@ struct WorkoutView: View {
 
     private func content(session: Session, day: Day) -> some View {
         let groups = groups(session, day)
-        let pending = groups.flatMap { g in g.sets.filter { !$0.isDone }.map { (row: $0, ex: g.ex) } }
+        // Warm-ups come first in the queue but don't count toward the sets total.
+        let pending = store.db.pendingItems(session).map { (row: $0.set, ex: $0.ex) }
         let active = pending.first
         let total = groups.reduce(0) { $0 + $1.sets.count }
-        let done = total - pending.count
+        let done = groups.reduce(0) { $0 + $1.sets.filter(\.isDone).count }
         let allDone = total > 0 && done == total
 
         return decorate(NavigationStack {
@@ -209,19 +213,28 @@ struct WorkoutView: View {
     private func currentSetPage(groups: [ExGroup], active: (row: WorkoutSet, ex: Exercise)?,
                                 next: (row: WorkoutSet, ex: Exercise)?, allDone: Bool, total: Int) -> some View {
         if let active, let group = groups.first(where: { $0.ex.id == active.ex.id }) {
-            let index = (group.sets.firstIndex { $0.id == active.row.id } ?? 0) + 1
+            let warm = group.warmups.contains { $0.id == active.row.id }
+            let list = warm ? group.warmups : group.sets
+            let index = (list.firstIndex { $0.id == active.row.id } ?? 0) + 1
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(group.ex.name).font(.system(size: 30, weight: .bold)).foregroundStyle(Page.text)
                         HStack(spacing: 10) {
-                            Text("Set \(index) of \(group.sets.count)").foregroundStyle(Page.secondary)
-                            setDots(group.sets, current: active.row.id)
+                            Text("\(warm ? "Warm-up" : "Set") \(index) of \(list.count)").foregroundStyle(Page.secondary)
+                            setDots(list, current: active.row.id)
+                            if warm {
+                                Spacer()
+                                Button("Skip Warm-ups") { skipWarmups(group.ex) }
+                                    .font(.subheadline).foregroundStyle(Page.text)
+                                    .padding(.horizontal, 12).padding(.vertical, 6)
+                                    .background(Page.fill, in: Capsule())
+                            }
                         }
                     }
 
                     VStack(alignment: .leading, spacing: 0) {
-                        coachRows(group.ex, setIndex: index - 1)
+                        if !warm { coachRows(group.ex, setIndex: index - 1) }
                         if let next {
                             // Same exercise: the next set's load. A new exercise: just its name.
                             PropertyRow(icon: "arrow.turn.down.right", label: "Next") {
@@ -358,8 +371,11 @@ struct WorkoutView: View {
                         }
                         .buttonStyle(.plain)
                         VStack(spacing: 0) {
+                            ForEach(Array(g.warmups.enumerated()), id: \.element.id) { n, st in
+                                setRow(st, label: "W\(n + 1)", ex: g.ex, isActive: st.id == activeId)
+                            }
                             ForEach(Array(g.sets.enumerated()), id: \.element.id) { n, st in
-                                setRow(st, number: n + 1, ex: g.ex, isActive: st.id == activeId)
+                                setRow(st, label: "Set \(n + 1)", ex: g.ex, isActive: st.id == activeId)
                                     .contextMenu {
                                         if g.sets.count > 1 {
                                             Button("Delete Set", systemImage: "trash", role: .destructive) { store.mutate { $0.removeSet(st.id) } }
@@ -399,7 +415,7 @@ struct WorkoutView: View {
     }
 
     /// A Notion-style to-do: square checkbox, set number, load and reps; done sets are struck through.
-    private func setRow(_ st: WorkoutSet, number: Int, ex: Exercise, isActive: Bool) -> some View {
+    private func setRow(_ st: WorkoutSet, label: String, ex: Exercise, isActive: Bool) -> some View {
         HStack(spacing: 12) {
             Button { toggle(st, ex: ex) } label: {
                 Image(systemName: st.isDone ? "checkmark.square.fill" : "square")
@@ -407,9 +423,9 @@ struct WorkoutView: View {
                     .foregroundStyle(st.isDone ? Page.text : isActive ? Page.text : Page.tertiary)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(st.isDone ? "Mark set \(number) not done" : "Mark set \(number) done")
+            .accessibilityLabel(st.isDone ? "Mark \(label) not done" : "Mark \(label) done")
 
-            Text("Set \(number)").foregroundStyle(Page.secondary).frame(width: 50, alignment: .leading)
+            Text(label).foregroundStyle(label.hasPrefix("W") ? Page.tertiary : Page.secondary).frame(width: 50, alignment: .leading)
             Button(st.weight.isEmpty ? "—" : st.weight) { loadTarget = SetEdit(row: st, ex: ex) }
                 .buttonStyle(.plain)
                 .font(.number(19))
@@ -436,7 +452,7 @@ struct WorkoutView: View {
             tick += 1
             if RestTimer.autoStart {
                 let restSec = (ex ?? store.db.exercises.first { $0.id == st.exerciseId })?.restSeconds
-                rest.start(restSec)
+                rest.start(store.db.isWarmup(st.id) ? warmupRestSec : restSec)
             }
         }
     }
@@ -452,6 +468,11 @@ struct WorkoutView: View {
         guard let n = bare.isEmpty ? 0 : Int(bare) else { return }
         store.mutate { $0.updateSetLoad(st.id, weight: st.weight, reps: "× \(max(0, n + dir))") }
         stepTick += 1
+    }
+
+    private func skipWarmups(_ ex: Exercise) {
+        guard let session = store.db.openLift() else { return }
+        store.mutate { $0.skipWarmups(session.id, exerciseId: ex.id) }
     }
 
     private func startRename(_ ex: Exercise) {

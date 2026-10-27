@@ -59,6 +59,10 @@ struct Exercise: Codable, Identifiable, Hashable, Sendable {
     var loadType: LoadType?
     var loadIncrement: Double?
     var restSeconds: Int?
+    /// Two optional warm-up sets before the working sets. Kept out of the coach and set counts.
+    var warmup: Bool?
+    /// The warm-up loads used last time; nil means start from `defaultWarmups`.
+    var warmupRows: [SetRow]?
     var updatedAt: EpochMs
 
     /// Per-set loads; falls back to `sets` copies of weight/reps for legacy rows.
@@ -280,6 +284,8 @@ struct Snapshot: Codable, Sendable {
     /// Optional on purpose: absent (older writer) is different from empty.
     var programWeeks: [ProgramWeek]?
     var schema: Int?
+    /// Warm-up sets, apart from `sets` so the coach, History and set counts never see them.
+    var warmups: [WorkoutSet]?
 
     var maxUpdatedAt: EpochMs {
         var m: EpochMs = 0

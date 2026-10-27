@@ -13,6 +13,8 @@ struct WatchState: Codable, Equatable, Sendable {
         var target: String?     // coach: "135 lb × 6"
         var canStepLoad: Bool
         var restSeconds: Int?
+        /// An optional warm-up set, not a working set.
+        var warmup: Bool?
     }
 
     struct Workout: Codable, Equatable, Sendable {

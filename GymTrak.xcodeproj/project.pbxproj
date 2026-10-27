@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0090DBDA59AB9E4E2A18CE76 /* LiveRest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01CAED1D07E0B620C389829A /* LiveRest.swift */; };
 		0C88C512996870FEC3591113 /* RestActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C799F5B27C1E8B81A2227F8 /* RestActivity.swift */; };
+		1142C9EE455E2D96E7B11EC2 /* Warmups.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20262D32CB07503B693FB0EC /* Warmups.swift */; };
 		159B053D613655F60AF50D43 /* WorkoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC9824BB09C1C1D73EC9786 /* WorkoutManager.swift */; };
 		1722343CEFEA463C858BC97F /* ExerciseHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */; };
 		1AEDD7FFAB54951EC762A7A9 /* Kisi.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A4995D1E5C0AEEBE5661C1 /* Kisi.swift */; };
@@ -139,6 +140,7 @@
 		139B8A9070E32804CA75C0BC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1620B02920BEF199C502331B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1C799F5B27C1E8B81A2227F8 /* RestActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestActivity.swift; sourceTree = "<group>"; };
+		20262D32CB07503B693FB0EC /* Warmups.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Warmups.swift; sourceTree = "<group>"; };
 		203CC4A1164B17AB43E1679B /* GymTrakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymTrakTests.swift; sourceTree = "<group>"; };
 		2098609CF3E400CDDC0CC8A4 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		2DA5A37017F06901DB8C32FE /* LoadEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadEditorSheet.swift; sourceTree = "<group>"; };
@@ -182,7 +184,7 @@
 		F0BE589482F4E09EF006D1D7 /* GymTrak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GymTrak.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F78A06DBBEF9B775622AE392 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FDFE8D2FE2BB354EB17FFCBA /* WatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchBridge.swift; sourceTree = "<group>"; };
-		"TEMP_D513F947-4B93-481C-93BB-C7ADEF051D6A" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_B98476FB-6CA3-482F-8EEE-E9858D976733" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -228,6 +230,7 @@
 				EB1A96275B820FD5C193DC82 /* Load.swift */,
 				096BDA360A99C6D009AE0D55 /* Models.swift */,
 				B4A76751019FB132D5513D1F /* Program.swift */,
+				20262D32CB07503B693FB0EC /* Warmups.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -323,10 +326,10 @@
 			path = Widgets;
 			sourceTree = "<group>";
 		};
-		"TEMP_F0E1D5BF-6F91-441B-88D1-1F261152C735" /* gymtrak-swift-rewrite */ = {
+		"TEMP_FF150FCA-2423-4F1B-8E4B-4D4D573C37AD" /* gymtrak-swift-rewrite */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_D513F947-4B93-481C-93BB-C7ADEF051D6A" /* Config.xcconfig */,
+				"TEMP_B98476FB-6CA3-482F-8EEE-E9858D976733" /* Config.xcconfig */,
 			);
 			path = "gymtrak-swift-rewrite";
 			sourceTree = "<group>";
@@ -564,6 +567,7 @@
 				2EF0F19D95DBBDCB8FEB8CCE /* Store.swift in Sources */,
 				F5190E67C991966105BC9732 /* Theme.swift in Sources */,
 				B9C90E0454D9DEE2A8AA7197 /* TodayView.swift in Sources */,
+				1142C9EE455E2D96E7B11EC2 /* Warmups.swift in Sources */,
 				DBD47D716B1756BC10767C10 /* WatchBridge.swift in Sources */,
 				739F6A6D8991E203FBF7F50B /* WatchSync.swift in Sources */,
 				6336798455425D1FE307DE37 /* WidgetData.swift in Sources */,
@@ -861,7 +865,7 @@
 		};
 		C51B4C3A1A037D7EDB9E81F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_D513F947-4B93-481C-93BB-C7ADEF051D6A" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_B98476FB-6CA3-482F-8EEE-E9858D976733" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -880,7 +884,7 @@
 		};
 		DE1DAE831E7778559F295B52 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_D513F947-4B93-481C-93BB-C7ADEF051D6A" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_B98476FB-6CA3-482F-8EEE-E9858D976733" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

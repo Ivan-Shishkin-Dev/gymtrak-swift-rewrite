@@ -135,6 +135,7 @@ struct SetView: View {
             }
             HStack(spacing: 8) {
                 SetPills(current: c.setNumber, count: c.setCount)
+                if c.warmup == true { Text("Warm-up").font(.caption2).foregroundStyle(.secondary) }
                 Spacer(minLength: 0)
                 heart
             }

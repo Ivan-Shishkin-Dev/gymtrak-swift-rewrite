@@ -34,6 +34,8 @@ Targets come from your own history, not a fixed program (`GymTrak/Model/Coach.sw
 
 Each exercise has a **Step** (Plan → exercise): how much one tap of − / + changes the weight.
 
+**Warm-ups** (Plan → exercise): two optional sets before the working sets, about 50% × 8 then 75% × 4 the first time, then whatever you used last. They rest 2 minutes, don't count toward the sets total, and the coach never sees them (`Model/Warmups.swift`; stored in `Snapshot.warmups`, apart from `sets`). Skip them with **Skip Warm-ups**, or just start a working set.
+
 ### Load types
 
 Every exercise picks how its weight is written (`LoadType` in `Models.swift`, grammar in `Load.swift`). The stored value is always a string.

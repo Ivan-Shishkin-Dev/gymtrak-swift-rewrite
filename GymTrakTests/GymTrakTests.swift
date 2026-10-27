@@ -670,3 +670,83 @@ struct KisiTests {
         #expect(Kisi.message(in: Data("not json".utf8)) == "")
     }
 }
+
+struct WarmupTests {
+    func fixture(warmup: Bool = true) -> (Snapshot, Day) {
+        let day = Day(id: 1, order: 1, name: "Upper A", focus: "Press", updatedAt: 0)
+        let press = Exercise(id: "press", dayId: 1, order: 1, name: "Press", sets: 2, weight: "200 lb", reps: "× 5",
+                             setRows: [SetRow(weight: "200 lb", reps: "× 5"), SetRow(weight: "190 lb", reps: "× 6")],
+                             loadType: .weight, warmup: warmup ? true : nil, updatedAt: 0)
+        let curl = Exercise(id: "curl", dayId: 1, order: 2, name: "Curl", sets: 1, weight: "40 lb", reps: "× 8",
+                            loadType: .weight, updatedAt: 0)
+        return (Snapshot(days: [day], exercises: [press, curl], programWeeks: []), day)
+    }
+
+    @Test func defaultsScaleTheFirstWorkingSet() {
+        let (snap, _) = fixture()
+        #expect(snap.exercises[0].defaultWarmups == [SetRow(weight: "100 lb", reps: "× 8"), SetRow(weight: "150 lb", reps: "× 4")])
+        let plates = Exercise(id: "p", dayId: 1, order: 1, name: "Press", sets: 1, weight: "4 pl + 15", reps: "× 5", loadType: .plates, updatedAt: 0)
+        #expect(plates.defaultWarmups.map(\.weight) == ["2 pl", "3 pl"])
+        let pin = Exercise(id: "m", dayId: 1, order: 1, name: "Curl", sets: 1, weight: "Max", reps: "× 5", loadType: .machine, updatedAt: 0)
+        #expect(pin.defaultWarmups.map(\.weight) == ["", ""])
+    }
+
+    @Test func warmupsComeFirstAndStayOutOfTheSetCount() {
+        var (snap, day) = fixture()
+        let id = snap.startSession(day: day)
+        #expect(snap.warmups(of: id).count == 2)
+        #expect(snap.sets(of: id).count == 3)
+        let session = snap.sessions[0]
+        let firstTwo = snap.pendingItems(session).prefix(2).map(\.warmup)
+        #expect(firstTwo == [true, true])
+        let state = snap.watchState(now: Date())
+        #expect(state.workout?.total == 3)
+        #expect(state.workout?.current?.warmup == true)
+        #expect(state.workout?.current?.restSeconds == warmupRestSec)
+    }
+
+    @Test func warmupsAreOptional() {
+        var (snap, day) = fixture()
+        let id = snap.startSession(day: day)
+        let session = snap.sessions[0]
+        // Doing a working set first drops the warm-ups from the queue.
+        let first = snap.sets(of: id).first { $0.exerciseId == "press" && $0.setIndex == 0 }!
+        snap.toggleSet(first.id)
+        let warmLeft = snap.pendingItems(session).filter(\.warmup).count
+        #expect(warmLeft == 0)
+        // Or skip them outright.
+        var (other, d2) = fixture()
+        let id2 = other.startSession(day: d2)
+        other.skipWarmups(id2, exerciseId: "press")
+        #expect(other.warmups(of: id2).isEmpty)
+    }
+
+    @Test func coachIgnoresWarmupsAndFinishRemembersThem() {
+        var (snap, day) = fixture()
+        let id = snap.startSession(day: day)
+        let w = snap.warmups(of: id).sorted { $0.setIndex < $1.setIndex }
+        snap.updateSetLoad(w[0].id, weight: "95 lb", reps: "× 10")
+        let ticked = snap.toggleSet(w[0].id)
+        #expect(ticked)
+        snap.finishSession(id)
+        #expect(snap.exercises[0].warmupRows == [SetRow(weight: "95 lb", reps: "× 10"), SetRow(weight: "150 lb", reps: "× 4")])
+        #expect(snap.exercises[0].setRows == [SetRow(weight: "200 lb", reps: "× 5"), SetRow(weight: "190 lb", reps: "× 6")])
+        #expect(snap.liftHistory(for: snap.exercises[0]).isEmpty)
+        // Next workout starts from what was used.
+        let next = snap.startSession(day: day, options: StartOptions(scheduledDate: "2099-01-01"))
+        #expect(snap.warmups(of: next).sorted { $0.setIndex < $1.setIndex }.first?.weight == "95 lb")
+    }
+
+    @Test func noWarmupsWhenOff() {
+        var (snap, day) = fixture(warmup: false)
+        let id = snap.startSession(day: day)
+        #expect(snap.warmups(of: id).isEmpty)
+    }
+
+    @Test func discardRemovesWarmups() {
+        var (snap, day) = fixture()
+        let id = snap.startSession(day: day)
+        snap.discardSession(id)
+        #expect(snap.warmups?.isEmpty == true)
+    }
+}

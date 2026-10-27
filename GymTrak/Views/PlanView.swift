@@ -224,6 +224,15 @@ struct ExerciseEditorView: View {
                         LabeledContent("Rest", value: fmtClock(Double(ex.restSeconds ?? 180)))
                     }
                 }
+                Section {
+                    Toggle("Warm-ups", isOn: Binding(get: { ex.warmup == true }, set: { v in
+                        store.mutate { $0.updateExercise(exerciseId) { $0.warmup = v ? true : nil } }
+                    }))
+                    if ex.warmup == true {
+                        Text(ex.warmupPlan.map { "\($0.weight.isEmpty ? "—" : $0.weight) \($0.reps)" }.joined(separator: ", "))
+                            .foregroundStyle(.secondary)
+                    }
+                } footer: { Text("2 optional sets first, 2 min rest. Not counted by the coach.") }
             }
             .navigationTitle(ex.name)
             .pageBackground()

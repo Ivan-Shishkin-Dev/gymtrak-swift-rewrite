@@ -2,14 +2,6 @@ import Foundation
 import WatchConnectivity
 
 extension Snapshot {
-    /// The open lift's sets in workout order, paired with their exercise.
-    func orderedSets(_ session: Session) -> [(set: WorkoutSet, ex: Exercise)] {
-        let all = sets(of: session.id)
-        return exercises(of: session.dayId).flatMap { ex in
-            all.filter { $0.exerciseId == ex.id }.sorted { $0.setIndex < $1.setIndex }.map { ($0, ex) }
-        }
-    }
-
     /// What the watch should show right now.
     func watchState(now: Date = Date(), runs: [RunActivity] = [], restEndsAt: Date? = nil) -> WatchState {
         let todayKey = DateKey.key(now)
@@ -36,17 +28,19 @@ extension Snapshot {
         state.runMinutes = slot?.run?.durationMin
 
         if let open = openLift() {
-            let ordered = orderedSets(open)
-            let pending = ordered.filter { !$0.set.isDone }
+            let items = workoutItems(open)
+            let pending = pendingItems(open)
+            let working = items.filter { !$0.warmup }
             var advice: [String: LiftAdvice] = [:]
             let queue: [WatchState.Current] = pending.map { a in
-                let siblings = ordered.filter { $0.ex.id == a.ex.id }
+                let siblings = items.filter { $0.ex.id == a.ex.id && $0.warmup == a.warmup }
                 let n = (siblings.firstIndex { $0.set.id == a.set.id } ?? 0) + 1
                 let adv = advice[a.ex.id] ?? liftAdvice(for: a.ex, deload: open.deload ?? false, today: open.slotDate)
                 advice[a.ex.id] = adv
                 return .init(setId: a.set.id, exercise: a.ex.name, setNumber: n, setCount: siblings.count,
-                             weight: a.set.weight, reps: bareReps(a.set.reps), target: adv.target(forSet: n - 1),
-                             canStepLoad: a.ex.effectiveLoadType != .free, restSeconds: a.ex.restSeconds)
+                             weight: a.set.weight, reps: bareReps(a.set.reps), target: a.warmup ? nil : adv.target(forSet: n - 1),
+                             canStepLoad: a.ex.effectiveLoadType != .free,
+                             restSeconds: a.warmup ? warmupRestSec : a.ex.restSeconds, warmup: a.warmup ? true : nil)
             }
             let current = queue.first
             var next: String?
@@ -61,7 +55,7 @@ extension Snapshot {
             }
             state.workout = .init(sessionId: open.id, dayName: open.dayNameSnapshot ?? day(open.dayId)?.name ?? "Workout",
                                   startedAt: Date(timeIntervalSince1970: open.startedAt / 1000),
-                                  done: ordered.count - pending.count, total: ordered.count, current: current, next: next,
+                                  done: working.filter(\.set.isDone).count, total: working.count, current: current, next: next,
                                   queue: queue)
         }
         return state
@@ -113,19 +107,19 @@ final class WatchBridge: NSObject, WCSessionDelegate {
             store.mutate { $0.startSession(day: day, options: StartOptions(scheduledDate: DateKey.key(Date()), coach: Coach.autoApply)) }
         case .toggle(let id):
             // The watch only sends this for sets still to do; a retried message must not undo it.
-            guard store.db.sets.first(where: { $0.id == id })?.isDone == false else { break }
+            guard store.db.anySet(id)?.isDone == false else { break }
             let nowDone = store.mutate { $0.toggleSet(id) } ?? false
             if nowDone, RestTimer.autoStart {
-                let ex = store.db.sets.first { $0.id == id }.flatMap { s in store.db.exercises.first { $0.id == s.exerciseId } }
-                rest?.start(ex?.restSeconds)
+                let ex = store.db.anySet(id).flatMap { s in store.db.exercises.first { $0.id == s.exerciseId } }
+                rest?.start(store.db.isWarmup(id) ? warmupRestSec : ex?.restSeconds)
             }
         case .stepLoad(let id, let dir):
-            guard let st = store.db.sets.first(where: { $0.id == id }),
+            guard let st = store.db.anySet(id),
                   let ex = store.db.exercises.first(where: { $0.id == st.exerciseId }),
                   let w = stepLoad(st.weight, type: ex.effectiveLoadType, increment: ex.effectiveIncrement, direction: dir) else { break }
             store.mutate { $0.updateSetLoad(id, weight: w, reps: st.reps) }
         case .stepReps(let id, let dir):
-            guard let st = store.db.sets.first(where: { $0.id == id }) else { break }
+            guard let st = store.db.anySet(id) else { break }
             let n = Int(bareReps(st.reps)) ?? 0
             store.mutate { $0.updateSetLoad(id, weight: st.weight, reps: "× \(max(0, n + dir))") }
         case .skipRest:

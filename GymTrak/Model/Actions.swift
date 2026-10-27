@@ -81,28 +81,59 @@ extension Snapshot {
         for ex in exercises(of: day.id) {
             if let a = advice[ex.id] { applyCoach(sessionId: sessionId, ex: ex, advice: a, now: now) }
         }
+        for ex in exercises(of: day.id) where ex.warmup == true {
+            warmups = (warmups ?? []) + newSets(for: ex, rows: ex.warmupPlan, sessionId: sessionId, now: now)
+        }
         return sessionId
     }
 
     /// Toggle a set done/undone. Returns true if it is now done.
     @discardableResult
     mutating func toggleSet(_ id: String, now: EpochMs = nowMs()) -> Bool {
-        guard let i = sets.firstIndex(where: { $0.id == id }) else { return false }
-        let nowDone = sets[i].completedAt == nil
-        sets[i].completedAt = nowDone ? now : nil
-        sets[i].updatedAt = now
+        var nowDone = false
+        editSet(id) {
+            nowDone = $0.completedAt == nil
+            $0.completedAt = nowDone ? now : nil
+            $0.updatedAt = now
+        }
         return nowDone
     }
 
     mutating func updateSetLoad(_ id: String, weight: String, reps: String, now: EpochMs = nowMs()) {
-        guard let i = sets.firstIndex(where: { $0.id == id }) else { return }
         let w = weight.trimmingCharacters(in: .whitespaces)
         let r = reps.trimmingCharacters(in: .whitespaces)
-        sets[i].weight = w
-        sets[i].reps = r
-        sets[i].weightNum = numericLoad(w)
-        sets[i].repsNum = numericReps(r)
-        sets[i].updatedAt = now
+        editSet(id) {
+            $0.weight = w
+            $0.reps = r
+            $0.weightNum = numericLoad(w)
+            $0.repsNum = numericReps(r)
+            $0.updatedAt = now
+        }
+    }
+
+    /// A working set or a warm-up, by id.
+    func anySet(_ id: String) -> WorkoutSet? {
+        sets.first { $0.id == id } ?? warmups?.first { $0.id == id }
+    }
+
+    func isWarmup(_ id: String) -> Bool { warmups?.contains { $0.id == id } ?? false }
+
+    func warmups(of sessionId: String) -> [WorkoutSet] {
+        (warmups ?? []).filter { $0.sessionId == sessionId }
+    }
+
+    private mutating func editSet(_ id: String, _ change: (inout WorkoutSet) -> Void) {
+        if let i = sets.firstIndex(where: { $0.id == id }) {
+            change(&sets[i])
+        } else if var w = warmups, let i = w.firstIndex(where: { $0.id == id }) {
+            change(&w[i])
+            warmups = w
+        }
+    }
+
+    /// Drop this exercise's warm-ups that aren't done yet, for this workout only.
+    mutating func skipWarmups(_ sessionId: String, exerciseId: String) {
+        warmups?.removeAll { $0.sessionId == sessionId && $0.exerciseId == exerciseId && !$0.isDone }
     }
 
     mutating func addSetToSession(_ sessionId: String, exerciseId: String, now: EpochMs = nowMs()) {
@@ -138,11 +169,13 @@ extension Snapshot {
 
     mutating func removeExerciseFromSession(_ sessionId: String, exerciseId: String) {
         sets.removeAll { $0.sessionId == sessionId && $0.exerciseId == exerciseId }
+        warmups?.removeAll { $0.sessionId == sessionId && $0.exerciseId == exerciseId }
         exercises.removeAll { $0.id == exerciseId }
     }
 
     mutating func discardSession(_ id: String) {
         sets.removeAll { $0.sessionId == id }
+        warmups?.removeAll { $0.sessionId == id }
         sessions.removeAll { $0.id == id }
     }
 
@@ -169,6 +202,15 @@ extension Snapshot {
             exercises[ei].sets = merged.count
             exercises[ei].weight = merged[0].weight
             exercises[ei].reps = merged[0].reps
+            exercises[ei].updatedAt = now
+        }
+        // Warm-ups done carry back too, so next time starts from what you used.
+        for (exerciseId, wu) in Dictionary(grouping: warmups(of: id), by: \.exerciseId) {
+            guard let ei = exercises.firstIndex(where: { $0.id == exerciseId }), wu.contains(where: \.isDone) else { continue }
+            let prev = exercises[ei].warmupPlan
+            exercises[ei].warmupRows = wu.sorted { $0.setIndex < $1.setIndex }.enumerated().map { i, s in
+                s.isDone || i >= prev.count ? SetRow(weight: s.weight, reps: s.reps) : prev[i]
+            }
             exercises[ei].updatedAt = now
         }
         sessions[si].finishedAt = now
