@@ -19,26 +19,34 @@ struct TodayView: View {
         let todayKey = DateKey.key(now)
 
         NavigationStack {
-            Group {
-                if let week = db.scheduleWeek(now) {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 28) {
-                            properties(week, todayKey: todayKey)
-                            recent
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 24)
-                        .padding(.bottom, 110)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    // Greeting sits in the page, lower and bigger, so Start lands under the thumb.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(name.isEmpty ? "Today" : "Hi, \(name)")
+                            .font(.system(size: 38, weight: .bold)).foregroundStyle(Page.text)
+                        Text(DateKey.label(todayKey, "EEEE, MMMM d"))
+                            .font(.title3).foregroundStyle(Page.secondary)
                     }
-                    .refreshable { await connections.refresh() }
-                } else {
-                    ScrollView {
-                        noSchedule.padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 110)
+                    .padding(.top, 36)
+                    .accessibilityAddTraits(.isHeader)
+
+                    if let week = db.scheduleWeek(now) {
+                        properties(week, todayKey: todayKey)
+                        recent
+                    } else {
+                        noSchedule
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 110)
             }
+            .refreshable { await connections.refresh() }
             .background(Page.bg)
-            .topLeftTitle(name.isEmpty ? "Today" : "Hi, \(name)", subtitle: DateKey.label(todayKey, "EEEE, MMMM d"))
+            .navigationTitle("Today")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(removing: .title)
+            .toolbarBackground(Page.bg, for: .navigationBar)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { SettingsButton() } }
             .navigationDestination(for: String.self) { DayScreen(date: $0) }
             .navigationDestination(for: SessionRef.self) { SessionDetailView(sessionId: $0.id) }
