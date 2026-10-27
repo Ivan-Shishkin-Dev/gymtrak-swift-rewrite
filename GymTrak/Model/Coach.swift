@@ -388,10 +388,9 @@ enum RunCoach {
         let bigWeek = lastWeek > 0 && thisWeek > lastWeek * 1.2
 
         var cues: [String] = []
-        let zone = "HR \(rx.hrZoneMin)–\(rx.hrZoneMax)"
 
         if rx.label.isEasy {
-            cues = [zone + ". Could hold a chat."]
+            cues = []
             if rx.strides { cues.append("Finish with 4 × 20 s strides.") }
             guard let last = same.first else {
                 let m = deload ? round5(Double(rx.durationMin) * 0.8) : rx.durationMin

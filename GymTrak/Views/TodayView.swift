@@ -281,6 +281,8 @@ struct DayScreen: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(removing: .title)
+        .toolbarBackground(Page.bg, for: .navigationBar)
+        .toolbarBackgroundVisibility(.visible, for: .navigationBar)
     }
 }
 
@@ -345,11 +347,7 @@ struct RunCoachRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Shoot for \(advice.target)").font(.headline).foregroundStyle(Page.text)
-                Spacer()
-                if let range = advice.range { Text(range).font(.subheadline).foregroundStyle(Page.secondary) }
-            }
+            Text("Shoot for \(advice.target)").font(.headline).foregroundStyle(Page.text)
             if let pace = advice.pace { Text(pace).font(.subheadline).foregroundStyle(Page.text) }
             if let note = advice.note { Text(note).font(.subheadline).foregroundStyle(Page.secondary) }
             ForEach(advice.cues, id: \.self) { cue in
