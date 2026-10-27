@@ -11,6 +11,8 @@ final class AppNav {
     var completed: (sessionId: String, label: String)?
     /// "Undo finish" on the summary: reopen the workout once the sheet is gone.
     var reopenAfterSummary = false
+    /// Height of the workout bar above the tabs (0 when hidden). Today leaves this much room so nothing sits under it.
+    var dockHeight: CGFloat = 0
 }
 
 struct RootView: View {
@@ -112,6 +114,8 @@ struct RootView: View {
     @ViewBuilder private var dock: some View {
         if let open = store.db.openLift() {
             ResumeBanner(session: open) { nav.showWorkout = true }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { nav.dockHeight = $0 }
+                .onDisappear { nav.dockHeight = 0 }
         }
     }
 }

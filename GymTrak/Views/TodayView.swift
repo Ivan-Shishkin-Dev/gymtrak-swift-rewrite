@@ -17,10 +17,14 @@ struct TodayView: View {
         let todayKey = DateKey.key(now)
 
         NavigationStack {
-            // Pinned to the top and stretched to the bottom; scrolls only if a small phone can't fit it.
+            // Pinned to the top and stretched to the bottom. When space is short (the workout bar is showing,
+            // or a smaller phone), a tighter layout keeps the whole calendar on screen; scrolling is the last resort.
             ViewThatFits(in: .vertical) {
                 page(db, now: now, todayKey: todayKey)
-                    .padding(.top, 8).padding(.bottom, 12)
+                    .padding(.top, 8).padding(.bottom, 12 + nav.dockHeight)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                page(db, now: now, todayKey: todayKey, compact: true)
+                    .padding(.top, 4).padding(.bottom, 8 + nav.dockHeight)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 ScrollView { page(db, now: now, todayKey: todayKey).padding(.top, 20).padding(.bottom, 110) }
             }
@@ -33,18 +37,18 @@ struct TodayView: View {
     }
 
     @ViewBuilder
-    private func page(_ db: Snapshot, now: Date, todayKey: String) -> some View {
-        VStack(alignment: .leading, spacing: 28) {
+    private func page(_ db: Snapshot, now: Date, todayKey: String, compact: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: compact ? 14 : 28) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(name.isEmpty ? "Today" : "Hi, \(name)")
-                    .font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text)
+                    .font(.system(size: compact ? 28 : 34, weight: .bold)).foregroundStyle(Page.text)
                 Text(DateKey.label(todayKey, "EEEE, MMMM d"))
-                    .font(.title3).foregroundStyle(Page.secondary)
+                    .font(compact ? .body : .title3).foregroundStyle(Page.secondary)
             }
             .accessibilityAddTraits(.isHeader)
 
             if let week = db.scheduleWeek(now) {
-                properties(week, todayKey: todayKey)
+                properties(week, todayKey: todayKey, compact: compact)
                 let record = db.activityRecord(today: now, runDates: connections.runDates)
                 if !record.isEmpty {
                     PageSection("Adherence") { CalendarKey() } content: { TrackRecord(days: record, isRest: db.isRestDay) }
@@ -60,7 +64,7 @@ struct TodayView: View {
     // MARK: Properties
 
     @ViewBuilder
-    private func properties(_ week: ProgramWeek, todayKey: String) -> some View {
+    private func properties(_ week: ProgramWeek, todayKey: String, compact: Bool) -> some View {
         let db = store.db
         let slot = week.slot(DateKey.dow(Date()))
         let liftDay = db.day(slot?.liftDayId)
@@ -86,7 +90,7 @@ struct TodayView: View {
                     PropertyRow(icon: "flame", label: "Calories") { Text(today.map { "\(Int($0.calories.rounded()).formatted()) kcal" } ?? "—") }
                     PropertyRow(icon: "bed.double", label: "Sleep") { Text(connections.sleepMinutes[todayKey].map(fmtSleep) ?? "—") }
                 }
-                .padding(.top, 18)
+                .padding(.top, compact ? 6 : 18)
             } else if connections.healthAvailable {
                 PropertyRow(icon: "heart", label: "Activity") {
                     Button("Connect Apple Health") { Task { await connections.connectHealth() } }
@@ -462,7 +466,8 @@ struct TrackRecord: View {
                 }
             }
             // Cells take the spare height so the page reaches the bottom of the screen.
-            .frame(minHeight: 30, maxHeight: 64)
+            // Ideal = smallest, so the "does it fit" check measures the tight size; then it grows into spare room.
+            .frame(minHeight: 30, idealHeight: 30, maxHeight: 64)
             .frame(maxWidth: .infinity)
             .contentShape(shape)
 
