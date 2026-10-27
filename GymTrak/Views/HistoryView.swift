@@ -21,7 +21,7 @@ struct HistoryView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     VStack(alignment: .leading, spacing: 14) {
                         weekPicker(monday: monday, sunday: sunday, canGoBack: monday > earliest)
-                        // The month with this week lit up; tap any day to jump to its week.
+                        // The month with this week lit up; tapping a day opens it and moves to its week.
                         TrackRecord(days: db.activityRecord(today: Date(), runDates: connections.runDates),
                                     isRest: db.isRestDay, focus: monday...sunday) { key in
                             let picked = DateKey.mondayKey(DateKey.date(key))
@@ -56,6 +56,7 @@ struct HistoryView: View {
             .background(Page.bg)
             .topLeftTitle("History")
             .navigationDestination(for: SessionRef.self) { SessionDetailView(sessionId: $0.id) }
+            .navigationDestination(for: String.self) { DayScreen(date: $0) }
             .refreshable { await connections.refresh() }
         }
     }

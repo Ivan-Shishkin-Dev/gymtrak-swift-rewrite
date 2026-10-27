@@ -99,24 +99,16 @@ struct TodayView: View {
     private func liftTile(_ day: Day?, done: Bool, todayKey: String) -> some View {
         let count = day.map { store.db.exercises(of: $0.id).count } ?? 0
         return TodayTile(icon: "dumbbell", label: "Lift", done: done,
-                         title: day?.name ?? "Off",
-                         detail: day == nil ? Self.pick(Self.liftOff, todayKey) : (count == 1 ? "1 exercise" : "\(count) exercises"),
+                         title: day?.name ?? "Rest",
+                         detail: day == nil ? "" : (count == 1 ? "1 exercise" : "\(count) exercises"),
                          resting: day == nil)
     }
 
     private func runTile(_ run: RunPrescription?, done: Bool, todayKey: String) -> some View {
         TodayTile(icon: run == nil ? "sofa" : "figure.run", label: "Run", done: done,
                   title: run?.label.rawValue ?? "Rest",
-                  detail: run.map { "\($0.durationMin) min" } ?? Self.pick(Self.runOff, todayKey),
+                  detail: run.map { "\($0.durationMin) min" } ?? "",
                   resting: run == nil)
-    }
-
-    private static let liftOff = ["Iron gets a day off", "The bar is resting too", "Muscles under construction", "Grow, don't go"]
-    private static let runOff = ["Legs on vacation", "Shoes are napping", "Zero miles, full credit", "Couch is the route"]
-
-    /// Same line all day, a different one tomorrow.
-    private static func pick(_ lines: [String], _ key: String) -> String {
-        lines[abs(key.unicodeScalars.reduce(0) { $0 &* 31 &+ Int($1.value) }) % lines.count]
     }
 
     // MARK: Recent
@@ -191,7 +183,7 @@ struct DayScreen: View {
                     Text(title).font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text).padding(.bottom, 10)
                     PropertyRow(icon: "calendar", label: "Date") { Text(DateKey.label(date, "EEEE, MMMM d")) }
                     PropertyRow(icon: "circle.dashed", label: "Status") {
-                        Text(done ? "Done" : date == todayKey ? "Today" : date < todayKey ? "Missed" : "Upcoming")
+                        Text(done ? "Done" : (slot?.isRest ?? true) ? "Rest" : date == todayKey ? "Today" : date < todayKey ? "Missed" : "Upcoming")
                     }
                     if !exercises.isEmpty {
                         PropertyRow(icon: "list.bullet", label: "Exercises") { Text("\(exercises.count)") }
@@ -379,7 +371,7 @@ struct TrackRecord: View {
     var isRest: (String) -> Bool = { _ in false }
     /// History's week: shows its month, dims every other day, and hides the month arrows.
     var focus: ClosedRange<String>? = nil
-    /// With `focus`: tapping a day picks it instead of opening it.
+    /// Called when a day is tapped, alongside opening it (History uses it to move to that week).
     var onPick: ((String) -> Void)? = nil
     @State private var monthOffset = 0
 
@@ -470,26 +462,23 @@ struct TrackRecord: View {
             .frame(maxWidth: .infinity)
             .contentShape(shape)
 
-        if inMonth, let onPick {
-            Button { onPick(key) } label: { tile }
-                .buttonStyle(.plain)
-                .accessibilityLabel(DateKey.label(key, "EEEE, MMMM d"))
-                .accessibilityHint("Shows this week")
-        } else if inMonth, let day {
+        if inMonth {
+            // Every day opens: a logged workout opens its sets, any other day opens the day.
             Group {
-                if let id = day.sessionId {
+                if let id = day?.sessionId {
                     NavigationLink(value: SessionRef(id: id)) { tile }
                 } else {
                     NavigationLink(value: key) { tile }
                 }
             }
             .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded { onPick?(key) })
             .accessibilityLabel([DateKey.label(key, "EEEE, MMMM d"),
-                                 day.lift.map { $0 == .done ? "Lifted" : "Missed lift" },
-                                 day.run.map { $0 == .done ? "Ran" : "Missed run" }].compactMap { $0 }.joined(separator: ", "))
+                                 day?.lift.map { $0 == .done ? "Lifted" : "Missed lift" },
+                                 day?.run.map { $0 == .done ? "Ran" : "Missed run" },
+                                 resting ? "Rest" : nil].compactMap { $0 }.joined(separator: ", "))
         } else {
-            tile.accessibilityHidden(!inMonth)
-                .accessibilityLabel(resting ? "\(DateKey.label(key, "EEEE, MMMM d")), Rest" : DateKey.label(key, "EEEE, MMMM d"))
+            tile.accessibilityHidden(true)
         }
     }
 
