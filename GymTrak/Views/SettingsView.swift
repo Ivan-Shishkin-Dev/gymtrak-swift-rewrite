@@ -1,5 +1,4 @@
 import SwiftUI
-import AuthenticationServices
 import UniformTypeIdentifiers
 
 /// Appearance, connections, coach, rest timer, data backup, and app info.
@@ -7,8 +6,6 @@ struct SettingsView: View {
     @Environment(Store.self) private var store
     @Environment(RestTimer.self) private var rest
     @Environment(Connections.self) private var connections
-    @Environment(Spotify.self) private var spotify
-    @Environment(\.webAuthenticationSession) private var webAuth
     @State private var importing = false
     @State private var importError: String?
     @State private var coachTick = 0
@@ -68,17 +65,6 @@ struct SettingsView: View {
     @ViewBuilder private var connectionsSection: some View {
         Section {
             HStack {
-                Label { Text("Strava") } icon: { IconBadge(systemName: "figure.run", color: .orange) }
-                Spacer()
-                if connections.stravaConnected {
-                    Text(connections.stravaAthlete ?? "Connected").foregroundStyle(.secondary)
-                } else {
-                    Button("Connect") { Task { await connectStrava() } }
-                        .disabled(!connections.stravaConfigured)
-                }
-            }
-            .swipeActions { if connections.stravaConnected { Button("Disconnect", role: .destructive) { connections.disconnectStrava() } } }
-            HStack {
                 Label { Text("Apple Health") } icon: { IconBadge(systemName: "heart.fill", color: .pink) }
                 Spacer()
                 if connections.healthConnected {
@@ -90,7 +76,7 @@ struct SettingsView: View {
                 }
             }
             .swipeActions { if connections.healthConnected { Button("Disconnect", role: .destructive) { connections.disconnectHealth() } } }
-            if connections.stravaConnected || connections.healthConnected {
+            if connections.healthConnected {
                 Button { Task { await connections.refresh() } } label: {
                     HStack {
                         Text("Refresh Runs")
@@ -99,35 +85,11 @@ struct SettingsView: View {
                     }
                 }
             }
-            HStack {
-                Label { Text("Spotify") } icon: { IconBadge(systemName: "music.note", color: Theme.lift) }
-                Spacer()
-                if spotify.connected {
-                    Text("Connected").foregroundStyle(.secondary)
-                } else if spotify.configured {
-                    Button("Connect") { Task { await spotify.connect { try await webAuth.authenticate(using: $0, callbackURLScheme: $1) } } }
-                } else {
-                    Text("Needs client ID").font(.footnote).foregroundStyle(.secondary)
-                }
-            }
-            .swipeActions { if spotify.connected { Button("Disconnect", role: .destructive) { spotify.disconnect() } } }
             if let error = connections.lastError {
                 Text(error).font(.footnote).foregroundStyle(Theme.warning)
             }
         } header: {
             Text("Connections")
-        } footer: {
-            if !connections.stravaConfigured { Text("Add your Strava API keys to Secrets.xcconfig to connect.") }
-        }
-    }
-
-    private func connectStrava() async {
-        guard let url = connections.stravaAuthURL else { return }
-        do {
-            let callback = try await webAuth.authenticate(using: url, callbackURLScheme: Connections.stravaCallbackScheme)
-            await connections.finishStrava(callback: callback)
-        } catch {
-            // Cancelled by the user: nothing to do.
         }
     }
 

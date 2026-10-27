@@ -96,7 +96,6 @@ struct WorkoutView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
                     if rest.isActive { RestBar() }
-                    MediaBar()
                     bottomBar(active: mode == .current ? active : nil, allDone: allDone)
                 }
             }
