@@ -277,9 +277,6 @@ struct WorkoutView: View {
             PropertyRow(icon: a.icon.replacingOccurrences(of: ".fill", with: ""), label: "Shoot for") {
                 Text(a.target(forSet: setIndex)).fontWeight(.semibold)
             }
-            if let note = a.note {
-                PropertyRow(icon: "text.bubble", label: "Coach") { Text(note) }
-            }
             if let tip {
                 PrimaryButton(title: tip.text, icon: tip.steps > 0 ? "arrow.up" : "arrow.down", muted: true) {
                     store.mutate { $0.shiftSets(tip.setIds, ex: ex, steps: tip.steps) }

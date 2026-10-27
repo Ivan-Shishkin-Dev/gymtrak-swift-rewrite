@@ -213,10 +213,7 @@ struct DayScreen: View {
                                 let a = db.liftAdvice(for: ex, today: date)
                                 // Two columns: name left, target right. Every row lines up the same way.
                                 HStack(alignment: .firstTextBaseline, spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(ex.name).foregroundStyle(Page.text).lineLimit(1)
-                                        if let note = a.note { Text(note).font(.caption).foregroundStyle(Page.secondary) }
-                                    }
+                                    Text(ex.name).foregroundStyle(Page.text).lineLimit(1)
                                     Spacer(minLength: 8)
                                     Text(a.target).fontWeight(.semibold).foregroundStyle(Page.text).monospacedDigit()
                                         .lineLimit(1)
@@ -296,7 +293,7 @@ struct CoachLabelStyle: LabelStyle {
     }
 }
 
-/// "Shoot for 40 min" with the range, pace, a note when it matters, and a few how-to lines.
+/// "Shoot for 40 min" with the pace and a few how-to lines.
 struct RunCoachRow: View {
     let advice: RunAdvice
 
@@ -304,7 +301,6 @@ struct RunCoachRow: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Shoot for \(advice.target)").font(.headline).foregroundStyle(Page.text)
             if let pace = advice.pace { Text(pace).font(.subheadline).foregroundStyle(Page.text) }
-            if let note = advice.note { Text(note).font(.subheadline).foregroundStyle(Page.secondary) }
             ForEach(advice.cues, id: \.self) { cue in
                 Text("• \(cue)").font(.subheadline).foregroundStyle(Page.secondary)
             }
@@ -381,7 +377,7 @@ extension LiftOutcome {
 struct TrackRecord: View {
     let days: [ActivityDay]
     var isRest: (String) -> Bool = { _ in false }
-    /// History's week: shows its month Monday-first so the week is one row, dims the other rows, hides the month arrows.
+    /// History's week: shows its month, dims every other day, and hides the month arrows.
     var focus: ClosedRange<String>? = nil
     /// With `focus`: tapping a day picks it instead of opening it.
     var onPick: ((String) -> Void)? = nil
@@ -396,8 +392,8 @@ struct TrackRecord: View {
         } ?? cal.date(byAdding: .month, value: monthOffset, to: thisMonth) ?? thisMonth
         let monthKey = String(DateKey.key(month).prefix(7))
         let byDate = Dictionary(days.map { ($0.date, $0) }, uniquingKeysWith: { a, _ in a })
-        let weeks = Self.weeks(of: month, mondayFirst: focus != nil)
-        let letters = focus != nil ? ["M", "T", "W", "T", "F", "S", "S"] : ["S", "M", "T", "W", "T", "F", "S"]
+        let weeks = Self.weeks(of: month, through: focus?.upperBound)
+        let letters = ["S", "M", "T", "W", "T", "F", "S"]
         let todayKey = DateKey.key(Date())
         let earliest = days.first.map { String($0.date.prefix(7)) } ?? monthKey
 
@@ -501,13 +497,21 @@ struct TrackRecord: View {
     static let restFill = Page.fill
     static let restInk = Page.secondary
 
-    /// The month's days as Sunday-first (or Monday-first) weeks, padded with the neighboring months' days.
-    static func weeks(of month: Date, mondayFirst: Bool = false) -> [[String]] {
+    /// Adds a row when `through` (the Sunday ending a Monday–Sunday week) falls past the grid's last row.
+    static func weeks(of month: Date, through: String?) -> [[String]] {
+        var out = weeks(of: month)
+        if let through, let last = out.last?.last, through > last {
+            out.append((1...7).map { DateKey.addDays(last, $0) })
+        }
+        return out
+    }
+
+    /// The month's days as Sunday-first weeks, padded with the neighboring months' days.
+    static func weeks(of month: Date) -> [[String]] {
         let cal = DateKey.calendar
         let last = DateKey.key(cal.date(byAdding: DateComponents(month: 1, day: -1), to: month) ?? month)
         // Calendar weekday: 1 = Sunday, so step back to the Sunday on or before the 1st.
-        var start = mondayFirst ? DateKey.mondayKey(month)
-            : DateKey.addDays(DateKey.key(month), 1 - cal.component(.weekday, from: month))
+        var start = DateKey.addDays(DateKey.key(month), 1 - cal.component(.weekday, from: month))
         var out: [[String]] = []
         while start <= last {
             out.append((0..<7).map { DateKey.addDays(start, $0) })
