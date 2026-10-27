@@ -18,7 +18,6 @@ struct HistoryView: View {
                     } else {
                         VStack(alignment: .leading, spacing: 0) {
                             PropertyRow(icon: "dumbbell", label: "Workouts") { Text("\(s.workouts)") }
-                            PropertyRow(icon: "scalemass", label: "Moved") { Text(s.pounds > 0 ? fmtPounds(s.pounds) : "—") }
                             PropertyRow(icon: "figure.run", label: "Runs") { Text("\(s.runs)") }
                             PropertyRow(icon: "location", label: "Distance") { Text(s.runMiles > 0 ? String(format: "%.1f mi", s.runMiles) : "—") }
                             if let avg = s.avgWorkoutMinutes {
@@ -82,7 +81,6 @@ struct SessionDetailView: View {
             let groups = Dictionary(grouping: done, by: \.exerciseName)
             let order = done.sorted { ($0.completedAt ?? 0, $0.setIndex) < ($1.completedAt ?? 0, $1.setIndex) }
                 .map(\.exerciseName).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
-            let lb = db.sessionPounds(sessionId)
             let title = session.dayNameSnapshot ?? db.day(session.dayId)?.name ?? "Workout"
 
             ScrollView {
@@ -91,7 +89,6 @@ struct SessionDetailView: View {
                         Text(title).font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text).padding(.bottom, 10)
                         PropertyRow(icon: "calendar", label: "Date") { Text(DateKey.label(session.slotDate, "EEEE, MMMM d")) }
                         PropertyRow(icon: "number", label: "Sets") { Text("\(done.count)") }
-                        if lb > 0 { PropertyRow(icon: "scalemass", label: "Moved") { Text(fmtPounds(lb)) } }
                         if let d = session.durationSec, d >= 60, d < 4 * 3600 {
                             PropertyRow(icon: "clock", label: "Time") { Text("\(Int((d / 60).rounded())) min") }
                         }

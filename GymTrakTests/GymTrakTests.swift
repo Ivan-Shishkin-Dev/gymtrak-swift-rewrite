@@ -495,7 +495,7 @@ struct SpotifyAuthTests {
     @Test func historyMergesLiftsAndRunsNewestFirst() {
         let h = snap().historyEntries(synced: [run("2026-10-10", 3.1, 30)])
         #expect(h.map(\.date) == ["2026-10-15", "2026-10-10", "2026-10-08", "2026-10-01"])
-        #expect(h[0].title == "Upper A" && h[0].detail == "4 sets · 4,950 lb · 50 min")
+        #expect(h[0].title == "Upper A" && h[0].detail == "4 sets · 50 min")
         #expect(h[1].kind == .run && h[1].detail == "3.1 mi · 30 min · 9:41 /mi")
     }
 

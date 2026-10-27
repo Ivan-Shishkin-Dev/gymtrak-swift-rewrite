@@ -144,9 +144,7 @@ extension Snapshot {
     func historyEntries(synced: [RunActivity]) -> [HistoryEntry] {
         let lifts = finishedLifts.map { s -> HistoryEntry in
             let done = doneSets(s.id)
-            let lb = sessionPounds(s.id)
             var parts = [done.count == 1 ? "1 set" : "\(done.count) sets"]
-            if lb > 0 { parts.append(fmtPounds(lb)) }
             if let d = s.durationSec, d >= 60 { parts.append("\(Int((d / 60).rounded())) min") }
             let title = s.dayNameSnapshot ?? day(s.dayId)?.name ?? "Workout"
             return HistoryEntry(id: s.id, kind: .lift(sessionId: s.id), date: s.slotDate, title: title,
