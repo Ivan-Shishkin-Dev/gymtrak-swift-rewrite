@@ -420,31 +420,52 @@ extension LiftOutcome {
     }
 }
 
-/// Recent lift days as a row of colored bars, then how many finished, almost, and skipped.
+/// Recent lift days as colored bars with their weekday, then the counts. Tap a bar to open that day.
 struct TrackRecord: View {
     let days: [LiftDay]
     var slots = 24
 
     var body: some View {
         let recent = Array(days.suffix(slots))
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(spacing: 10) {
             HStack(spacing: 3) {
-                ForEach(0..<(slots - recent.count), id: \.self) { _ in bar(Page.fill) }
-                ForEach(recent, id: \.date) { bar($0.outcome.color) }
+                ForEach(0..<(slots - recent.count), id: \.self) { _ in
+                    column(bar(Page.fill), letter: " ")
+                }
+                ForEach(recent, id: \.date) { d in
+                    let letter = DateKey.label(d.date, "EEEEE")
+                    Group {
+                        if let id = d.sessionId {
+                            NavigationLink(value: SessionRef(id: id)) { column(bar(d.outcome.color), letter: letter) }
+                        } else {
+                            NavigationLink(value: d.date) { column(bar(d.outcome.color), letter: letter) }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(DateKey.label(d.date, "EEEE, MMMM d")), \(d.outcome.label)")
+                }
             }
-            .frame(height: 20)
-            HStack(spacing: 16) {
+            HStack(spacing: 22) {
                 ForEach(LiftOutcome.allCases.reversed(), id: \.self) { o in
                     HStack(spacing: 6) {
-                        Circle().fill(o.color).frame(width: 8, height: 8)
+                        Circle().fill(o.color).frame(width: 9, height: 9)
                         Text("\(days.filter { $0.outcome == o }.count)").fontWeight(.semibold).foregroundStyle(Page.text)
-                        Text(o.label.lowercased()).foregroundStyle(Page.secondary)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(days.filter { $0.outcome == o }.count) \(o.label.lowercased())")
                 }
             }
             .font(.subheadline.monospacedDigit())
+            .frame(maxWidth: .infinity)
         }
-        .accessibilityElement(children: .combine)
+    }
+
+    private func column(_ bar: some View, letter: String) -> some View {
+        VStack(spacing: 4) {
+            bar.frame(height: 20)
+            Text(letter).font(.system(size: 9, weight: .medium)).foregroundStyle(Page.tertiary)
+        }
+        .contentShape(Rectangle())
     }
 
     private func bar(_ c: Color) -> some View {
@@ -458,13 +479,19 @@ private struct RecentDayRow: View {
     let lift: HistoryEntry?
     let run: RunRecord?
 
+    /// Both text lines get a fixed height so the date, the lift and the run line up row for row.
+    private let line1: CGFloat = 22
+    private let line2: CGFloat = 22
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            VStack(spacing: 0) {
-                Text(DateKey.label(date, "EEE")).font(.caption.weight(.medium)).foregroundStyle(Page.secondary)
-                Text(DateKey.label(date, "d")).font(.title3.weight(.semibold)).foregroundStyle(Page.text)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(DateKey.label(date, "d")).font(.body.weight(.semibold)).foregroundStyle(Page.text)
+                    .frame(height: line1)
+                Text(DateKey.label(date, "EEE")).font(.subheadline).foregroundStyle(Page.secondary)
+                    .frame(height: line2)
             }
-            .frame(width: 40)
+            .frame(width: 36, alignment: .leading)
 
             Group {
                 if let lift, case .lift(let id) = lift.kind {
@@ -499,10 +526,12 @@ private struct RecentDayRow: View {
                 Image(systemName: icon).font(.subheadline).foregroundStyle(Page.secondary)
                 Text(title).foregroundStyle(Page.text).lineLimit(1).minimumScaleFactor(0.8)
             }
+            .frame(height: line1)
             HStack(spacing: 6) {
                 Text(sub).font(.subheadline).foregroundStyle(Page.secondary).lineLimit(1)
                 if let outcome { Tag(text: outcome.label, tint: outcome.color) }
             }
+            .frame(height: line2)
         }
         .contentShape(Rectangle())
     }

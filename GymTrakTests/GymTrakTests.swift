@@ -516,6 +516,7 @@ struct SpotifyAuthTests {
         let r = s.liftRecord(today: DateKey.date("2026-10-26").addingTimeInterval(6 * 3600))
         #expect(r.map(\.date) == ["2026-10-05", "2026-10-12", "2026-10-19"])
         #expect(r.map(\.outcome) == [.skipped, .finished, .almost])
+        #expect(r.map(\.sessionId) == [nil, "a", "b"])
     }
 
     @Test func historyMergesLiftsAndRunsNewestFirst() {

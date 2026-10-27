@@ -49,6 +49,8 @@ enum LiftOutcome: Int, Sendable, Hashable, CaseIterable {
 struct LiftDay: Hashable, Sendable {
     var date: String
     var outcome: LiftOutcome
+    /// The workout behind it; nil for a day skipped outright.
+    var sessionId: String? = nil
 }
 
 /// The most-improved lift: first vs. latest top set.
@@ -143,16 +145,16 @@ extension Snapshot {
     func liftRecord(today: Date) -> [LiftDay] {
         guard let start = programStart else { return [] }
         let todayKey = DateKey.key(today)
-        var best: [String: LiftOutcome] = [:]
+        var best: [String: (LiftOutcome, String)] = [:]
         for s in finishedLifts {
             let o = outcome(s.id)
-            if o.rawValue > (best[s.slotDate]?.rawValue ?? -1) { best[s.slotDate] = o }
+            if o.rawValue > (best[s.slotDate]?.0.rawValue ?? -1) { best[s.slotDate] = (o, s.id) }
         }
         var out: [LiftDay] = []
         var key = start
         while key <= todayKey {
-            if let o = best[key] {
-                out.append(LiftDay(date: key, outcome: o))
+            if let (o, id) = best[key] {
+                out.append(LiftDay(date: key, outcome: o, sessionId: id))
             } else if key < todayKey {
                 let d = DateKey.date(key)
                 if scheduleWeek(d)?.slot(DateKey.dow(d))?.liftDayId != nil {
