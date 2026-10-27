@@ -26,13 +26,12 @@ struct TodayView: View {
                         properties(week, todayKey: todayKey)
                         weekChart(week, todayKey: todayKey)
                         recent
-                        schedule(week, todayKey: todayKey)
                     } else {
                         noSchedule
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 4)
+                .padding(.top, 24)
                 .padding(.bottom, 110)
             }
             .background(Page.bg)
@@ -64,7 +63,7 @@ struct TodayView: View {
             .buttonStyle(.plain)
 
             if let liftDay {
-                StartButton(day: liftDay, date: todayKey).padding(.top, 12)
+                StartButton(day: liftDay, date: todayKey).padding(.top, 10)
             }
 
             if connections.healthConnected {
@@ -72,13 +71,13 @@ struct TodayView: View {
                     PropertyRow(icon: "shoeprints.fill", label: "Steps") { Text(today.map { $0.steps.formatted() } ?? "—") }
                     PropertyRow(icon: "flame", label: "Calories") { Text(today.map { "\(Int($0.calories.rounded()).formatted()) kcal" } ?? "—") }
                 }
-                .padding(.top, 14)
+                .padding(.top, 18)
             } else if connections.healthAvailable {
                 PropertyRow(icon: "heart", label: "Activity") {
                     Button("Connect Apple Health") { Task { await connections.connectHealth() } }
                         .foregroundStyle(Page.text).underline()
                 }
-                .padding(.top, 14)
+                .padding(.top, 18)
             }
         }
     }
@@ -185,48 +184,6 @@ struct TodayView: View {
                 HistoryRow(entry: e)
             }
         }
-    }
-
-    // MARK: Schedule
-
-    private func schedule(_ week: ProgramWeek, todayKey: String) -> some View {
-        let db = store.db
-        let done = db.doneDates.union(connections.runDates)
-        return PageSection("Schedule") {
-            VStack(spacing: 0) {
-                ForEach(Dow.allCases, id: \.self) { dow in
-                    let slot = week.slot(dow)
-                    let date = week.date(of: dow)
-                    let isToday = date == todayKey
-                    NavigationLink(value: date) {
-                        HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            Text("\(dow.short) \(DateKey.label(date, "d"))")
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(isToday ? Page.text : Page.secondary)
-                                .frame(width: 56, alignment: .leading)
-                            Text(scheduleTitle(slot))
-                                .foregroundStyle(slot?.isRest ?? true ? Page.secondary : Page.text)
-                                .fontWeight(isToday ? .semibold : .regular)
-                                .lineLimit(1)
-                            Spacer(minLength: 4)
-                            if done.contains(date) { Image(systemName: "checkmark").foregroundStyle(Page.secondary) }
-                        }
-                        .padding(.vertical, 10)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    if dow != .sun { Rectangle().fill(Page.divider).frame(height: 1) }
-                }
-            }
-        }
-    }
-
-    private func scheduleTitle(_ slot: ProgramSlot?) -> String {
-        if let name = store.db.day(slot?.liftDayId)?.name {
-            return name + (slot?.run.map { " + \($0.durationMin) min run" } ?? "")
-        }
-        if let run = slot?.run { return "\(run.label.rawValue) · \(run.durationMin) min" }
-        return "Rest"
     }
 
     private var noSchedule: some View {

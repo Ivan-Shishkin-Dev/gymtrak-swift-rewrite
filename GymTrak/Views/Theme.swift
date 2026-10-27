@@ -258,7 +258,7 @@ extension View {
             .toolbarBackgroundVisibility(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(title).font(.system(size: 30, weight: .bold)).lineLimit(1).fixedSize()
                         if let subtitle {
                             Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1).fixedSize()
