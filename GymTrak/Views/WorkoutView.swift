@@ -277,9 +277,6 @@ struct WorkoutView: View {
             PropertyRow(icon: a.icon.replacingOccurrences(of: ".fill", with: ""), label: "Shoot for") {
                 Text(a.target(forSet: setIndex)).fontWeight(.semibold)
             }
-            if setIndex == 0, let range = a.range {
-                PropertyRow(icon: "arrow.left.and.right", label: "Range") { Text(range) }
-            }
             if let note = a.note {
                 PropertyRow(icon: "text.bubble", label: "Coach") { Text(note) }
             }
@@ -358,7 +355,7 @@ struct WorkoutView: View {
                     let a = store.db.liftAdvice(for: g.ex, deload: session.deload ?? false, today: session.slotDate)
                     PageSection(g.ex.name, trailing: { exerciseMenu(g.ex, session: session, index: i, count: groups.count) }) {
                         Button { historyTarget = g.ex } label: {
-                            Text("Shoot for \(a.target)" + (a.range.map { " · \($0)" } ?? ""))
+                            Text("Shoot for \(a.target)")
                                 .font(.subheadline).foregroundStyle(Page.secondary)
                         }
                         .buttonStyle(.plain)

@@ -221,14 +221,13 @@ struct DayScreen: View {
                     PropertyRow(icon: "circle.dashed", label: "Status") {
                         Text(done ? "Done" : date == todayKey ? "Today" : date < todayKey ? "Missed" : "Upcoming")
                     }
-                    if let liftDay, !liftDay.focus.isEmpty {
-                        PropertyRow(icon: "scope", label: "Focus") { Text(liftDay.focus) }
-                    }
                     if !exercises.isEmpty {
                         PropertyRow(icon: "list.bullet", label: "Exercises") { Text("\(exercises.count)") }
                     }
                     if let run = slot?.run {
-                        PropertyRow(icon: "figure.run", label: "Run") { Text("\(run.durationMin) min · \(run.label.effort)") }
+                        PropertyRow(icon: "figure.run", label: "Run") {
+                            HStack(spacing: 8) { Text("\(run.durationMin) min"); Tag(text: run.label.effort) }
+                        }
                     }
                     if let liftDay {
                         StartButton(day: liftDay, date: date).padding(.top, 14)
@@ -247,13 +246,8 @@ struct DayScreen: View {
                                         if let note = a.note { Text(note).font(.caption).foregroundStyle(Page.secondary) }
                                     }
                                     Spacer(minLength: 8)
-                                    VStack(alignment: .trailing, spacing: 3) {
-                                        Text(a.target).fontWeight(.semibold).foregroundStyle(Page.text).monospacedDigit()
-                                        if let r = a.range {
-                                            Text(r).font(.caption).foregroundStyle(Page.secondary).monospacedDigit()
-                                        }
-                                    }
-                                    .lineLimit(1)
+                                    Text(a.target).fontWeight(.semibold).foregroundStyle(Page.text).monospacedDigit()
+                                        .lineLimit(1)
                                 }
                                 .padding(.vertical, 10)
                                 if ex.id != exercises.last?.id { Rectangle().fill(Page.divider).frame(height: 1) }
@@ -264,12 +258,16 @@ struct DayScreen: View {
 
                 if let run = slot?.run {
                     PageSection(liftDay != nil ? "Then run" : "Run") {
-                        Text("\(run.label.effort) · \(zoneLabel(run.hrZoneMin, run.hrZoneMax)) bpm" +
-                             (run.label.isEasy ? " · about \(Zone2.milesLabel(run.durationMin))" : ""))
-                            .font(.subheadline).foregroundStyle(Page.secondary)
+                        VStack(alignment: .leading, spacing: 0) {
+                            PropertyRow(icon: "gauge.with.dots.needle.33percent", label: "Effort") { Text(run.label.effort) }
+                            PropertyRow(icon: "heart", label: "Heart rate") { Text("\(zoneLabel(run.hrZoneMin, run.hrZoneMax)) bpm") }
+                            if run.label.isEasy {
+                                PropertyRow(icon: "location", label: "Distance") { Text("About \(Zone2.milesLabel(run.durationMin))") }
+                            }
+                        }
                         if let notes = run.notes { Text(notes).font(.subheadline).foregroundStyle(Page.text) }
                         if let logged = connections.run(on: date) {
-                            Label("Done · \(logged.summary)", systemImage: "checkmark").foregroundStyle(Page.text)
+                            PropertyRow(icon: "checkmark", label: "Done") { Text(logged.summary) }
                         } else if let week {
                             RunCoachRow(advice: RunCoach.advice(run, date: date, schedule: week, runs: connections.runs))
                         }
@@ -390,5 +388,18 @@ private struct TodayTile: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Page.fill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .contentShape(Rectangle())
+    }
+}
+
+/// A small gray capsule for a short label, like a weekday or "Zone 2".
+struct Tag: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(Page.text)
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(Page.fill, in: Capsule())
     }
 }

@@ -74,10 +74,14 @@ struct PlanView: View {
         let dows = store.db.weeks.first.map { w in w.slots.filter { $0.liftDayId == day.id }.map { $0.dow.short } } ?? []
         return HStack(spacing: 14) {
           IconBadge(systemName: "dumbbell.fill", color: Theme.lift, size: 36)
-          VStack(alignment: .leading, spacing: 3) {
+          VStack(alignment: .leading, spacing: 6) {
             Text(day.name).font(.headline)
-            Text([dows.joined(separator: ", "), "\(count) exercises", day.focus].filter { !$0.isEmpty }.joined(separator: " · "))
+            HStack(spacing: 6) {
+              ForEach(dows, id: \.self) { Tag(text: $0) }
+              Text(count == 1 ? "1 exercise" : "\(count) exercises")
                 .font(.subheadline).foregroundStyle(.secondary)
+                .padding(.leading, dows.isEmpty ? 0 : 4)
+            }
           }
         }
         .padding(.vertical, 4)
@@ -87,7 +91,7 @@ struct PlanView: View {
         guard let week else { return "Not set" }
         let lifts = week.slots.filter { $0.liftDayId != nil }.count
         let runs = week.slots.filter { $0.run != nil }.count
-        return "\(lifts) lifts · \(runs) runs a week"
+        return "\(lifts) lifts, \(runs) runs a week"
     }
 }
 
@@ -97,7 +101,6 @@ struct DayDetailView: View {
     let dayId: Int
     @Environment(Store.self) private var store
     @State private var name = ""
-    @State private var focus = ""
     @State private var historyTarget: Exercise?
 
     var body: some View {
@@ -107,7 +110,6 @@ struct DayDetailView: View {
             List {
                 Section("Day") {
                     TextField("Name", text: $name).onSubmit(saveDay)
-                    TextField("Focus", text: $focus).onSubmit(saveDay)
                 }
                 Section("Exercises") {
                     ForEach(exercises) { ex in
@@ -142,7 +144,7 @@ struct DayDetailView: View {
             .navigationTitle(day.name)
             .pageBackground()
             .toolbar { EditButton() }
-            .onAppear { name = day.name; focus = day.focus }
+            .onAppear { name = day.name }
             .onDisappear(perform: saveDay)
             .sheet(item: $historyTarget) { ex in
                 NavigationStack { ExerciseHistoryView(ex: ex) }
@@ -156,8 +158,8 @@ struct DayDetailView: View {
     private func saveDay() {
         guard let day = store.db.day(dayId) else { return }
         let n = name.trimmingCharacters(in: .whitespaces)
-        if (!n.isEmpty && n != day.name) || focus != day.focus {
-            store.mutate { $0.updateDay(dayId, name: n.isEmpty ? nil : n, focus: focus) }
+        if !n.isEmpty && n != day.name {
+            store.mutate { $0.updateDay(dayId, name: n) }
         }
     }
 }
