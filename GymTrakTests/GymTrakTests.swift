@@ -519,12 +519,16 @@ struct SpotifyAuthTests {
         #expect(r.map(\.sessionId) == [nil, "a", "b"])
     }
 
-    @Test func restDaysAreUnplannedLiftDaysFromTheStart() {
+    @Test func restDaysHaveNoLiftAndNoRun() {
+        // Monday lift, Wednesday run, the rest off.
+        let run = RunPrescription(label: .easy, timing: .standalone, durationMin: 30, hrZoneMin: 0, hrZoneMax: 0, hrHardCap: 0, strides: false)
         let s = Snapshot(days: [Day(id: 1, name: "Upper A", focus: "")], exercises: [],
                          programWeeks: [ProgramWeek(id: 1, phase: "", startDate: "2026-10-05", isDeload: false,
-                                                    slots: [ProgramSlot(dow: .mon, liftDayId: 1, run: nil)], updatedAt: 0)])
+                                                    slots: [ProgramSlot(dow: .mon, liftDayId: 1, run: nil),
+                                                            ProgramSlot(dow: .wed, liftDayId: nil, run: run)], updatedAt: 0)])
         #expect(s.isRestDay("2026-10-06"))
         #expect(s.isRestDay("2026-11-03"))
+        #expect(!s.isRestDay("2026-10-07"))
         #expect(!s.isRestDay("2026-10-12"))
         #expect(!s.isRestDay("2026-10-04"))
     }

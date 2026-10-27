@@ -166,12 +166,12 @@ extension Snapshot {
         return out
     }
 
-    /// No lift planned that day, from the program start on. Future days count too.
+    /// No lift and no run planned that day, from the program start on. Future days count too.
     func isRestDay(_ key: String) -> Bool {
         guard let start = programStart, key >= start else { return false }
         let d = DateKey.date(key)
         guard let week = scheduleWeek(d) else { return false }
-        return week.slot(DateKey.dow(d))?.liftDayId == nil
+        return week.slot(DateKey.dow(d))?.isRest ?? true
     }
 
     private func doneSets(_ sessionId: String) -> [(WorkoutSet, Double?)] {
