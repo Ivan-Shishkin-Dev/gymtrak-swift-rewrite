@@ -21,15 +21,23 @@ struct TodayView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    // Greeting sits in the page, lower and bigger, so Start lands under the thumb.
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(name.isEmpty ? "Today" : "Hi, \(name)")
-                            .font(.system(size: 38, weight: .bold)).foregroundStyle(Page.text)
-                        Text(DateKey.label(todayKey, "EEEE, MMMM d"))
-                            .font(.title3).foregroundStyle(Page.secondary)
+                    // Greeting and settings share one row at the top of the page.
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(name.isEmpty ? "Today" : "Hi, \(name)")
+                                .font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text)
+                            Text(DateKey.label(todayKey, "EEEE, MMMM d"))
+                                .font(.title3).foregroundStyle(Page.secondary)
+                        }
+                        .accessibilityAddTraits(.isHeader)
+                        Spacer()
+                        SettingsButton()
+                            .font(.title3)
+                            .frame(width: 44, height: 44)
+                            .background(Page.fill, in: Circle())
+                            .foregroundStyle(Page.text)
                     }
-                    .padding(.top, 36)
-                    .accessibilityAddTraits(.isHeader)
+                    .padding(.top, 20)
 
                     if let week = db.scheduleWeek(now) {
                         properties(week, todayKey: todayKey)
@@ -44,10 +52,7 @@ struct TodayView: View {
             .refreshable { await connections.refresh() }
             .background(Page.bg)
             .navigationTitle("Today")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(removing: .title)
-            .toolbarBackground(Page.bg, for: .navigationBar)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { SettingsButton() } }
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: String.self) { DayScreen(date: $0) }
             .navigationDestination(for: SessionRef.self) { SessionDetailView(sessionId: $0.id) }
         }
