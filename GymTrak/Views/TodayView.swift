@@ -43,7 +43,6 @@ struct TodayView: View {
                         if !record.isEmpty {
                             PageSection("Adherence") { TrackRecord(days: record) }
                         }
-                        recent
                     } else {
                         noSchedule
                     }
@@ -123,31 +122,6 @@ struct TodayView: View {
     }
 
     // MARK: Recent
-
-    /// The last 5 days, one row each: the day, what you lifted on the left, your run on the right.
-    private var recent: some View {
-        let db = store.db
-        let since = DateKey.addDays(DateKey.key(Date()), -4)   // today and the 4 days before
-        let lifts = db.historyEntries(synced: []).filter { $0.date >= since && $0.kind != .run }
-        let runs = db.allRuns(synced: connections.runs).filter { $0.date >= since }
-        let days = Set(lifts.map(\.date) + runs.map(\.date)).sorted(by: >)
-
-        return PageSection("Recent", trailing: {
-            Button("See all") { nav.tab = .history }.buttonStyle(.plain).underline()
-        }) {
-            if days.isEmpty {
-                Text("Nothing in the last 5 days.").foregroundStyle(Page.secondary).padding(.vertical, 6)
-            }
-            VStack(spacing: 0) {
-                ForEach(days, id: \.self) { day in
-                    // Best workout of the day first, so a quick false start doesn't hide the real one.
-                    let lift = lifts.filter { $0.date == day }
-                        .max { ($0.outcome?.rawValue ?? 0) < ($1.outcome?.rawValue ?? 0) }
-                    RecentDayRow(date: day, lift: lift, run: runs.first { $0.date == day })
-                }
-            }
-        }
-    }
 
     private var noSchedule: some View {
         PageSection("Pick a workout") {
@@ -513,69 +487,5 @@ struct TrackRecord: View {
             start = DateKey.addDays(start, 7)
         }
         return out
-    }
-}
-
-/// One day in Recent: the date, the lift (left half), the run (right half). Empty halves stay blank.
-private struct RecentDayRow: View {
-    let date: String
-    let lift: HistoryEntry?
-    let run: RunRecord?
-
-    /// Both text lines get a fixed height so the date, the lift and the run line up row for row.
-    private let line1: CGFloat = 22
-    private let line2: CGFloat = 22
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(DateKey.label(date, "d")).font(.body.weight(.semibold)).foregroundStyle(Page.text)
-                    .frame(height: line1)
-                Text(DateKey.label(date, "EEE")).font(.subheadline).foregroundStyle(Page.secondary)
-                    .frame(height: line2)
-            }
-            .frame(width: 36, alignment: .leading)
-
-            Group {
-                if let lift, case .lift(let id) = lift.kind {
-                    NavigationLink(value: SessionRef(id: id)) {
-                        cell(icon: "dumbbell", title: lift.title, sub: lift.detail.components(separatedBy: " · ").first ?? "",
-                             outcome: lift.outcome)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    Color.clear
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Group {
-                if let run {
-                    cell(icon: "figure.run", title: run.name == "Run" ? "Run" : run.name,
-                         sub: run.miles > 0 ? String(format: "%.1f mi", run.miles) : "\(Int(run.minutes.rounded())) min",
-                         outcome: nil)
-                } else {
-                    Color.clear
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.vertical, 10)
-    }
-
-    private func cell(icon: String, title: String, sub: String, outcome: LiftOutcome?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: icon).font(.subheadline).foregroundStyle(Page.secondary)
-                Text(title).foregroundStyle(Page.text).lineLimit(1).minimumScaleFactor(0.8)
-            }
-            .frame(height: line1)
-            HStack(spacing: 6) {
-                Text(sub).font(.subheadline).foregroundStyle(Page.secondary).lineLimit(1)
-                if let outcome { Tag(text: outcome.label, tint: outcome.color) }
-            }
-            .frame(height: line2)
-        }
-        .contentShape(Rectangle())
     }
 }
