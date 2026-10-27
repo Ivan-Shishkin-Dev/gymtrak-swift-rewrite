@@ -381,28 +381,38 @@ extension LiftOutcome {
 struct TrackRecord: View {
     let days: [ActivityDay]
     var isRest: (String) -> Bool = { _ in false }
+    /// History's week: shows its month Monday-first so the week is one row, dims the other rows, hides the month arrows.
+    var focus: ClosedRange<String>? = nil
+    /// With `focus`: tapping a day picks it instead of opening it.
+    var onPick: ((String) -> Void)? = nil
     @State private var monthOffset = 0
 
     var body: some View {
         let cal = DateKey.calendar
         let thisMonth = cal.date(from: cal.dateComponents([.year, .month], from: Date())) ?? Date()
-        let month = cal.date(byAdding: .month, value: monthOffset, to: thisMonth) ?? thisMonth
+        let month = focus.map { f in
+            let d = DateKey.date(f.lowerBound)
+            return cal.date(from: cal.dateComponents([.year, .month], from: d)) ?? d
+        } ?? cal.date(byAdding: .month, value: monthOffset, to: thisMonth) ?? thisMonth
         let monthKey = String(DateKey.key(month).prefix(7))
         let byDate = Dictionary(days.map { ($0.date, $0) }, uniquingKeysWith: { a, _ in a })
-        let weeks = Self.weeks(of: month)
+        let weeks = Self.weeks(of: month, mondayFirst: focus != nil)
+        let letters = focus != nil ? ["M", "T", "W", "T", "F", "S", "S"] : ["S", "M", "T", "W", "T", "F", "S"]
         let todayKey = DateKey.key(Date())
         let earliest = days.first.map { String($0.date.prefix(7)) } ?? monthKey
 
         VStack(spacing: 10) {
             HStack {
                 // Arrows only show when there's a month to go to.
+                let canBack = focus == nil && monthKey > earliest
+                let canForward = focus == nil && monthOffset < 0
                 Button { monthOffset -= 1 } label: { Image(systemName: "chevron.left") }
-                    .disabled(monthKey <= earliest).opacity(monthKey <= earliest ? 0 : 1)
+                    .disabled(!canBack).opacity(canBack ? 1 : 0)
                 Spacer()
                 Text(DateKey.label(DateKey.key(month), "MMMM yyyy")).font(.subheadline.weight(.semibold)).foregroundStyle(Page.text)
                 Spacer()
                 Button { monthOffset += 1 } label: { Image(systemName: "chevron.right") }
-                    .disabled(monthOffset >= 0).opacity(monthOffset >= 0 ? 0 : 1)
+                    .disabled(!canForward).opacity(canForward ? 1 : 0)
             }
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(Page.secondary)
@@ -410,15 +420,17 @@ struct TrackRecord: View {
 
             Grid(horizontalSpacing: 4, verticalSpacing: 4) {
                 GridRow {
-                    ForEach(["S", "M", "T", "W", "T", "F", "S"].indices, id: \.self) { i in
-                        Text(["S", "M", "T", "W", "T", "F", "S"][i])
+                    ForEach(letters.indices, id: \.self) { i in
+                        Text(letters[i])
                             .font(.caption2.weight(.medium)).foregroundStyle(Page.tertiary)
                     }
                 }
                 ForEach(weeks, id: \.self) { week in
                     GridRow {
                         ForEach(week, id: \.self) { key in
-                            cell(key, inMonth: key.hasPrefix(monthKey), day: byDate[key], isToday: key == todayKey)
+                            cell(key, inMonth: key.hasPrefix(monthKey) || focus?.contains(key) == true,
+                                 day: byDate[key], isToday: key == todayKey)
+                                .opacity(focus.map { $0.contains(key) ? 1 : 0.35 } ?? 1)
                         }
                     }
                 }
@@ -462,7 +474,12 @@ struct TrackRecord: View {
             .frame(maxWidth: .infinity)
             .contentShape(shape)
 
-        if inMonth, let day {
+        if inMonth, let onPick {
+            Button { onPick(key) } label: { tile }
+                .buttonStyle(.plain)
+                .accessibilityLabel(DateKey.label(key, "EEEE, MMMM d"))
+                .accessibilityHint("Shows this week")
+        } else if inMonth, let day {
             Group {
                 if let id = day.sessionId {
                     NavigationLink(value: SessionRef(id: id)) { tile }
@@ -484,12 +501,13 @@ struct TrackRecord: View {
     static let restFill = Page.fill
     static let restInk = Page.secondary
 
-    /// The month's days as Sunday-first weeks, padded with the neighboring months' days.
-    static func weeks(of month: Date) -> [[String]] {
+    /// The month's days as Sunday-first (or Monday-first) weeks, padded with the neighboring months' days.
+    static func weeks(of month: Date, mondayFirst: Bool = false) -> [[String]] {
         let cal = DateKey.calendar
         let last = DateKey.key(cal.date(byAdding: DateComponents(month: 1, day: -1), to: month) ?? month)
         // Calendar weekday: 1 = Sunday, so step back to the Sunday on or before the 1st.
-        var start = DateKey.addDays(DateKey.key(month), 1 - cal.component(.weekday, from: month))
+        var start = mondayFirst ? DateKey.mondayKey(month)
+            : DateKey.addDays(DateKey.key(month), 1 - cal.component(.weekday, from: month))
         var out: [[String]] = []
         while start <= last {
             out.append((0..<7).map { DateKey.addDays(start, $0) })
