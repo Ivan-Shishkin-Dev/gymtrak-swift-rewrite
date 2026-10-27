@@ -10,7 +10,7 @@ A personal lifting and running tracker for iPhone and Apple Watch, written in Sw
 | **Workout** | The live workout. One set at a time with big − / + controls, or every exercise in a list. Rest timer, coach targets, PRs. |
 | **History** | One Monday–Sunday week at a time, lit up on a month calendar (tap a day to jump to its week): workouts, runs, miles, average workout time, and each finished session. |
 | **Plan** | Lift days and their exercises (the source of truth for weights), plus the weekly schedule of lifts and runs. |
-| **Settings** | Name, accent color, Strava and Apple Health, coach, notifications, rest timer, backup export/import. |
+| **Settings** | Name, accent color, Apple Health, coach, notifications, rest timer, backup export/import. |
 
 ### Adherence calendar
 
@@ -61,11 +61,9 @@ Planned 7 days ahead and rebuilt every time the data changes (`GymTrak/Store/Not
 ### Beyond the app
 
 - **Live Activity**: the rest countdown and the next set, on the lock screen and in the Dynamic Island.
-- **Widgets**: a Today widget (small, medium, and three lock-screen sizes).
 - **Apple Watch**: today's plan, the live set with the Digital Crown, rest haptics, and heart rate and calories saved to Apple Health. The Ultra's Action Button starts today's lift. Watch complications too.
-- **Apple Health**: reads runs, steps and calories. Saves lifts.
-- **Strava**: reads runs. A run found in both Strava and Health counts once.
-- **Spotify**: play/pause and skip during a workout (needs a client ID and Premium).
+- **Apple Health**: reads runs, steps, calories and sleep. Saves lifts.
+- **Strava**: not connected directly. Turn on Strava → Settings → Applications, Services and Devices → Health, and Strava runs reach GymTrak through Apple Health.
 
 ## Requirements
 
@@ -79,16 +77,8 @@ Planned 7 days ahead and rebuilt every time the data changes (`GymTrak/Store/Not
    ```bash
    xcodegen generate
    ```
-2. Copy the secrets file. Every value is optional; the app runs without them.
-   ```bash
-   cp Secrets.example.xcconfig Secrets.xcconfig
-   ```
-   | Key | Where to get it |
-   | --- | --- |
-   | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` | strava.com/settings/api. Callback domain: `strava` |
-   | `SPOTIFY_CLIENT_ID` | developer.spotify.com. Redirect URI: `gymtrak://spotify` |
-3. Set your team in `Config.xcconfig` (`DEVELOPMENT_TEAM`).
-4. Open `GymTrak.xcodeproj` and press ⌘R.
+2. Set your team in `Config.xcconfig` (`DEVELOPMENT_TEAM`).
+3. Open `GymTrak.xcodeproj` and press ⌘R.
 
 ### Install on an iPhone from the terminal
 
@@ -138,8 +128,7 @@ xcodebuild test -scheme GymTrak -destination 'platform=iOS Simulator,name=iPhone
 - **One snapshot.** The whole database is one `Snapshot` value (`Model/Models.swift`): days, exercises, the schedule, sessions and sets. Its JSON shape matches the web app's `gt_state`.
 - **One store.** `Store/Store.swift` holds the snapshot in memory and writes `Documents/gymtrak.json` after every change. The iPhone's iCloud Backup includes that file.
 - **Pure changes.** Every edit is a plain function on `Snapshot` in `Model/Actions.swift`, run through `store.mutate { … }`. Reads work the same way: the coach, history, stats and notification plans are pure functions, which keeps them easy to test.
-- **The phone is in charge.** The widget, the watch and the Live Activity never touch the store. The app sends each one a small summary:
-  - widgets: `WidgetData`, written to the App Group `group.dev.ivanshishkin.gymtrak`
+- **The phone is in charge.** The watch and the Live Activity never touch the store. The app sends each one a small summary:
   - watch: `WatchState`, over WatchConnectivity (`Store/WatchBridge.swift`)
   - Live Activity: `RestActivityAttributes` (`Store/LiveRest.swift`)
 
@@ -150,10 +139,10 @@ xcodebuild test -scheme GymTrak -destination 'platform=iOS Simulator,name=iPhone
 ```
 GymTrak/            iPhone app
   Model/            Snapshot types, actions, coach, history, loads, dates and schedule
-  Store/            Store, rest timer, Live Activity, notifications, Health/Strava, Spotify, watch and widget bridges
+  Store/            Store, rest timer, Live Activity, notifications, Apple Health, watch bridge
   Views/            Screens; Theme.swift has the colors and shared pieces
-Shared/             Code used by more than one target (widget data, watch messages, Live Activity)
-Widgets/            iPhone widget and the rest Live Activity
+Shared/             Code used by more than one target (day summary, watch messages, Live Activity)
+Widgets/            The rest-timer Live Activity
 Watch/              Apple Watch app
 WatchWidgets/       Watch complications
 GymTrakTests/       Unit tests
@@ -171,6 +160,4 @@ project.yml         XcodeGen spec (run `xcodegen generate` after adding or remov
 
 ## Not done yet
 
-- Strava: no API app has been created, so Connect doesn't work yet.
-- Spotify: needs a client ID.
 - The watch app hasn't been installed on a real watch.

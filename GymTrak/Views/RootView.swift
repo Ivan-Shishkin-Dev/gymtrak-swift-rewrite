@@ -96,7 +96,6 @@ struct RootView: View {
     }
 
     /// One bar above the tab bar while a workout is open: progress, rest, Resume.
-    /// Widgets and reminders follow the data.
     /// Rest countdown on the lock screen, with the set that's up next.
     private func syncLiveRest() {
         let w = store.db.watchState(restEndsAt: rest.endsAt).workout
@@ -104,7 +103,6 @@ struct RootView: View {
     }
 
     private func refreshOutputs() {
-        WidgetBridge.publish(store.db, runs: connections.runs)
         if rest.isActive { syncLiveRest() }
         WatchBridge.shared.push(runs: connections.runs)
         let db = store.db, runs = connections.runs

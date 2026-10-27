@@ -1,5 +1,4 @@
 import Foundation
-import WidgetKit
 
 extension Snapshot {
     /// The widget summary: the weekly schedule, what's done, and the streak.
@@ -25,17 +24,5 @@ extension Snapshot {
                           doneDates: Array(doneDates.union(runDates)).sorted(),
                           streakWeeks: streakWeeks(today: now, doneExtra: runDates),
                           updatedAt: now)
-    }
-}
-
-enum WidgetBridge {
-    /// Write the summary and refresh the widgets, only when something changed.
-    @MainActor static func publish(_ db: Snapshot, runs: [RunActivity]) {
-        let data = db.widgetData(runs: runs)
-        var old = WidgetData.load()
-        old?.updatedAt = data.updatedAt
-        guard old != data else { return }
-        data.save()
-        WidgetCenter.shared.reloadAllTimelines()
     }
 }
