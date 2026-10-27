@@ -257,7 +257,7 @@ struct DayScreen: View {
                 }
 
                 if let run = slot?.run {
-                    PageSection(liftDay != nil ? "Then run" : "Run") {
+                    PageSection("Run") {
                         VStack(alignment: .leading, spacing: 0) {
                             PropertyRow(icon: "gauge.with.dots.needle.33percent", label: "Effort") { Text(run.label.effort) }
                             PropertyRow(icon: "heart", label: "Heart rate") { Text("\(zoneLabel(run.hrZoneMin, run.hrZoneMax)) bpm") }
