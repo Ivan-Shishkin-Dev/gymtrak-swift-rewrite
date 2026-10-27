@@ -205,7 +205,7 @@ struct DayScreen: View {
                                 let a = db.liftAdvice(for: ex, today: date)
                                 // Two columns: name left, target right. Every row lines up the same way.
                                 HStack(alignment: .firstTextBaseline, spacing: 12) {
-                                    Text(ex.name).foregroundStyle(Page.text).lineLimit(1)
+                                    Text(ex.name).foregroundStyle(Page.text).lineLimit(1).minimumScaleFactor(0.8)
                                     Spacer(minLength: 8)
                                     Text(a.target).fontWeight(.semibold).foregroundStyle(Page.text).monospacedDigit()
                                         .lineLimit(1)

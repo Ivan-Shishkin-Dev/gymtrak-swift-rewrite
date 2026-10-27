@@ -125,6 +125,8 @@ struct SetView: View {
     private func set(_ c: WatchState.Current, now: Date) -> some View {
         let (load, unit) = split(c.weight)
         VStack(alignment: .leading, spacing: 0) {
+            // In the page, not the title bar: long names ("Machine Single-Leg Extension") wrap instead of cutting off.
+            Text(c.exercise).font(.headline).lineLimit(2).minimumScaleFactor(0.75)
             Spacer(minLength: 0)
             metric(load, unit: unit ?? "", active: !editingReps) { editingReps = false }
             metric(c.reps.isEmpty ? "—" : c.reps, unit: "reps", active: editingReps) { editingReps = true }
@@ -153,7 +155,6 @@ struct SetView: View {
             model.send(reps ? .stepReps(setId: c.setId, direction: dir) : .stepLoad(setId: c.setId, direction: dir))
         }
         .onAppear { crownFocused = true }
-        .navigationTitle(c.exercise)
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 Button { editingReps.toggle() } label: { Image(systemName: "arrow.up.arrow.down") }
@@ -213,7 +214,8 @@ struct SetView: View {
                     Text("REST").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                     Text(clock(left)).font(.system(size: 44, weight: .semibold, design: .rounded)).monospacedDigit()
                     if let next = workout.current {
-                        Text(next.exercise).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        Text(next.exercise).font(.caption2).foregroundStyle(.secondary)
+                            .lineLimit(2).minimumScaleFactor(0.8).multilineTextAlignment(.center)
                         Text("\(next.weight) × \(next.reps)").font(.footnote.weight(.semibold).monospacedDigit())
                             .lineLimit(1).minimumScaleFactor(0.7)
                     }
