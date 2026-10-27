@@ -57,8 +57,7 @@ enum Notifier {
 
             if slot.kind != .rest && !done {
                 if prefs.workout, at(day, prefs.workoutTime) > now {
-                    let body = slot.coach.map { "Shoot for \($0)." } ?? (slot.detail.isEmpty ? "Let's go." : slot.detail)
-                    out.append(.init(id: "\(prefix)workout-\(key)", title: "\(slot.title) today", body: body,
+                    out.append(.init(id: "\(prefix)workout-\(key)", title: "\(slot.title) today", body: "",
                                      fireDate: at(day, prefs.workoutTime)))
                 }
                 if prefs.missed, at(day, prefs.missedTime) > now {
@@ -76,18 +75,15 @@ enum Notifier {
         return out.sorted { $0.fireDate < $1.fireDate }
     }
 
-    /// "4 of 5 workouts · 32k lb · 9.1 mi"
+    /// Workouts on one line, miles on the next: "4 of 5 workouts\n9.1 mi".
     static func recapText(_ db: Snapshot, data: WidgetData, runs: [RunActivity], sunday: Date) -> String {
         let p = data.weekProgress(sunday)
         let monday = DateKey.mondayKey(sunday)
         let sundayKey = DateKey.key(sunday)
-        let lb = db.finishedLifts.filter { $0.slotDate >= monday && $0.slotDate <= sundayKey }
-            .reduce(0) { $0 + db.sessionPounds($1.id) }
         let miles = db.allRuns(synced: runs).filter { $0.date >= monday && $0.date <= sundayKey }.reduce(0) { $0 + $1.miles }
-        var parts = ["\(p.done) of \(p.planned) workouts"]
-        if lb > 0 { parts.append(fmtPounds(lb)) }
-        if miles > 0 { parts.append(String(format: "%.1f mi", miles)) }
-        return parts.joined(separator: " · ")
+        var lines = ["\(p.done) of \(p.planned) workouts"]
+        if miles > 0 { lines.append(String(format: "%.1f mi", miles)) }
+        return lines.joined(separator: "\n")
     }
 
     // MARK: Scheduling

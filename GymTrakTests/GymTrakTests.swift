@@ -605,7 +605,15 @@ struct SpotifyAuthTests {
         #expect(ids.contains("gt-recap-2026-11-01"))               // Sunday
         #expect(!ids.contains { $0.hasPrefix("gt-fact") })         // off by default
         #expect(p.first { $0.id == "gt-workout-2026-10-26" }?.title == "Upper A today")
-        #expect(p.first { $0.id == "gt-workout-2026-10-26" }?.body == "Shoot for Bench · 200 lb × 6.")
+        #expect(p.first { $0.id == "gt-workout-2026-10-26" }?.body == "")
+    }
+
+    @Test func weeklyRecapIsWorkoutsThenMiles() {
+        let sunday = DateKey.date("2026-11-01").addingTimeInterval(12 * 3600)
+        let runs = [RunActivity(id: "r", source: .health, name: "Run", date: "2026-10-28", start: now, minutes: 30, miles: 3)]
+        let text = Notifier.recapText(snap(), data: snap().widgetData(runs: runs, now: now), runs: runs, sunday: sunday)
+        #expect(text.hasSuffix(" workouts\n3.0 mi"))
+        #expect(!text.contains("lb") && !text.contains("·"))
     }
 
     @Test func doneDaysAndPastTimesAreSkipped() {

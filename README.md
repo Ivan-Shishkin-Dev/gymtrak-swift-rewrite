@@ -8,7 +8,7 @@ A personal lifting and running tracker for iPhone and Apple Watch, written in Sw
 | --- | --- |
 | **Today** | Greeting and date. Today's Lift and Run tiles, Start Workout, Steps and Calories from Apple Health. Adherence calendar. |
 | **Workout** | The live workout. One set at a time with big − / + controls, or every exercise in a list. Rest timer, coach targets, PRs. |
-| **History** | One Monday–Sunday week at a time: workouts, runs, miles, average workout time, and each finished session. |
+| **History** | One Monday–Sunday week at a time, lit up on a month calendar (tap a day to jump to its week): workouts, runs, miles, average workout time, and each finished session. |
 | **Plan** | Lift days and their exercises (the source of truth for weights), plus the weekly schedule of lifts and runs. |
 | **Settings** | Name, accent color, Strava and Apple Health, coach, notifications, rest timer, backup export/import. |
 
@@ -52,9 +52,9 @@ Planned 7 days ahead and rebuilt every time the data changes (`GymTrak/Store/Not
 
 | When | Title | Body |
 | --- | --- | --- |
-| 7:00 AM on a training day | "Lower A today" | "Shoot for …" (the coach target), or "Let's go." |
+| 7:00 AM on a training day | "Lower A today" | none |
 | 8:00 PM if it's not logged | "Lower A isn't logged yet" | "Still time to keep the week clean." |
-| Sunday 7:00 PM | "Your week" | "4 of 5 workouts · 32k lb · 9.1 mi" |
+| Sunday 7:00 PM | "Your week" | "4 of 5 workouts", then "9.1 mi" on the next line |
 | When rest ends | "Rest's up" | "Time for the next set." |
 
 ### Beyond the app
