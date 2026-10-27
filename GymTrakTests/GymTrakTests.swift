@@ -501,11 +501,14 @@ struct SpotifyAuthTests {
         #expect(s.outcome("s1") == .skipped)
     }
 
-    @Test func trackRecordMarksMissedLiftDaysSkipped() {
-        // Mondays are lift days from Oct 5. Oct 5: nothing. Oct 12: all sets. Oct 19: half. Oct 26 (today): nothing yet.
+    @Test func activityRecordMarksLiftsAndRuns() {
+        // Monday lift with a run, Wednesday run only. Oct 5: nothing. Oct 7: ran. Oct 12: lifted. Oct 14: missed the run.
+        // Oct 19: lifted and ran. Oct 26 (today): nothing yet.
+        let run = RunPrescription(label: .easy, timing: .standalone, durationMin: 30, hrZoneMin: 0, hrZoneMax: 0, hrHardCap: 0, strides: false)
         var s = Snapshot(days: [Day(id: 1, name: "Upper A", focus: "")], exercises: [],
                          programWeeks: [ProgramWeek(id: 1, phase: "", startDate: "2026-10-05", isDeload: false,
-                                                    slots: [ProgramSlot(dow: .mon, liftDayId: 1, run: nil)], updatedAt: 0)])
+                                                    slots: [ProgramSlot(dow: .mon, liftDayId: 1, run: run),
+                                                            ProgramSlot(dow: .wed, liftDayId: nil, run: run)], updatedAt: 0)])
         for (id, date, ticked) in [("a", "2026-10-12", 2), ("b", "2026-10-19", 1)] {
             s.sessions.append(Session(id: id, dayId: 1, date: date, startedAt: 0, finishedAt: 1, updatedAt: 0, type: .lift))
             for i in 0..<2 {
@@ -513,10 +516,12 @@ struct SpotifyAuthTests {
                                          weight: "100 lb", reps: "× 5", completedAt: i < ticked ? 1 : nil, updatedAt: 0))
             }
         }
-        let r = s.liftRecord(today: DateKey.date("2026-10-26").addingTimeInterval(6 * 3600))
-        #expect(r.map(\.date) == ["2026-10-05", "2026-10-12", "2026-10-19"])
-        #expect(r.map(\.outcome) == [.skipped, .finished, .almost])
-        #expect(r.map(\.sessionId) == [nil, "a", "b"])
+        let r = s.activityRecord(today: DateKey.date("2026-10-26").addingTimeInterval(6 * 3600),
+                                 runDates: ["2026-10-07", "2026-10-19"])
+        #expect(r.map(\.date) == ["2026-10-05", "2026-10-07", "2026-10-12", "2026-10-14", "2026-10-19", "2026-10-21"])
+        #expect(r.map(\.lift) == [.missed, nil, .done, nil, .done, nil])
+        #expect(r.map(\.run) == [.missed, .done, .missed, .missed, .done, .missed])
+        #expect(r[2].sessionId == "a")
     }
 
     @Test func restDaysHaveNoLiftAndNoRun() {

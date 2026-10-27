@@ -45,11 +45,15 @@ enum LiftOutcome: Int, Sendable, Hashable, CaseIterable {
     case skipped, almost, finished
 }
 
-/// One lift day in the track record.
-struct LiftDay: Hashable, Sendable {
+/// Whether a planned lift or run happened.
+enum DayMark: Sendable, Hashable { case done, missed }
+
+/// One day on the adherence calendar: what lifting and running happened.
+struct ActivityDay: Hashable, Sendable {
     var date: String
-    var outcome: LiftOutcome
-    /// The workout behind it; nil for a day skipped outright.
+    var lift: DayMark? = nil
+    var run: DayMark? = nil
+    /// The day's best workout, if one was logged.
     var sessionId: String? = nil
 }
 
@@ -140,9 +144,10 @@ extension Snapshot {
         return done == all.count ? .finished : .almost
     }
 
-    /// Every lift day from the program start to today, oldest first. A day with workouts takes its best one;
-    /// a planned lift day that passed with no workout is skipped. Today only counts once something is logged.
-    func liftRecord(today: Date) -> [LiftDay] {
+    /// Every day from the program start to today with a lift or run, oldest first.
+    /// A workout with at least one checked set counts as a lift; a planned lift or run that passed without one is missed.
+    /// `runDates` holds days with a synced run. Today only counts once something is done.
+    func activityRecord(today: Date, runDates: Set<String>) -> [ActivityDay] {
         guard let start = programStart else { return [] }
         let todayKey = DateKey.key(today)
         var best: [String: (LiftOutcome, String)] = [:]
@@ -150,17 +155,18 @@ extension Snapshot {
             let o = outcome(s.id)
             if o.rawValue > (best[s.slotDate]?.0.rawValue ?? -1) { best[s.slotDate] = (o, s.id) }
         }
-        var out: [LiftDay] = []
+        var out: [ActivityDay] = []
         var key = start
         while key <= todayKey {
-            if let (o, id) = best[key] {
-                out.append(LiftDay(date: key, outcome: o, sessionId: id))
-            } else if key < todayKey {
-                let d = DateKey.date(key)
-                if scheduleWeek(d)?.slot(DateKey.dow(d))?.liftDayId != nil {
-                    out.append(LiftDay(date: key, outcome: .skipped))
-                }
-            }
+            let d = DateKey.date(key)
+            let slot = scheduleWeek(d)?.slot(DateKey.dow(d))
+            let past = key < todayKey
+            var day = ActivityDay(date: key, sessionId: best[key]?.1)
+            if let o = best[key]?.0, o != .skipped { day.lift = .done }
+            else if past && (slot?.liftDayId != nil || best[key] != nil) { day.lift = .missed }
+            if runDates.contains(key) { day.run = .done }
+            else if past && slot?.run != nil { day.run = .missed }
+            if day.lift != nil || day.run != nil { out.append(day) }
             key = DateKey.addDays(key, 1)
         }
         return out

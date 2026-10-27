@@ -45,9 +45,9 @@ struct TodayView: View {
 
             if let week = db.scheduleWeek(now) {
                 properties(week, todayKey: todayKey)
-                let record = db.liftRecord(today: now)
+                let record = db.activityRecord(today: now, runDates: connections.runDates)
                 if !record.isEmpty {
-                    PageSection("Adherence") { TrackRecord(days: record, isRest: db.isRestDay) }
+                    PageSection("Adherence") { CalendarKey() } content: { TrackRecord(days: record, isRest: db.isRestDay) }
                 }
             } else {
                 noSchedule
@@ -376,10 +376,10 @@ extension LiftOutcome {
     }
 }
 
-/// A month of lift days, one row per week (Mon–Sun). Green finished, yellow almost, red skipped;
-/// rest days, unknown days and the future stay gray. Tap a colored day to open it.
+/// A month of training, one row per week (Sun–Sat). Green lift, blue run, split down the middle on days with both;
+/// faded when missed. Rest days get a moon; unknown days and the future stay gray. Tap a colored day to open it.
 struct TrackRecord: View {
-    let days: [LiftDay]
+    let days: [ActivityDay]
     var isRest: (String) -> Bool = { _ in false }
     @State private var monthOffset = 0
 
@@ -428,11 +428,22 @@ struct TrackRecord: View {
     }
 
     @ViewBuilder
-    private func cell(_ key: String, inMonth: Bool, day: LiftDay?, isToday: Bool) -> some View {
+    private func cell(_ key: String, inMonth: Bool, day: ActivityDay?, isToday: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
         let resting = inMonth && day == nil && isRest(key)
+        // Solid when everything planned happened, so the number reads dark on color.
+        let solid = day.map { $0.lift != .missed && $0.run != .missed } ?? false
         let tile = shape
-            .fill(inMonth ? (day?.outcome.color ?? (resting ? Self.restFill : Page.fill)) : .clear)
+            .fill(inMonth ? (resting ? Self.restFill : Page.fill) : .clear)
+            .overlay {
+                if inMonth, let day {
+                    HStack(spacing: 0) {
+                        if let m = day.lift { Rectangle().fill(DayColor.lift.opacity(m == .done ? 1 : 0.3)) }
+                        if let m = day.run { Rectangle().fill(DayColor.run.opacity(m == .done ? 1 : 0.3)) }
+                    }
+                    .clipShape(shape)
+                }
+            }
             .overlay(shape.strokeBorder(isToday ? Page.text : .clear, lineWidth: 1.5))
             .overlay {
                 if inMonth {
@@ -443,7 +454,7 @@ struct TrackRecord: View {
                             Image(systemName: "moon.zzz.fill").font(.system(size: 9, weight: .semibold))
                         }
                     }
-                    .foregroundStyle(day != nil ? Color.black.opacity(0.7) : resting ? Self.restInk : Page.tertiary)
+                    .foregroundStyle(solid ? Color.black.opacity(0.7) : day != nil ? Page.text : resting ? Self.restInk : Page.tertiary)
                 }
             }
             // Cells take the spare height so the page reaches the bottom of the screen.
@@ -460,16 +471,18 @@ struct TrackRecord: View {
                 }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(DateKey.label(key, "EEEE, MMMM d")), \(day.outcome.label)")
+            .accessibilityLabel([DateKey.label(key, "EEEE, MMMM d"),
+                                 day.lift.map { $0 == .done ? "Lifted" : "Missed lift" },
+                                 day.run.map { $0 == .done ? "Ran" : "Missed run" }].compactMap { $0 }.joined(separator: ", "))
         } else {
             tile.accessibilityHidden(!inMonth)
                 .accessibilityLabel(resting ? "\(DateKey.label(key, "EEEE, MMMM d")), Rest" : DateKey.label(key, "EEEE, MMMM d"))
         }
     }
 
-    /// Rest days: a quiet blue with a sleeping moon, so they never read as a missed day.
-    private static let restFill = Color(light: 0xDCE4F5, dark: 0x252C3D)
-    private static let restInk = Color(light: 0x5A6B8C, dark: 0x8A9CC2)
+    /// Rest days: gray with a sleeping moon, kept clear of the run blue.
+    static let restFill = Page.fill
+    static let restInk = Page.secondary
 
     /// The month's days as Sunday-first weeks, padded with the neighboring months' days.
     static func weeks(of month: Date) -> [[String]] {
@@ -483,5 +496,34 @@ struct TrackRecord: View {
             start = DateKey.addDays(start, 7)
         }
         return out
+    }
+}
+
+/// Calendar colors for each kind of training.
+enum DayColor {
+    static let lift = Color(light: 0x2DA44E, dark: 0x3FB950)
+    static let run = Color(light: 0x0969DA, dark: 0x58A6FF)
+}
+
+/// The calendar's key: lift, run, rest.
+private struct CalendarKey: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            swatch(DayColor.lift, "Lift")
+            swatch(DayColor.run, "Run")
+            HStack(spacing: 4) {
+                Image(systemName: "moon.zzz.fill").font(.system(size: 9, weight: .semibold)).foregroundStyle(TrackRecord.restInk)
+                Text("Rest")
+            }
+        }
+        .font(.caption)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func swatch(_ color: Color, _ label: String) -> some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous).fill(color).frame(width: 8, height: 8)
+            Text(label)
+        }
     }
 }
