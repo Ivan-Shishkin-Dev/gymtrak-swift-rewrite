@@ -33,6 +33,7 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSupportsIndirectInputEvents: true
+        NSSupportsLiveActivities: true
         CFBundleURLTypes:
           - CFBundleURLName: dev.ivanshishkin.gymtrak
             CFBundleURLSchemes: [gymtrak]

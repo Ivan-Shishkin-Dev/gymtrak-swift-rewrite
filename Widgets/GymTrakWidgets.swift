@@ -182,6 +182,7 @@ private struct Background: View {
 struct GymTrakWidgets: WidgetBundle {
     var body: some Widget {
         TodayWidget()
+        RestLiveActivity()
     }
 }
 

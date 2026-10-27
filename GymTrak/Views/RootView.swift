@@ -82,7 +82,10 @@ struct RootView: View {
         }
         .onChange(of: store.db.maxUpdatedAt) { refreshOutputs() }
         .onChange(of: connections.runs.count) { refreshOutputs() }
-        .onChange(of: rest.endsAt) { WatchBridge.shared.push() }
+        .onChange(of: rest.endsAt) {
+            WatchBridge.shared.push()
+            syncLiveRest()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await connections.refresh() } }
             if phase == .background { refreshOutputs() }
@@ -91,8 +94,15 @@ struct RootView: View {
 
     /// One bar above the tab bar while a workout is open: progress, rest, Resume.
     /// Widgets and reminders follow the data.
+    /// Rest countdown on the lock screen, with the set that's up next.
+    private func syncLiveRest() {
+        let w = store.db.watchState(restEndsAt: rest.endsAt).workout
+        LiveRest.sync(startedAt: rest.startedAt, endsAt: rest.endsAt, workout: w?.dayName, next: w?.current)
+    }
+
     private func refreshOutputs() {
         WidgetBridge.publish(store.db, runs: connections.runs)
+        if rest.isActive { syncLiveRest() }
         WatchBridge.shared.push(runs: connections.runs)
         let db = store.db, runs = connections.runs
         Task { await Notifier.reschedule(db, runs: runs) }
