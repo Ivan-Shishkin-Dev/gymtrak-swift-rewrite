@@ -9,9 +9,7 @@ struct TodayView: View {
     @Environment(AppNav.self) private var nav
     @Environment(Connections.self) private var connections
     @AppStorage("gt_name") private var name = "Ivan"
-    @State private var filter = RecentFilter.all
 
-    enum RecentFilter: String, CaseIterable { case all = "All", lifts = "Lifts", runs = "Runs" }
 
     var body: some View {
         let db = store.db
@@ -38,9 +36,6 @@ struct TodayView: View {
                             .foregroundStyle(Page.text)
                     }
                     .padding(.top, 20)
-
-                    let record = db.liftRecord(today: now)
-                    if !record.isEmpty { TrackRecord(days: record).padding(.top, -10) }
 
                     if let week = db.scheduleWeek(now) {
                         properties(week, todayKey: todayKey)
@@ -97,6 +92,9 @@ struct TodayView: View {
                 }
                 .padding(.top, 18)
             }
+
+            let record = db.liftRecord(today: Date())
+            if !record.isEmpty { TrackRecord(days: record).padding(.top, 18) }
         }
     }
 
@@ -125,32 +123,26 @@ struct TodayView: View {
 
     // MARK: Recent
 
+    /// The last 5 days, one row each: the day, what you lifted on the left, your run on the right.
     private var recent: some View {
+        let db = store.db
         let since = DateKey.addDays(DateKey.key(Date()), -4)   // today and the 4 days before
-        let all = store.db.historyEntries(synced: connections.runs).filter { $0.date >= since }
-        let rows = all.filter {
-            switch filter {
-            case .all: true
-            case .lifts: if case .lift = $0.kind { true } else { false }
-            case .runs: $0.kind == .run
-            }
-        }
+        let lifts = db.historyEntries(synced: []).filter { $0.date >= since && $0.kind != .run }
+        let runs = db.allRuns(synced: connections.runs).filter { $0.date >= since }
+        let days = Set(lifts.map(\.date) + runs.map(\.date)).sorted(by: >)
 
         return PageSection("Recent", trailing: {
             Button("See all") { nav.tab = .history }.buttonStyle(.plain).underline()
         }) {
-            HStack(spacing: 8) {
-                ForEach(RecentFilter.allCases, id: \.self) { f in
-                    Chip(title: f.rawValue, selected: filter == f) { filter = f }
-                }
-            }
-            .padding(.bottom, 2)
-            if rows.isEmpty {
+            if days.isEmpty {
                 Text("Nothing in the last 5 days.").foregroundStyle(Page.secondary).padding(.vertical, 6)
             }
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(rows) { e in
-                    HistoryRow(entry: e)
+            VStack(spacing: 0) {
+                ForEach(days, id: \.self) { day in
+                    // Best workout of the day first, so a quick false start doesn't hide the real one.
+                    let lift = lifts.filter { $0.date == day }
+                        .max { ($0.outcome?.rawValue ?? 0) < ($1.outcome?.rawValue ?? 0) }
+                    RecentDayRow(date: day, lift: lift, run: runs.first { $0.date == day })
                 }
             }
         }
@@ -457,5 +449,61 @@ struct TrackRecord: View {
 
     private func bar(_ c: Color) -> some View {
         RoundedRectangle(cornerRadius: 3, style: .continuous).fill(c).frame(maxWidth: .infinity)
+    }
+}
+
+/// One day in Recent: the date, the lift (left half), the run (right half). Empty halves stay blank.
+private struct RecentDayRow: View {
+    let date: String
+    let lift: HistoryEntry?
+    let run: RunRecord?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 0) {
+                Text(DateKey.label(date, "EEE")).font(.caption.weight(.medium)).foregroundStyle(Page.secondary)
+                Text(DateKey.label(date, "d")).font(.title3.weight(.semibold)).foregroundStyle(Page.text)
+            }
+            .frame(width: 40)
+
+            Group {
+                if let lift, case .lift(let id) = lift.kind {
+                    NavigationLink(value: SessionRef(id: id)) {
+                        cell(icon: "dumbbell", title: lift.title, sub: lift.detail.components(separatedBy: " · ").first ?? "",
+                             outcome: lift.outcome)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Group {
+                if let run {
+                    cell(icon: "figure.run", title: run.name == "Run" ? "Run" : run.name,
+                         sub: run.miles > 0 ? String(format: "%.1f mi", run.miles) : "\(Int(run.minutes.rounded())) min",
+                         outcome: nil)
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func cell(icon: String, title: String, sub: String, outcome: LiftOutcome?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).font(.subheadline).foregroundStyle(Page.secondary)
+                Text(title).foregroundStyle(Page.text).lineLimit(1).minimumScaleFactor(0.8)
+            }
+            HStack(spacing: 6) {
+                Text(sub).font(.subheadline).foregroundStyle(Page.secondary).lineLimit(1)
+                if let outcome { Tag(text: outcome.label, tint: outcome.color) }
+            }
+        }
+        .contentShape(Rectangle())
     }
 }
