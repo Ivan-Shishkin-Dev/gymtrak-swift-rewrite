@@ -45,7 +45,6 @@ struct HistoryView: View {
             }
             .background(Page.bg)
             .topLeftTitle("History")
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { SettingsButton() } }
             .navigationDestination(for: SessionRef.self) { SessionDetailView(sessionId: $0.id) }
             .refreshable { await connections.refresh() }
         }

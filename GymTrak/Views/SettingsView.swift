@@ -9,7 +9,6 @@ struct SettingsView: View {
     @Environment(Connections.self) private var connections
     @Environment(Spotify.self) private var spotify
     @Environment(\.webAuthenticationSession) private var webAuth
-    @Environment(\.dismiss) private var dismiss
     @State private var importing = false
     @State private var importError: String?
     @State private var coachTick = 0
@@ -60,9 +59,7 @@ struct SettingsView: View {
                 }
             }
             .pageBackground()
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .topLeftTitle("Settings")
         }
     }
 

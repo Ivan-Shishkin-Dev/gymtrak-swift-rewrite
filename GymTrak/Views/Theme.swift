@@ -270,3 +270,13 @@ extension View {
             }
     }
 }
+
+/// Top-left arrow that closes a sheet, matching the back arrow on pushed screens.
+struct BackButton: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Button { dismiss() } label: { Image(systemName: "chevron.left") }
+            .accessibilityLabel("Back")
+    }
+}

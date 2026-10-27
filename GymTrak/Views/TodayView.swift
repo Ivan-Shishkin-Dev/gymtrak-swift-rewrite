@@ -35,22 +35,13 @@ struct TodayView: View {
     @ViewBuilder
     private func page(_ db: Snapshot, now: Date, todayKey: String) -> some View {
         VStack(alignment: .leading, spacing: 28) {
-            // Greeting and settings share one row at the top of the page.
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name.isEmpty ? "Today" : "Hi, \(name)")
-                        .font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text)
-                    Text(DateKey.label(todayKey, "EEEE, MMMM d"))
-                        .font(.title3).foregroundStyle(Page.secondary)
-                }
-                .accessibilityAddTraits(.isHeader)
-                Spacer()
-                SettingsButton()
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-                    .background(Page.fill, in: Circle())
-                    .foregroundStyle(Page.text)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name.isEmpty ? "Today" : "Hi, \(name)")
+                    .font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text)
+                Text(DateKey.label(todayKey, "EEEE, MMMM d"))
+                    .font(.title3).foregroundStyle(Page.secondary)
             }
+            .accessibilityAddTraits(.isHeader)
 
             if let week = db.scheduleWeek(now) {
                 properties(week, todayKey: todayKey)
@@ -296,23 +287,6 @@ struct StartButton: View {
     private func proceed() {
         store.mutate { $0.startSession(day: day, options: StartOptions(scheduledDate: date, coach: Coach.autoApply)) }
         nav.showWorkout = true
-    }
-}
-
-/// Gear button; turns orange when the last save failed.
-struct SettingsButton: View {
-    @Environment(Store.self) private var store
-    @Environment(AppNav.self) private var nav
-
-    var body: some View {
-        Button { nav.showSettings = true } label: {
-            if store.saveError != nil {
-                Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.warning)
-            } else {
-                Image(systemName: "gearshape")
-            }
-        }
-        .accessibilityLabel("Settings")
     }
 }
 

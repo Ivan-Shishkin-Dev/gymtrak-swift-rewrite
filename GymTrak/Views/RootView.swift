@@ -4,10 +4,9 @@ import SwiftUI
 @MainActor
 @Observable
 final class AppNav {
-    enum Tab: Hashable { case today, history, plan }
+    enum Tab: Hashable { case today, history, plan, settings }
     var tab = Tab.today
     var showWorkout = false
-    var showSettings = false
     /// Set right after finishing; opens the finish summary sheet.
     var completed: (sessionId: String, label: String)?
     /// "Undo finish" on the summary: reopen the workout once the sheet is gone.
@@ -52,15 +51,17 @@ struct RootView: View {
             Tab("Plan", systemImage: "list.bullet.rectangle", value: AppNav.Tab.plan) {
                 PlanView().safeAreaInset(edge: .bottom) { dock }
             }
+            Tab("Settings", systemImage: "gearshape", value: AppNav.Tab.settings) {
+                SettingsView()
+            }
+            // A failed save shows on the Settings tab.
+            .badge(store.saveError == nil ? 0 : 1)
         }
         .tint(Theme.lift)
         .environment(nav)
         .preferredColorScheme(Appearance.shared.matteBackground ? .dark : nil)
         .fullScreenCover(isPresented: $nav.showWorkout) {
             WorkoutView().environment(nav).tint(Theme.lift)
-        }
-        .sheet(isPresented: $nav.showSettings) {
-            SettingsView().tint(Theme.lift)
         }
         .sheet(isPresented: $showSummary, onDismiss: {
             nav.completed = nil

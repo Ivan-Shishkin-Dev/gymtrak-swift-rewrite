@@ -44,7 +44,7 @@ struct ExerciseHistoryView: View {
         .navigationTitle(ex.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            ToolbarItem(placement: .topBarLeading) { BackButton() }
         }
     }
 

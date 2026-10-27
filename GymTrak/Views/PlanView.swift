@@ -58,7 +58,6 @@ struct PlanView: View {
             .navigationDestination(for: Int.self) { DayDetailView(dayId: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { EditButton() }
-                ToolbarItem(placement: .topBarTrailing) { SettingsButton() }
             }
             .confirmationDialog("Delete \(confirmDelete?.name ?? "day")?", isPresented: Binding(
                 get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }), titleVisibility: .visible) {
@@ -230,7 +229,7 @@ struct ExerciseEditorView: View {
             .pageBackground()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if !showsSets { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+                if !showsSets { ToolbarItem(placement: .topBarLeading) { BackButton() } }
             }
             .onAppear { name = ex.name }
             .onDisappear(perform: commitName)
