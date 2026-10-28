@@ -48,6 +48,32 @@ final class RunManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBuilder
     /// Active running time (pauses don't count).
     func elapsed(at date: Date = .now) -> TimeInterval { builder?.elapsedTime(at: date) ?? 0 }
 
+    /// Where you are in the plan. Starts equal to `elapsed`; skipping a part moves it.
+    func planTime(at date: Date = .now) -> TimeInterval { max(0, elapsed(at: date) + offset) }
+    private var offset: TimeInterval = 0
+    /// Where you were in each part when you skipped away from it (plan seconds), so Back resumes there.
+    private var leftAt: [Int: TimeInterval] = [:]
+
+    var canSkip: Bool { (plan?.segments?.count ?? 0) > 1 }
+
+    /// Jump to the next part (+1) or the previous one (−1). Returning to a part you skipped away from
+    /// picks up where you left it; a new part starts at its beginning and its cue fires.
+    func skip(_ direction: Int) {
+        guard let parts = plan?.segments, parts.count > 1, let cues = plan?.cues else { return }
+        let t = planTime()
+        let i = parts.lastIndex { t / 60 >= $0.from } ?? 0
+        let j = i + (direction > 0 ? 1 : -1)
+        guard parts.indices.contains(j) else { return }
+        leftAt[i] = t
+        // Back to a part you've been in (either way): pick up where you left it, without repeating its cue.
+        let resume = leftAt[j]
+        let target = resume.map { $0 / 60 } ?? parts[j].from
+        offset = target * 60 - elapsed()
+        fired = Set(cues.indices.filter { resume == nil ? cues[$0].at < target : cues[$0].at <= target })
+        overSince = nil
+        WKInterfaceDevice.current().play(direction > 0 ? .directionUp : .directionDown)
+    }
+
     /// 1–5.
     func zone(for bpm: Double) -> Int { 1 + zoneFloors.filter { bpm >= $0 }.count }
 
@@ -59,6 +85,8 @@ final class RunManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBuilder
         self.plan = plan
         lastRun = nil
         fired = []
+        offset = 0
+        leftAt = [:]
         overSince = nil
 
         let share: Set<HKSampleType> = [HKObjectType.workoutType(), HKSeriesType.workoutRoute(),
@@ -152,7 +180,7 @@ final class RunManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBuilder
     /// Once a second: fire any cue whose minute has come; warn when heart rate stays high.
     private func tick() {
         guard phase == .running, let plan else { return }
-        let t = elapsed()
+        let t = planTime()
         for (i, cue) in plan.cues.enumerated() where i > 0 && !fired.contains(i) && t >= cue.at * 60 {
             fired.insert(i)
             alert(cue.title, cue.body)

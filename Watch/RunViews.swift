@@ -63,7 +63,8 @@ struct RunMetricsView: View {
     private var metrics: some View {
         TimelineView(.periodic(from: .now, by: 1)) { ctx in
             let t = run.elapsed(at: ctx.date)
-            let seg = segment(at: t)
+            let p = run.planTime(at: ctx.date)
+            let seg = segment(at: p)
             VStack(alignment: .leading, spacing: 0) {
                 // What you're doing now and how long it lasts.
                 Text(seg.line)
@@ -75,7 +76,7 @@ struct RunMetricsView: View {
                         .foregroundStyle(run.phase == .paused ? Color.secondary : .yellow)
                     Spacer(minLength: 4)
                     if let total = run.plan?.minutes, total > 0 {
-                        Text(t < total * 60 ? "\(clock(total * 60 - t)) left" : "done")
+                        Text(p < total * 60 ? "\(clock(total * 60 - p)) left" : "done")
                             .font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
@@ -100,25 +101,41 @@ struct RunMetricsView: View {
             }
             .animation(.snappy, value: run.banner)
         }
-        // Pause and End at the very bottom; swiping right still works too.
-        .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Button { run.phase == .paused ? run.resume() : run.pause() } label: {
-                    Image(systemName: run.phase == .paused ? "play.fill" : "pause.fill")
+        // Pause, back / next part (centered), End at the very bottom. Swiping right still works too.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack(spacing: 0) {
+                round(run.phase == .paused ? "play.fill" : "pause.fill", fill: .yellow, ink: .black,
+                      label: run.phase == .paused ? "Resume" : "Pause") {
+                    run.phase == .paused ? run.resume() : run.pause()
                 }
-                .tint(.yellow)
-                .accessibilityLabel(run.phase == .paused ? "Resume" : "Pause")
-                Spacer()
-                Button { confirmEnd = true } label: { Image(systemName: "xmark") }
-                    .tint(.red)
-                    .accessibilityLabel("End run")
+                Spacer(minLength: 0)
+                if run.canSkip {
+                    HStack(spacing: 6) {
+                        round("backward.end.fill", fill: .white.opacity(0.18), ink: .white, label: "Previous part") { run.skip(-1) }
+                        round("forward.end.fill", fill: .white.opacity(0.18), ink: .white, label: "Next part") { run.skip(1) }
+                    }
+                    Spacer(minLength: 0)
+                }
+                round("xmark", fill: .red, ink: .white, label: "End run") { confirmEnd = true }
             }
+            .padding(.horizontal, 6)
         }
+        .ignoresSafeArea(.container, edges: .bottom)
         .confirmationDialog("End run?", isPresented: $confirmEnd) {
             Button("End and Save") { Task { await run.end() } }
             Button("Discard Run", role: .destructive) { run.discard() }
             Button("Keep Running", role: .cancel) {}
         }
+    }
+
+    private func round(_ icon: String, fill: Color, ink: Color, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon).font(.system(size: 17, weight: .bold)).foregroundStyle(ink)
+                .frame(width: 42, height: 42)
+                .background(fill, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     /// The part of the run you're in: "Warm-up · 6:12 left", and its heart-rate aim.
