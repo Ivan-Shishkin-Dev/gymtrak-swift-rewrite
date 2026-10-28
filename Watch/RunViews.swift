@@ -65,34 +65,38 @@ struct RunMetricsView: View {
             let t = run.elapsed(at: ctx.date)
             let p = run.planTime(at: ctx.date)
             let seg = segment(at: p)
-            VStack(alignment: .leading, spacing: 0) {
-                // What you're doing now and how long it lasts.
-                Text(seg.line)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded)).monospacedDigit()
-                    .foregroundStyle(.green).lineLimit(1).minimumScaleFactor(0.7)
-                HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                partCard(seg)
+                // Time running, and time left in the whole run.
+                HStack(alignment: .lastTextBaseline) {
                     Text(clock(t))
-                        .font(.system(size: 36, weight: .semibold, design: .rounded)).monospacedDigit()
+                        .font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
                         .foregroundStyle(run.phase == .paused ? Color.secondary : .yellow)
+                        .fixedSize()
                     Spacer(minLength: 4)
                     if let total = run.plan?.minutes, total > 0 {
-                        Text(p < total * 60 ? "\(clock(total * 60 - p)) left" : "done")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit()
-                            .foregroundStyle(.secondary)
+                        VStack(alignment: .trailing, spacing: 0) {
+                            Text(p < total * 60 ? clock(total * 60 - p) : "0:00")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded)).monospacedDigit()
+                            Text("LEFT").font(.system(size: 9, weight: .bold, design: .rounded)).foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .lineLimit(1).minimumScaleFactor(0.6)
-                heartRow
-                Text("Aim \(seg.aim)").font(.system(size: 13, weight: .medium, design: .rounded)).foregroundStyle(.secondary)
-                HStack(alignment: .firstTextBaseline) {
-                    metric(String(format: "%.2f", run.miles), unit: "MI")
+                hairline
+                heartRow(aim: seg.aim)
+                hairline
+                HStack(alignment: .top) {
+                    column("DISTANCE", String(format: "%.2f", run.miles), unit: "mi", alignment: .leading)
                     Spacer(minLength: 4)
-                    metric(paceText(run.pace), unit: "/MI")
+                    column("PACE", paceText(run.pace), unit: "/mi", alignment: .trailing)
                 }
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.horizontal, 6)
+            .padding(.top, -10)     // use the space under the clock
+            .padding(.bottom, 4)
             .overlay(alignment: .top) {
                 if let b = run.banner, ctx.date.timeIntervalSince(b.shownAt) < 10 {
                     BannerView(banner: b).onTapGesture { run.banner = nil }
@@ -130,44 +134,97 @@ struct RunMetricsView: View {
 
     private func round(_ icon: String, fill: Color, ink: Color, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: icon).font(.system(size: 17, weight: .bold)).foregroundStyle(ink)
-                .frame(width: 42, height: 42)
+            Image(systemName: icon).font(.system(size: 15, weight: .bold)).foregroundStyle(ink)
+                .frame(width: 38, height: 38)
                 .background(fill, in: Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
     }
 
-    /// The part of the run you're in: "Warm-up · 6:12 left", and its heart-rate aim.
-    private func segment(at t: TimeInterval) -> (line: String, aim: String) {
+    /// The part of the run you're in, how long it has left, and how far through it you are.
+    private struct Part {
+        var name: String
+        var left: TimeInterval?     // nil = open-ended
+        var progress: Double        // 0…1
+        var aim: String
+    }
+
+    private func segment(at t: TimeInterval) -> Part {
         let parts = run.plan?.segments ?? []
         let min = t / 60
         if let s = parts.first(where: { min >= $0.from && ($0.to == 0 || min < $0.to) }) {
-            return (s.to == 0 ? s.name : "\(s.name) · \(clock(s.to * 60 - t)) left", s.aim)
+            guard s.to > 0 else { return Part(name: s.name, left: nil, progress: 0, aim: s.aim) }
+            let length = (s.to - s.from) * 60
+            return Part(name: s.name, left: s.to * 60 - t, progress: (t - s.from * 60) / max(length, 1), aim: s.aim)
         }
-        if let last = parts.last, last.to > 0, min >= last.to { return ("Done · walk it off", last.aim) }
-        return ("Run", "HR \(run.plan.map { "\($0.zoneMin)–\($0.zoneMax)" } ?? "120–140")")
+        if let last = parts.last, last.to > 0, min >= last.to {
+            return Part(name: "Done", left: nil, progress: 1, aim: "Walk it off")
+        }
+        return Part(name: "Run", left: nil, progress: 0,
+                    aim: "HR \(run.plan.map { "\($0.zoneMin)–\($0.zoneMax)" } ?? "120–140")")
     }
 
-    private var heartRow: some View {
+    /// Green card: what you're doing now, time left in it, and a bar that fills as it goes.
+    private func partCard(_ part: Part) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(part.name.uppercased())
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: 4)
+                if let left = part.left {
+                    Text(clock(left)).font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit()
+                }
+            }
+            .foregroundStyle(.green)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.green.opacity(0.25))
+                    Capsule().fill(.green).frame(width: geo.size.width * max(0, min(1, part.progress)))
+                }
+            }
+            .frame(height: 3)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .background(.green.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var hairline: some View {
+        Rectangle().fill(.white.opacity(0.15)).frame(height: 0.5)
+    }
+
+    /// Heart rate in its zone color, the five-zone bar, and the aim for this part.
+    private func heartRow(aim: String) -> some View {
         let hr = run.heartRate
         let zone = hr.map { run.zone(for: $0) }
-        return HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text(hr.map { "\(Int($0))" } ?? "--")
-                .font(.system(size: 30, weight: .semibold, design: .rounded)).monospacedDigit()
-            Image(systemName: "heart.fill").font(.system(size: 14)).foregroundStyle(.red)
+        return HStack(alignment: .center) {
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(hr.map { "\(Int($0))" } ?? "--")
+                    .font(.system(size: 26, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .foregroundStyle(zone.map(zoneColor) ?? .primary)
+                Image(systemName: "heart.fill").font(.system(size: 12)).foregroundStyle(.red)
+            }
             Spacer(minLength: 4)
-            ZoneBar(zone: zone)
+            VStack(alignment: .trailing, spacing: 3) {
+                ZoneBar(zone: zone)
+                Text("Aim \(aim.replacingOccurrences(of: "HR ", with: ""))")
+                    .font(.system(size: 11, weight: .medium, design: .rounded)).foregroundStyle(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
         }
-        .foregroundStyle(zone.map(zoneColor) ?? .primary)
     }
 
-    private func metric(_ value: String, unit: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text(value).font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
-            Text(unit).font(.system(size: 14, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
+    /// A small caps label over a number and its unit.
+    private func column(_ label: String, _ value: String, unit: String, alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 0) {
+            Text(label).font(.system(size: 9, weight: .bold, design: .rounded)).foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value).font(.system(size: 20, weight: .semibold, design: .rounded)).monospacedDigit()
+                Text(unit).font(.system(size: 11, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
+            }
+            .lineLimit(1).minimumScaleFactor(0.6)
         }
-        .lineLimit(1).minimumScaleFactor(0.6)
     }
 
     /// 588 s/mi → 9'48".
