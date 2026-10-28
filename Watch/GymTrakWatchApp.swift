@@ -23,7 +23,10 @@ struct GymTrakWatchApp: App {
                 .environment(model)
                 .environment(workout)
                 .environment(RunManager.shared)
-                .task { model.activate() }
+                .task {
+                    model.activate()
+                    await RunManager.shared.requestHealth()
+                }
         }
         .onChange(of: phase) { if phase == .active { model.refresh() } }
     }
@@ -45,6 +48,7 @@ struct WatchRootView: View {
 /// Two big buttons: Lift (the rest timer) and Run (today's run).
 struct WatchHomeView: View {
     @Environment(WatchModel.self) private var model
+    @Environment(RunManager.self) private var run
 
     var body: some View {
         let s = model.state
@@ -55,6 +59,15 @@ struct WatchHomeView: View {
             }
             NavigationLink { RunStartView() } label: {
                 HomeTile(title: "Run", detail: s.runPlan?.title ?? "Free Run", icon: "figure.run", color: .green)
+            }
+            if !run.healthAllowed {
+                // Without this, nothing saves to Apple Health.
+                Button { Task { await run.requestHealth() } } label: {
+                    Label("Allow Apple Health", systemImage: "heart.fill")
+                        .font(.footnote.weight(.semibold)).foregroundStyle(.pink)
+                        .frame(maxWidth: .infinity).padding(.vertical, 8)
+                        .background(.pink.opacity(0.15), in: Capsule())
+                }
             }
         }
         .buttonStyle(.plain)

@@ -89,12 +89,7 @@ final class RunManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBuilder
         leftAt = [:]
         overSince = nil
 
-        let share: Set<HKSampleType> = [HKObjectType.workoutType(), HKSeriesType.workoutRoute(),
-                                        HKQuantityType(.distanceWalkingRunning), HKQuantityType(.activeEnergyBurned)]
-        let read: Set<HKObjectType> = [HKQuantityType(.heartRate), HKQuantityType(.distanceWalkingRunning),
-                                       HKQuantityType(.activeEnergyBurned), HKQuantityType(.runningSpeed),
-                                       HKQuantityType(.restingHeartRate), HKCharacteristicType(.dateOfBirth)]
-        try? await health.requestAuthorization(toShare: share, read: read)
+        await requestHealth()
         await loadZones()
 
         location.delegate = self
@@ -143,9 +138,15 @@ final class RunManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBuilder
         let time = elapsed(), distance = miles
         session.end()
         try? await builder.endCollection(at: .now)
-        if let workout = try? await builder.finishWorkout() {
-            _ = try? await route?.finishRoute(with: workout, metadata: nil)
-            lastRun = "Saved · \(String(format: "%.2f", distance)) mi · \(clock(time))"
+        do {
+            if let workout = try await builder.finishWorkout() {
+                _ = try? await route?.finishRoute(with: workout, metadata: nil)
+                lastRun = "Saved · \(String(format: "%.2f", distance)) mi · \(clock(time))"
+            } else {
+                lastRun = "Not saved to Health"
+            }
+        } catch {
+            lastRun = "Not saved: \(error.localizedDescription)"
         }
         reset()
         WKInterfaceDevice.current().play(.success)
@@ -217,6 +218,23 @@ final class RunManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBuilder
                 }
             }
         }
+    }
+
+    // MARK: Health access
+
+    static let shareTypes: Set<HKSampleType> = [HKObjectType.workoutType(), HKSeriesType.workoutRoute(),
+                                                 HKQuantityType(.distanceWalkingRunning), HKQuantityType(.activeEnergyBurned)]
+    static let readTypes: Set<HKObjectType> = [HKQuantityType(.heartRate), HKQuantityType(.distanceWalkingRunning),
+                                               HKQuantityType(.activeEnergyBurned), HKQuantityType(.runningSpeed),
+                                               HKQuantityType(.restingHeartRate), HKCharacteristicType(.dateOfBirth)]
+
+    /// Ask once, when the app opens, so the prompt never has to appear mid-workout (or can't, in the background).
+    private(set) var healthAllowed = HKHealthStore().authorizationStatus(for: HKObjectType.workoutType()) == .sharingAuthorized
+
+    func requestHealth() async {
+        guard HKHealthStore.isHealthDataAvailable() else { return }
+        try? await health.requestAuthorization(toShare: Self.shareTypes, read: Self.readTypes)
+        healthAllowed = health.authorizationStatus(for: HKObjectType.workoutType()) == .sharingAuthorized
     }
 
     // MARK: Zones

@@ -111,6 +111,12 @@ final class WatchBridge: NSObject, WCSessionDelegate {
 
     private let health = HKHealthStore()
 
+    /// Lifts the watch confirmed it's recording to Apple Health.
+    private var recording: Set<String> = []
+
+    /// True when the watch said it's saving this lift; otherwise the phone saves it.
+    func watchIsRecording(_ sessionId: String) -> Bool { recording.contains(sessionId) }
+
     func start(store: Store, rest: RestTimer) {
         self.store = store
         self.rest = rest
@@ -170,6 +176,8 @@ final class WatchBridge: NSObject, WCSessionDelegate {
             if let open = store.db.openLift() { store.mutate { $0.finishSession(open.id) } }
         case .refresh:
             lastSent = nil      // send it even if nothing changed
+        case .recording(let id):
+            recording.insert(id)
         }
         push()
     }

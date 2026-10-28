@@ -27,7 +27,10 @@ final class WorkoutManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBui
         guard !RunManager.shared.isActive else { return }   // one session at a time; the run wins
         if let w = state.workout {
             setsDone = w.done
-            if sessionId == Self.pending { sessionId = w.sessionId }       // the phone's workout we were launched for
+            if sessionId == Self.pending {                                  // the phone's workout we were launched for
+                sessionId = w.sessionId
+                if running { WatchModel.shared.send(.recording(sessionId: w.sessionId)) }
+            }
             else if sessionId != w.sessionId { Task { await start(w.sessionId, at: w.startedAt) } }
         } else if sessionId == Self.pending, Date.now.timeIntervalSince(pendingSince) < 60 {
             // Launched by the phone; its state with the workout hasn't arrived yet.
@@ -73,6 +76,7 @@ final class WorkoutManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBui
             session.startActivity(with: begin)
             try await builder.beginCollection(at: begin)
             running = true
+            if let id = sessionId, id != Self.pending { WatchModel.shared.send(.recording(sessionId: id)) }
         } catch {
             sessionId = nil
         }

@@ -99,6 +99,8 @@ enum WatchAction: Codable, Equatable, Sendable {
     case startRest(seconds: Int)
     /// Send the latest state; the watch asks when it opens.
     case refresh
+    /// The watch is recording this lift to Apple Health, so the phone shouldn't save its own copy.
+    case recording(sessionId: String)
 }
 
 /// WatchConnectivity carries plist dictionaries; these wrap the Codable payloads.
