@@ -765,3 +765,31 @@ struct WatchWireTests {
         #expect(WatchBridge.fresh(tick, now: now) == .toggle(setId: "a"))
     }
 }
+
+struct RunBriefTests {
+    func db(run: RunPrescription?) -> Snapshot {
+        let slots = Dow.allCases.map { ProgramSlot(dow: $0, liftDayId: nil, run: $0 == .tue ? run : nil) }
+        return Snapshot(programWeeks: [ProgramWeek(id: 1, phase: "", startDate: "2026-10-26", isDeload: false, slots: slots, updatedAt: 0)])
+    }
+
+    @Test func easyRunGivesZoneAndCap() {
+        let rx = makeRun(.easy, minutes: 30, timing: .standalone, strides: true)
+        let b = db(run: rx).runBrief(now: DateKey.date("2026-10-27"))
+        #expect(b.title == "Easy Run · 30 min")
+        #expect(b.body.hasPrefix("HR \(zoneLabel(rx.hrZoneMin, rx.hrZoneMax)), cap \(rx.hrHardCap)"))
+        #expect(b.body.contains("strides"))
+    }
+
+    @Test func hardRunGivesCap() {
+        let rx = makeRun(.tempo, minutes: 35, timing: .standalone)
+        let b = db(run: rx).runBrief(now: DateKey.date("2026-10-27"))
+        #expect(b.title.hasPrefix("Tempo Run · "))
+        #expect(b.body.hasPrefix("HR cap \(rx.hrHardCap)"))
+    }
+
+    @Test func noRunPlannedStaysEasy() {
+        let b = db(run: nil).runBrief(now: DateKey.date("2026-10-27"))
+        #expect(b.title == "No run planned")
+        #expect(b.body.contains("HR 120–140"))
+    }
+}
