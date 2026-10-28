@@ -3,7 +3,8 @@ import WatchConnectivity
 
 extension Snapshot {
     /// What the watch should show right now.
-    func watchState(now: Date = Date(), runs: [RunActivity] = [], restEndsAt: Date? = nil) -> WatchState {
+    func watchState(now: Date = Date(), runs: [RunActivity] = [], restEndsAt: Date? = nil,
+                    restTotal: Int? = nil, restDefault: Int? = nil) -> WatchState {
         let todayKey = DateKey.key(now)
         let week = scheduleWeek(now)
         let slot = week?.slot(DateKey.dow(now))
@@ -24,6 +25,8 @@ extension Snapshot {
                                todayDone: done.contains(todayKey), weekDone: weekDone, weekPlanned: planned.count,
                                streak: streakWeeks(today: now, doneExtra: Set(runs.map(\.date))),
                                restEndsAt: restEndsAt, widget: widgetData(runs: runs, now: now))
+        state.restTotal = restEndsAt == nil ? nil : restTotal
+        state.restDefault = restDefault
         state.lifts = liftDay.map { exercises(of: $0.id).count }
         state.runMinutes = slot?.run?.durationMin
 
@@ -91,10 +94,14 @@ final class WatchBridge: NSObject, WCSessionDelegate {
         if let runs { self.runs = runs }
         guard let store, WCSession.isSupported(), WCSession.default.activationState == .activated,
               WCSession.default.isPaired, WCSession.default.isWatchAppInstalled else { return }
-        let state = store.db.watchState(runs: self.runs, restEndsAt: rest?.endsAt)
+        let state = currentState(store)
         guard state != lastSent, let data = WatchWire.encode(state) else { return }
         lastSent = state
         try? WCSession.default.updateApplicationContext([WatchWire.stateKey: data])
+    }
+
+    private func currentState(_ store: Store) -> WatchState {
+        store.db.watchState(runs: runs, restEndsAt: rest?.endsAt, restTotal: rest?.targetSec, restDefault: rest?.defaultSec)
     }
 
     /// Run one action from the watch.
@@ -124,6 +131,8 @@ final class WatchBridge: NSObject, WCSessionDelegate {
             store.mutate { $0.updateSetLoad(id, weight: st.weight, reps: "× \(max(0, n + dir))") }
         case .skipRest:
             rest?.stop()
+        case .startRest:
+            rest?.start()
         case .addRest(let s):
             rest?.add(s)
         case .finish:
@@ -149,7 +158,7 @@ final class WatchBridge: NSObject, WCSessionDelegate {
         let reply = UncheckedReply(replyHandler)
         Task { @MainActor in
             if let action { self.handle(action) }
-            let state = self.store?.db.watchState(runs: self.runs, restEndsAt: self.rest?.endsAt)
+            let state = self.store.map(self.currentState)
             reply.call(state.flatMap(WatchWire.encode).map { [WatchWire.stateKey: $0] } ?? [:])
         }
     }

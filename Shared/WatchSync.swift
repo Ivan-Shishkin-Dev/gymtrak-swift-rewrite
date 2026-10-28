@@ -41,6 +41,10 @@ struct WatchState: Codable, Equatable, Sendable {
     var streak: Int
     var workout: Workout?
     var restEndsAt: Date?
+    /// Length of the running rest, for the ring.
+    var restTotal: Int? = nil
+    /// The phone's default rest, for Start.
+    var restDefault: Int? = nil
     /// Same summary the phone widgets use, for the watch complications.
     var widget: WidgetData?
 
@@ -64,6 +68,8 @@ enum WatchAction: Codable, Equatable, Sendable {
     case skipRest
     case addRest(seconds: Int)
     case finish
+    /// Start a rest at the phone's default length.
+    case startRest
     /// Send the latest state; the watch asks when it opens.
     case refresh
 }

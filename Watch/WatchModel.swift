@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UserNotifications
 import WatchConnectivity
 import WatchKit
 import WidgetKit
@@ -7,7 +8,7 @@ import WidgetKit
 /// Watch side of the link: holds the phone's latest `WatchState` and sends actions back.
 @MainActor
 @Observable
-final class WatchModel: NSObject, WCSessionDelegate {
+final class WatchModel: NSObject, WCSessionDelegate, UNUserNotificationCenterDelegate {
     static let shared = WatchModel()
 
     private(set) var state: WatchState = WatchModel.cached() ?? .empty
@@ -21,6 +22,45 @@ final class WatchModel: NSObject, WCSessionDelegate {
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
+        UNUserNotificationCenter.current().delegate = self
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    // MARK: Rest timer
+    // Each button changes the screen right away; the phone's reply then confirms it.
+
+    func addRest(_ seconds: Int) {
+        guard let end = state.restEndsAt, end > .now else { return }
+        WKInterfaceDevice.current().play(.click)
+        var s = state
+        s.restEndsAt = end.addingTimeInterval(TimeInterval(seconds))
+        s.restTotal = (s.restTotal ?? Int(end.timeIntervalSinceNow.rounded())) + seconds
+        apply(s, local: true)
+        send(.addRest(seconds: seconds))
+    }
+
+    /// Start sits where Skip was, so a double tap on Skip mustn't start a new rest.
+    private var skippedAt = Date.distantPast
+
+    func skipRest() {
+        skippedAt = .now
+        WKInterfaceDevice.current().play(.click)
+        var s = state
+        s.restEndsAt = nil
+        s.restTotal = nil
+        apply(s, local: true)
+        send(.skipRest)
+    }
+
+    func startRest() {
+        guard Date.now.timeIntervalSince(skippedAt) > 1 else { return }
+        WKInterfaceDevice.current().play(.start)
+        let seconds = state.restDefault ?? 180
+        var s = state
+        s.restEndsAt = .now.addingTimeInterval(TimeInterval(seconds))
+        s.restTotal = seconds
+        apply(s, local: true)
+        send(.startRest)
     }
 
     /// Ask the phone for fresh state. Wakes the iPhone app in the background if it isn't running.
@@ -96,17 +136,35 @@ final class WatchModel: NSObject, WCSessionDelegate {
         WorkoutManager.shared.follow(new)
     }
 
-    /// Tap the wrist when rest is over.
+    /// Buzz when rest is over. With the app open, three strong taps. Otherwise a notification does it;
+    /// it shares the phone's "rest-done" id, so the phone's copy doesn't buzz a second time.
     private func scheduleRestHaptic(_ end: Date?) {
         restTask?.cancel()
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [Self.restNotificationID])
         guard let end, end > .now else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Rest's up"
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, end.timeIntervalSinceNow), repeats: false)
+        center.add(UNNotificationRequest(identifier: Self.restNotificationID, content: content, trigger: trigger))
+
         restTask = Task {
             try? await Task.sleep(for: .seconds(end.timeIntervalSinceNow))
-            guard !Task.isCancelled else { return }
-            WKInterfaceDevice.current().play(.notification)
-            try? await Task.sleep(for: .milliseconds(600))
-            WKInterfaceDevice.current().play(.notification)
+            guard !Task.isCancelled, WKApplication.shared().applicationState != .background else { return }
+            for _ in 0..<3 {
+                WKInterfaceDevice.current().play(.notification)
+                try? await Task.sleep(for: .milliseconds(700))
+            }
         }
+    }
+
+    private static let restNotificationID = "rest-done"
+
+    /// With the app on screen, the taps above are the alert; don't also show the notification.
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        []
     }
 
     /// Keep sets the watch already ticked out of the queue until the phone reports them done

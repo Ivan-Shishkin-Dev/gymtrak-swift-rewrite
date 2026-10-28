@@ -9,7 +9,7 @@ struct GymTrakWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
-            WatchRootView()
+            RestTimerView()
                 .environment(model)
                 .environment(workout)
                 .task { model.activate() }
@@ -18,306 +18,70 @@ struct GymTrakWatchApp: App {
     }
 }
 
-/// Today when nothing's open; the live set screen during a workout.
-struct WatchRootView: View {
+/// The whole watch app: the phone's rest timer, laid out like the Clock app's timer.
+/// A ring with the time in the middle and the end time under it; +15 bottom left, Skip or Start bottom right.
+/// The Health workout (heart rate, calories) records in the background while a workout is open on the phone.
+struct RestTimerView: View {
     @Environment(WatchModel.self) private var model
-
-    var body: some View {
-        if let w = model.state.workout {
-            WorkoutPager(workout: w)
-        } else {
-            TodayWatchView()
-        }
-    }
-}
-
-// MARK: - Today
-
-struct TodayWatchView: View {
-    @Environment(WatchModel.self) private var model
-
-    var body: some View {
-        let s = model.state
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(s.todayTitle).font(.title3.weight(.bold)).lineLimit(2)
-                        HStack(spacing: 12) {
-                            if let n = s.lifts { Label("\(n)", systemImage: "dumbbell.fill") }
-                            if let m = s.runMinutes { Label("\(m)m", systemImage: "figure.run") }
-                        }
-                        .font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text("This week").font(.footnote).foregroundStyle(.secondary)
-                            Spacer()
-                            Text("\(s.weekDone)/\(s.weekPlanned)").font(.footnote.monospacedDigit())
-                        }
-                        Gauge(value: Double(s.weekDone), in: 0...Double(max(s.weekPlanned, 1))) { EmptyView() }
-                            .gaugeStyle(.linearCapacity).tint(.white)
-                    }
-                    if s.streak > 0 {
-                        Label(s.streak == 1 ? "1 week streak" : "\(s.streak) week streak", systemImage: "flame.fill")
-                            .font(.footnote).foregroundStyle(.secondary)
-                    }
-                    if s.todayDone {
-                        Label("Done today", systemImage: "checkmark.circle.fill").font(.footnote)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 6)
-            }
-            .navigationTitle(Date.now.formatted(.dateTime.weekday(.wide)))
-            .toolbar {
-                if s.canStart {
-                    ToolbarItemGroup(placement: .bottomBar) {
-                        Spacer()
-                        Button { model.send(.start) } label: { Image(systemName: "play.fill") }
-                            .accessibilityLabel(s.todayDone ? "Do again" : "Start workout")
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Workout
-
-/// Swipe left for Finish, like the Workout app.
-struct WorkoutPager: View {
-    let workout: WatchState.Workout
-    @State private var page = 1
-
-    var body: some View {
-        TabView(selection: $page) {
-            ControlsView(workout: workout).tag(0)
-            SetView(workout: workout).tag(1)
-        }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-    }
-}
-
-struct SetView: View {
-    let workout: WatchState.Workout
-    @Environment(WatchModel.self) private var model
-    @Environment(WorkoutManager.self) private var manager
-    @State private var crown = 0.0
-    @State private var editingReps = false
-    @FocusState private var crownFocused: Bool
 
     var body: some View {
         NavigationStack {
-            TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                if let end = model.state.restEndsAt, end > ctx.date {
-                    rest(end: end, now: ctx.date)
-                } else if let c = workout.current {
-                    set(c, now: ctx.date)
-                } else {
-                    allDone
-                }
+            TimelineView(.periodic(from: .now, by: 0.25)) { ctx in
+                let s = model.state
+                let end = s.restEndsAt.flatMap { $0 > ctx.date ? $0 : nil }
+                let total = Double(s.restTotal ?? s.restDefault ?? 180)
+                let left = end.map { $0.timeIntervalSince(ctx.date) } ?? Double(s.restDefault ?? 180)
+                ring(left: left, total: total, running: end != nil, end: end)
+                    .toolbar { buttons(running: end != nil) }
             }
         }
     }
 
-    // MARK: Set
-
-    @ViewBuilder
-    private func set(_ c: WatchState.Current, now: Date) -> some View {
-        let (load, unit) = split(c.weight)
-        VStack(alignment: .leading, spacing: 0) {
-            // In the page, not the title bar: long names ("Machine Single-Leg Extension") wrap instead of cutting off.
-            Text(c.exercise).font(.headline).lineLimit(2).minimumScaleFactor(0.75)
-            Spacer(minLength: 0)
-            metric(load, unit: unit ?? "", active: !editingReps) { editingReps = false }
-            metric(c.reps.isEmpty ? "—" : c.reps, unit: "reps", active: editingReps) { editingReps = true }
-            if let target = c.target, target != "\(c.weight) × \(c.reps)" {
-                Label(target, systemImage: "scope").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-            }
-            HStack(spacing: 8) {
-                SetPills(current: c.setNumber, count: c.setCount)
-                if c.warmup == true { Text("Warm-up").font(.caption2).foregroundStyle(.secondary) }
-                Spacer(minLength: 0)
-                heart
-            }
-            .padding(.top, 6)
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 8)
-        .focusable()
-        .focused($crownFocused)
-        .digitalCrownRotation($crown, from: -1000, through: 1000, by: 1, sensitivity: .low,
-                              isContinuous: true, isHapticFeedbackEnabled: true)
-        .onChange(of: crown) { old, new in
-            let steps = Int(new.rounded()) - Int(old.rounded())
-            guard steps != 0 else { return }
-            let dir = steps > 0 ? 1 : -1
-            let reps = editingReps || !c.canStepLoad
-            model.send(reps ? .stepReps(setId: c.setId, direction: dir) : .stepLoad(setId: c.setId, direction: dir))
-        }
-        .onAppear { crownFocused = true }
-        .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Button { editingReps.toggle() } label: { Image(systemName: "arrow.up.arrow.down") }
-                    .accessibilityLabel(editingReps ? "Crown edits weight" : "Crown edits reps")
-                Spacer()
-                Button { model.logSet() } label: { Image(systemName: "checkmark") }
-                    .tint(.green)
-                    .accessibilityLabel("Set done")
-            }
-        }
-    }
-
-    /// One big number with its unit, Workout-app style. The one the Crown moves is bright, with a crown mark.
-    private func metric(_ value: String, unit: String, active: Bool, select: @escaping () -> Void) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text(value)
-                .font(.system(size: 44, weight: .semibold, design: .rounded)).monospacedDigit()
-                .minimumScaleFactor(0.5).lineLimit(1)
-            Text(unit.uppercased()).font(.system(size: 14, weight: .semibold, design: .rounded))
-            Spacer(minLength: 0)
-            if active {
-                Image(systemName: "digitalcrown.horizontal.arrow.clockwise.fill")
-                    .font(.caption).foregroundStyle(.green)
-            }
-        }
-        .foregroundStyle(active ? .primary : .secondary)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: select)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(active ? .isSelected : [])
-    }
-
-    /// "135 lb" → ("135", "lb"); "2 pl + 30" → ("2 pl + 30", nil).
-    private func split(_ w: String) -> (String, String?) {
-        if w.isEmpty { return ("—", nil) }
-        if w.hasSuffix(" lb") { return (String(w.dropLast(3)), "lb") }
-        if Double(w) != nil { return (w, "pin") }
-        if w.contains("pl") { return (w.replacingOccurrences(of: " pl", with: "pl"), "plates") }
-        return (w, nil)
-    }
-
-    // MARK: Rest
-
-    private func rest(end: Date, now: Date) -> some View {
-        let total = Double(workout.current?.restSeconds ?? 180)
-        let left = end.timeIntervalSince(now)
-        let progress = max(0, min(1, left / total))
+    private func ring(left: Double, total: Double, running: Bool, end: Date?) -> some View {
+        let progress = running ? max(0, min(1, left / max(total, 1))) : 1
         return GeometryReader { geo in
-            let d = min(geo.size.width, geo.size.height) - 4
+            let d = min(geo.size.width, geo.size.height)
             ZStack {
-                Circle().stroke(.white.opacity(0.12), lineWidth: 10)
+                Circle().stroke(.white.opacity(0.15), lineWidth: 7)
                 Circle().trim(from: 0, to: progress)
-                    .stroke(left < 10 ? Color.green : .white, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                    .stroke(.white.opacity(running ? 1 : 0.35), style: StrokeStyle(lineWidth: 7, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 1), value: progress)
+                    .animation(.linear(duration: 0.25), value: progress)
                 VStack(spacing: 2) {
-                    Text("REST").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
-                    Text(clock(left)).font(.system(size: 44, weight: .semibold, design: .rounded)).monospacedDigit()
-                    if let next = workout.current {
-                        Text(next.exercise).font(.caption2).foregroundStyle(.secondary)
-                            .lineLimit(2).minimumScaleFactor(0.8).multilineTextAlignment(.center)
-                        Text("\(next.weight) × \(next.reps)").font(.footnote.weight(.semibold).monospacedDigit())
-                            .lineLimit(1).minimumScaleFactor(0.7)
+                    Text(clock(running ? left.rounded(.up) : left))
+                        .font(.system(size: d * 0.27, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundStyle(running ? .primary : .secondary)
+                    if let end {
+                        Label(end.formatted(date: .omitted, time: .shortened), systemImage: "bell.fill")
+                            .font(.footnote.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .labelStyle(.titleAndIcon)
                     }
                 }
-                .padding(.horizontal, 22)
+                .padding(.horizontal, 14)
             }
             .frame(width: d, height: d)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Button { model.send(.addRest(seconds: 15)) } label: { Image(systemName: "plus") }
+        .padding(4)
+    }
+
+    @ToolbarContentBuilder
+    private func buttons(running: Bool) -> some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            if running {
+                Button { model.addRest(15) } label: { Text("+15").font(.system(.body, design: .rounded).weight(.semibold)) }
                     .accessibilityLabel("Add 15 seconds")
                 Spacer()
-                Button { model.send(.skipRest) } label: { Image(systemName: "forward.end.fill") }
+                Button { model.skipRest() } label: { Image(systemName: "forward.end.fill") }
                     .accessibilityLabel("Skip rest")
-            }
-        }
-    }
-
-    private var allDone: some View {
-        VStack(spacing: 4) {
-            Image(systemName: "checkmark.circle").font(.largeTitle)
-            Text("All sets done").font(.headline)
-        }
-        .navigationTitle(workout.dayName)
-        .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
+            } else {
                 Spacer()
-                Button { model.send(.finish) } label: { Image(systemName: "flag.checkered") }
-                    .accessibilityLabel("Finish")
-            }
-        }
-    }
-
-    @ViewBuilder private var heart: some View {
-        if let hr = manager.heartRate {
-            Label("\(Int(hr))", systemImage: "heart.fill")
-                .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
-        }
-    }
-}
-
-/// One capsule per set: done filled, current wide, the rest dim.
-struct SetPills: View {
-    let current: Int
-    let count: Int
-
-    var body: some View {
-        HStack(spacing: 3) {
-            ForEach(1...max(count, 1), id: \.self) { n in
-                Capsule()
-                    .fill(n <= current ? Color.white : Color.white.opacity(0.2))
-                    .frame(width: n == current ? 18 : 7, height: 5)
-            }
-        }
-        .accessibilityElement()
-        .accessibilityLabel("Set \(current) of \(count)")
-    }
-}
-
-struct ControlsView: View {
-    let workout: WatchState.Workout
-    @Environment(WatchModel.self) private var model
-    @Environment(WorkoutManager.self) private var manager
-    @State private var confirmFinish = false
-
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 6) {
-                TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                    Text(clock(ctx.date.timeIntervalSince(workout.startedAt)))
-                        .font(.system(size: 30, weight: .bold, design: .rounded)).monospacedDigit()
-                }
-                HStack {
-                    Image(systemName: "checklist")
-                    Text("\(workout.done)/\(workout.total)").monospacedDigit()
-                }
-                .font(.footnote).foregroundStyle(.secondary)
-                Gauge(value: Double(workout.done), in: 0...Double(max(workout.total, 1))) { EmptyView() }
-                    .gaugeStyle(.linearCapacity).tint(.white)
-                if manager.calories > 0 {
-                    Label("\(Int(manager.calories)) kcal", systemImage: "flame").font(.footnote).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 6)
-            .navigationTitle(workout.dayName)
-            .toolbar {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Spacer()
-                    Button { confirmFinish = true } label: { Image(systemName: "flag.checkered") }
-                        .accessibilityLabel("Finish workout")
-                }
-            }
-            .confirmationDialog("Finish workout?", isPresented: $confirmFinish) {
-                Button("Finish") { model.send(.finish) }
-                Button("Keep Going", role: .cancel) {}
+                Button { model.startRest() } label: { Image(systemName: "play.fill") }
+                    .tint(.green)
+                    .accessibilityLabel("Start rest")
             }
         }
     }
