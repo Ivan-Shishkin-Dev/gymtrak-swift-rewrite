@@ -21,6 +21,7 @@ final class WorkoutManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBui
 
     /// Start or end the Health session to match the phone's workout.
     func follow(_ state: WatchState) {
+        guard !RunManager.shared.isActive else { return }   // one session at a time; the run wins
         if let w = state.workout {
             setsDone = w.done
             if sessionId != w.sessionId { Task { await start(w.sessionId, at: w.startedAt) } }
@@ -28,6 +29,12 @@ final class WorkoutManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBui
             let keep = setsDone > 0
             Task { await end(save: keep) }
         }
+    }
+
+    /// End the lift session before a run starts (saved if any sets were logged).
+    func stopForRun() async {
+        guard sessionId != nil else { return }
+        await end(save: setsDone > 0)
     }
 
     private func start(_ id: String, at start: Date) async {

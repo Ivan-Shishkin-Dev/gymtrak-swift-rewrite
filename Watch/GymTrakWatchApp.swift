@@ -9,16 +9,75 @@ struct GymTrakWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RestTimerView()
+            WatchRootView()
                 .environment(model)
                 .environment(workout)
+                .environment(RunManager.shared)
                 .task { model.activate() }
         }
         .onChange(of: phase) { if phase == .active { model.refresh() } }
     }
 }
 
-/// The whole watch app: the phone's rest timer, laid out like the Clock app's timer.
+/// A run in progress takes the whole screen; otherwise Home.
+struct WatchRootView: View {
+    @Environment(RunManager.self) private var run
+
+    var body: some View {
+        if run.isActive {
+            RunActiveView()
+        } else {
+            NavigationStack { WatchHomeView() }
+        }
+    }
+}
+
+/// Two big buttons: Lift (the rest timer) and Run (today's run).
+struct WatchHomeView: View {
+    @Environment(WatchModel.self) private var model
+
+    var body: some View {
+        let s = model.state
+        VStack(spacing: 8) {
+            NavigationLink { RestTimerView() } label: {
+                HomeTile(title: "Lift", detail: s.workout?.dayName ?? (s.canStart ? s.todayTitle : "Rest timer"),
+                         icon: "dumbbell.fill", color: .white)
+            }
+            NavigationLink { RunStartView() } label: {
+                HomeTile(title: "Run", detail: s.runPlan?.title ?? "Free Run", icon: "figure.run", color: .green)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 4)
+    }
+}
+
+private struct HomeTile: View {
+    let title: String
+    let detail: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.black)
+                .frame(width: 40, height: 40)
+                .background(color, in: Circle())
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.title3.weight(.semibold))
+                Text(detail).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+}
+
+/// The phone's rest timer, laid out like the Clock app's timer.
 /// A ring with the time in the middle and the end time under it; +15 bottom left, Skip or Start bottom right.
 /// The Crown adds or removes 15 s (or picks the length before Start). After 0:00 it counts up in green.
 /// The Health workout (heart rate, calories) records in the background while a workout is open on the phone.
@@ -28,23 +87,21 @@ struct RestTimerView: View {
     @FocusState private var crownFocused: Bool
 
     var body: some View {
-        NavigationStack {
-            TimelineView(.periodic(from: .now, by: 0.25)) { ctx in
-                let phase = model.phase(at: ctx.date)
-                face(phase, now: ctx.date)
-                    .toolbar { buttons(phase) }
-            }
-            .focusable()
-            .focused($crownFocused)
-            .digitalCrownRotation($crown, from: -100_000, through: 100_000, by: 1, sensitivity: .low,
-                                  isContinuous: true, isHapticFeedbackEnabled: true)
-            .onChange(of: crown) { old, new in
-                let steps = Int(new.rounded()) - Int(old.rounded())
-                guard steps != 0 else { return }
-                if case .running = model.phase(at: .now) { model.addRest(15 * steps) } else { model.pick(steps) }
-            }
-            .onAppear { crownFocused = true }
+        TimelineView(.periodic(from: .now, by: 0.25)) { ctx in
+            let phase = model.phase(at: ctx.date)
+            face(phase, now: ctx.date)
+                .toolbar { buttons(phase) }
         }
+        .focusable()
+        .focused($crownFocused)
+        .digitalCrownRotation($crown, from: -100_000, through: 100_000, by: 1, sensitivity: .low,
+                              isContinuous: true, isHapticFeedbackEnabled: true)
+        .onChange(of: crown) { old, new in
+            let steps = Int(new.rounded()) - Int(old.rounded())
+            guard steps != 0 else { return }
+            if case .running = model.phase(at: .now) { model.addRest(15 * steps) } else { model.pick(steps) }
+        }
+        .onAppear { crownFocused = true }
     }
 
     @ViewBuilder

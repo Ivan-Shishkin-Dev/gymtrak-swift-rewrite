@@ -30,6 +30,23 @@ struct WatchState: Codable, Equatable, Sendable {
         var queue: [Current] = []
     }
 
+    /// Today's run for the watch's Run screen: what to aim for and the cues to buzz.
+    struct RunPlan: Codable, Equatable, Sendable {
+        struct Cue: Codable, Equatable, Sendable {
+            var at: Double          // minutes into the run
+            var title: String
+            var body: String
+        }
+        var title: String           // "Easy Run · 30 min"
+        var detail: String          // "HR 120–140, cap 145"
+        var minutes: Double
+        var zoneMin: Int
+        var zoneMax: Int
+        var cap: Int
+        var easy: Bool
+        var cues: [Cue]
+    }
+
     var todayTitle: String          // "Upper A", "Long Run", "Rest Day"
     var todayDetail: String         // "8 lifts", "45 min"
     var lifts: Int? = nil           // exercises in today's lift
@@ -45,6 +62,7 @@ struct WatchState: Codable, Equatable, Sendable {
     var restTotal: Int? = nil
     /// The phone's default rest, for Start.
     var restDefault: Int? = nil
+    var runPlan: RunPlan? = nil
     /// Same summary the phone widgets use, for the watch complications.
     var widget: WidgetData?
 

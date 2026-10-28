@@ -21,9 +21,11 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>GymTrak reads your heart rate during workouts.</string>
+	<string>GymTrak reads your heart rate, distance and pace during workouts.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>GymTrak saves your lifts to Apple Health.</string>
+	<string>GymTrak saves your lifts and runs to Apple Health.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>GymTrak maps your run and measures distance and pace.</string>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKBackgroundModes</key>

@@ -65,3 +65,4 @@ Secrets.xcconfig
 build/
 build-sim/
 build-watch/
+build-watchdev/

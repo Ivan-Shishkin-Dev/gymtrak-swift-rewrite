@@ -86,8 +86,9 @@ targets:
         WKApplication: true
         WKCompanionAppBundleIdentifier: dev.ivanshishkin.gymtrak
         WKBackgroundModes: [workout-processing]
-        NSHealthShareUsageDescription: GymTrak reads your heart rate during workouts.
-        NSHealthUpdateUsageDescription: GymTrak saves your lifts to Apple Health.
+        NSHealthShareUsageDescription: GymTrak reads your heart rate, distance and pace during workouts.
+        NSHealthUpdateUsageDescription: GymTrak saves your lifts and runs to Apple Health.
+        NSLocationWhenInUseUsageDescription: GymTrak maps your run and measures distance and pace.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.ivanshishkin.gymtrak.watchkitapp

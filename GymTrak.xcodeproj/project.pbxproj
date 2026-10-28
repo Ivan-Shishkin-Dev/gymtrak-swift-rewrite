@@ -34,6 +34,7 @@
 		6509A80DEE09F76C8CBC5F5D /* WorkoutSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47818A6E2CFB2AD0E263058F /* WorkoutSummaryView.swift */; };
 		688F959739EB02D5DFE1647C /* Load.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1A96275B820FD5C193DC82 /* Load.swift */; };
 		702733365E5871A883C67444 /* GymTrakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203CC4A1164B17AB43E1679B /* GymTrakTests.swift */; };
+		72AE1015A96DB0F7548E95B6 /* RunViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDDB1D1D18B6F38ED1F6C418 /* RunViews.swift */; };
 		739F6A6D8991E203FBF7F50B /* WatchSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D6BB97AF60A745EA70F86D /* WatchSync.swift */; };
 		7B11BD2BCEB7DA81031934B6 /* GymTrakWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75D2BF549B69B844E3DA7D29 /* GymTrakWidgets.swift */; };
 		86D71F68FB438DAEA933B58C /* Program.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A76751019FB132D5513D1F /* Program.swift */; };
@@ -42,6 +43,7 @@
 		A69605F98AC99960DFA104EC /* RestLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB2A70C0BB5A6771F9F8509 /* RestLiveActivity.swift */; };
 		ACE014792E7E64BD0DD22AD7 /* RestActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C799F5B27C1E8B81A2227F8 /* RestActivity.swift */; };
 		AE24581D11E0946398AE0253 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42768E1AD24129112AA73471 /* RootView.swift */; };
+		AFC8B8CAA18FAB23008CDDBF /* RunManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6374B0FE4CED1FECB7E628DB /* RunManager.swift */; };
 		B9C90E0454D9DEE2A8AA7197 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2098609CF3E400CDDC0CC8A4 /* TodayView.swift */; };
 		BE586FA2958D196576B4987E /* GymTrakWatchWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A0713C97850C4C8868AC1A18 /* GymTrakWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BEE8A3AC83B0D98E39F5A091 /* WidgetExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C19D334E521B21FDD0BBE24D /* WidgetExport.swift */; };
@@ -159,6 +161,7 @@
 		5C5A2741915293CDDE1B7DFA /* PlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanView.swift; sourceTree = "<group>"; };
 		606F69DCA4E0A99FD79CBBF8 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		6072540DD7AC5F6462AA6CCD /* RunBrief.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunBrief.swift; sourceTree = "<group>"; };
+		6374B0FE4CED1FECB7E628DB /* RunManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunManager.swift; sourceTree = "<group>"; };
 		6A829D6D4CDE418D944DC756 /* GymTrakWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GymTrakWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		71016EB64C104B46D485DC86 /* RunReminderIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunReminderIntent.swift; sourceTree = "<group>"; };
 		75D2BF549B69B844E3DA7D29 /* GymTrakWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymTrakWidgets.swift; sourceTree = "<group>"; };
@@ -178,6 +181,7 @@
 		B5256A5DCB9495A82248AC56 /* ExerciseHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistoryView.swift; sourceTree = "<group>"; };
 		B9852C57291AC247289AFB11 /* Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Actions.swift; sourceTree = "<group>"; };
 		BA6D446E3EB9E76ACD1256E3 /* Complications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Complications.swift; sourceTree = "<group>"; };
+		BDDB1D1D18B6F38ED1F6C418 /* RunViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunViews.swift; sourceTree = "<group>"; };
 		C19D334E521B21FDD0BBE24D /* WidgetExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetExport.swift; sourceTree = "<group>"; };
 		CE59531A26F3C74DB59C5E4C /* Connections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connections.swift; sourceTree = "<group>"; };
 		DBF44F70C7C73332C3A04906 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
@@ -188,7 +192,7 @@
 		F0BE589482F4E09EF006D1D7 /* GymTrak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = GymTrak.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F78A06DBBEF9B775622AE392 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FDFE8D2FE2BB354EB17FFCBA /* WatchBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchBridge.swift; sourceTree = "<group>"; };
-		"TEMP_9352BA5C-8230-4213-A7E5-137C85E20AD4" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		"TEMP_76ADB16D-DA18-4E21-ABD3-7BDBACD42565" /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -274,6 +278,8 @@
 				0032746D1312526F6C5633C0 /* GymTrakWatchApp.swift */,
 				F78A06DBBEF9B775622AE392 /* Info.plist */,
 				9410D5F184122EE5F5481C4B /* Intents.swift */,
+				6374B0FE4CED1FECB7E628DB /* RunManager.swift */,
+				BDDB1D1D18B6F38ED1F6C418 /* RunViews.swift */,
 				AD03EEE4E079A4F0B82E0D9C /* WatchModel.swift */,
 				4DC9824BB09C1C1D73EC9786 /* WorkoutManager.swift */,
 			);
@@ -332,10 +338,10 @@
 			path = Widgets;
 			sourceTree = "<group>";
 		};
-		"TEMP_6C3F1F5F-AD3F-4432-87F3-666162E35F14" /* gymtrak-swift-rewrite */ = {
+		"TEMP_32C108BA-ECA9-4F3A-A0A3-2AD85250385B" /* gymtrak-swift-rewrite */ = {
 			isa = PBXGroup;
 			children = (
-				"TEMP_9352BA5C-8230-4213-A7E5-137C85E20AD4" /* Config.xcconfig */,
+				"TEMP_76ADB16D-DA18-4E21-ABD3-7BDBACD42565" /* Config.xcconfig */,
 			);
 			path = "gymtrak-swift-rewrite";
 			sourceTree = "<group>";
@@ -525,6 +531,8 @@
 				C5E0CCB5E7FFB5454B48FBB7 /* GymTrakWatchApp.swift in Sources */,
 				E2EE11C3200105E288C45351 /* Intents.swift in Sources */,
 				4636C12818902619F1189F20 /* RestActivity.swift in Sources */,
+				AFC8B8CAA18FAB23008CDDBF /* RunManager.swift in Sources */,
+				72AE1015A96DB0F7548E95B6 /* RunViews.swift in Sources */,
 				C6D192AEA8B963A3C42E4270 /* WatchModel.swift in Sources */,
 				52CCB717112BF929F29B404A /* WatchSync.swift in Sources */,
 				DF3DFB3B1065AFB1E26D1440 /* WidgetData.swift in Sources */,
@@ -873,7 +881,7 @@
 		};
 		C51B4C3A1A037D7EDB9E81F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_9352BA5C-8230-4213-A7E5-137C85E20AD4" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_76ADB16D-DA18-4E21-ABD3-7BDBACD42565" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -892,7 +900,7 @@
 		};
 		DE1DAE831E7778559F295B52 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = "TEMP_9352BA5C-8230-4213-A7E5-137C85E20AD4" /* Config.xcconfig */;
+			baseConfigurationReference = "TEMP_76ADB16D-DA18-4E21-ABD3-7BDBACD42565" /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

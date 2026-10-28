@@ -27,6 +27,7 @@ extension Snapshot {
                                restEndsAt: restEndsAt, widget: widgetData(runs: runs, now: now))
         state.restTotal = restEndsAt == nil ? nil : restTotal
         state.restDefault = restDefault
+        state.runPlan = runPlan(now: now, runs: runs)
         state.lifts = liftDay.map { exercises(of: $0.id).count }
         state.runMinutes = slot?.run?.durationMin
 
@@ -62,6 +63,21 @@ extension Snapshot {
                                   queue: queue)
         }
         return state
+    }
+}
+
+extension Snapshot {
+    /// Today's run for the watch. With nothing planned, a free easy run.
+    func runPlan(now: Date, runs: [RunActivity]) -> WatchState.RunPlan {
+        let cues = runCues(now: now, runs: runs)
+        let rx = scheduleWeek(now)?.slot(DateKey.dow(now))?.run
+        let (lo, hi, cap) = rx.map { ($0.hrZoneMin, $0.hrZoneMax, $0.hrHardCap) } ?? defaultHR(.easy)
+        let easy = rx?.label.isEasy ?? true
+        let total = cues.last?.at ?? 0
+        return .init(title: rx.map { "\($0.label.rawValue) · \(Int(total)) min" } ?? "Free Run",
+                     detail: easy ? "HR \(zoneLabel(lo, hi)), cap \(cap)" : "HR cap \(cap)",
+                     minutes: total, zoneMin: lo, zoneMax: hi, cap: cap, easy: easy,
+                     cues: rx == nil ? [] : cues.map { .init(at: $0.at, title: $0.title, body: $0.body) })
     }
 }
 
