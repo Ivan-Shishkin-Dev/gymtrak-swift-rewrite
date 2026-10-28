@@ -777,14 +777,28 @@ struct RunBriefTests {
         let b = db(run: rx).runBrief(now: DateKey.date("2026-10-27"))
         #expect(b.title == "Easy Run · 30 min")
         #expect(b.body.hasPrefix("HR \(zoneLabel(rx.hrZoneMin, rx.hrZoneMax)), cap \(rx.hrHardCap)"))
-        #expect(b.body.contains("strides"))
     }
 
-    @Test func hardRunGivesCap() {
+    @Test func hardRunStartsWithWarmup() {
         let rx = makeRun(.tempo, minutes: 35, timing: .standalone)
         let b = db(run: rx).runBrief(now: DateKey.date("2026-10-27"))
-        #expect(b.title.hasPrefix("Tempo Run · "))
-        #expect(b.body.hasPrefix("HR cap \(rx.hrHardCap)"))
+        #expect(b.title == "Warm-up · 10 min")
+        #expect(b.body.contains("Tempo Run after: 20 min"))
+    }
+
+    @Test func stridesCueComesThreeMinutesBeforeTheEnd() {
+        let rx = makeRun(.easy, minutes: 30, timing: .standalone, strides: true)
+        let cues = db(run: rx).runCues(now: DateKey.date("2026-10-27"))
+        #expect(cues.map(\.at) == [0, 15, 27, 30])
+        #expect(cues[2].title == "Strides now")
+    }
+
+    @Test func hardRunHasWarmupWorkCooldown() {
+        let rx = makeRun(.tempo, minutes: 35, timing: .standalone)
+        let cues = db(run: rx).runCues(now: DateKey.date("2026-10-27"))
+        #expect(cues.map(\.at) == [0, 10, 30, 35])
+        #expect(cues[1].title == "Tempo Run · 20 min")
+        #expect(cues[1].body.hasPrefix("HR cap \(rx.hrHardCap)"))
     }
 
     @Test func noRunPlannedStaysEasy() {
