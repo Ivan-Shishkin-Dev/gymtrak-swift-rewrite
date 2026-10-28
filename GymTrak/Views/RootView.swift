@@ -154,7 +154,7 @@ struct ResumeBanner: View {
                     .background(Theme.lift, in: Capsule())
                     .foregroundStyle(Theme.onLift)
             }
-            .padding(.horizontal).padding(.vertical, 10)
+            .padding(.horizontal).padding(.vertical, 16)
             .background(Color(.secondarySystemBackground))
             .overlay(alignment: .top) { Rectangle().fill(Color(.separator)).frame(height: 0.5) }
             .contentShape(Rectangle())
