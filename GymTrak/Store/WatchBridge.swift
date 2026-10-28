@@ -131,8 +131,8 @@ final class WatchBridge: NSObject, WCSessionDelegate {
             store.mutate { $0.updateSetLoad(id, weight: st.weight, reps: "× \(max(0, n + dir))") }
         case .skipRest:
             rest?.stop()
-        case .startRest:
-            rest?.start()
+        case .startRest(let seconds):
+            rest?.start(seconds)
         case .addRest(let s):
             rest?.add(s)
         case .finish:
@@ -154,7 +154,7 @@ final class WatchBridge: NSObject, WCSessionDelegate {
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any],
                              replyHandler: @escaping ([String: Any]) -> Void) {
-        let action = WatchWire.decode(WatchAction.self, from: message[WatchWire.actionKey])
+        let action = Self.fresh(message)
         let reply = UncheckedReply(replyHandler)
         Task { @MainActor in
             if let action { self.handle(action) }
@@ -164,8 +164,20 @@ final class WatchBridge: NSObject, WCSessionDelegate {
     }
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
-        guard let action = WatchWire.decode(WatchAction.self, from: userInfo[WatchWire.actionKey]) else { return }
+        guard let action = Self.fresh(userInfo) else { return }
         Task { @MainActor in self.handle(action) }
+    }
+
+    /// The action, unless it's a rest-timer tap that arrived more than 15 s late
+    /// (a queued Skip must not cancel a rest started since).
+    nonisolated static func fresh(_ payload: [String: Any], now: Date = Date()) -> WatchAction? {
+        guard let action = WatchWire.decode(WatchAction.self, from: payload[WatchWire.actionKey]) else { return nil }
+        switch action {
+        case .startRest, .addRest, .skipRest:
+            if let sent = payload[WatchWire.sentAtKey] as? Double, now.timeIntervalSince1970 - sent > 15 { return nil }
+        default: break
+        }
+        return action
     }
 }
 

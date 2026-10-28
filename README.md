@@ -63,7 +63,7 @@ Planned 7 days ahead and rebuilt every time the data changes (`GymTrak/Store/Not
 ### Beyond the app
 
 - **Live Activity**: the rest countdown and the next set, on the lock screen and in the Dynamic Island.
-- **Apple Watch**: just the rest timer, laid out like the Clock app's timer: ring, time left, end time, **+15** and **Skip** (or **Start** when no rest is running). It follows the phone's timer both ways and buzzes three times when rest is over. While a workout is open on the phone, the watch records it to Apple Health (heart rate, calories). Watch complications too.
+- **Apple Watch**: just the rest timer, laid out like the Clock app's timer: ring, time left, end time, **+15** and **Skip** (or **Start** when no rest is running). Turn the Digital Crown to add or remove 15 s, or to pick the length before Start. Start uses the rest for the set you're on (2:00 before a warm-up, that exercise's rest otherwise). After 0:00 it counts up in green ("+0:23") for up to 10 minutes. It follows the phone's timer both ways and buzzes three times when rest is over. While a workout is open on the phone, the watch records it to Apple Health (heart rate, calories). Watch complications too.
 - **Apple Health**: reads runs, steps, calories and sleep. Saves lifts.
 - **Kisi**: Unlock Door on Today opens the gym door through Kisi's API (`Store/Kisi.swift`). Sign in under Settings → Connections → Kisi; only Kisi's login token is kept, in the Keychain. Doors that only open when you're standing at the reader won't open from here.
 - **Strava**: not connected directly. Turn on Strava → Settings → Applications, Services and Devices → Health, and Strava runs reach GymTrak through Apple Health.

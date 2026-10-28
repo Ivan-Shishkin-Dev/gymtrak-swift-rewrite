@@ -31,7 +31,7 @@ struct RestBar: View {
             .padding(.horizontal, 20).padding(.vertical, 8)
             .background(Page.bg)
             .overlay(alignment: .top) { Rectangle().fill(Page.divider).frame(height: 1) }
-            .onChange(of: left < -60) { _, stale in if stale { rest.stop() } }
+            .onChange(of: left < -RestTimer.overtimeSec) { _, stale in if stale { rest.stop() } }
             .sensoryFeedback(.warning, trigger: over)
         }
     }

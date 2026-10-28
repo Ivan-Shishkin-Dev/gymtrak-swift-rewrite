@@ -68,8 +68,8 @@ enum WatchAction: Codable, Equatable, Sendable {
     case skipRest
     case addRest(seconds: Int)
     case finish
-    /// Start a rest at the phone's default length.
-    case startRest
+    /// Start a rest of this length.
+    case startRest(seconds: Int)
     /// Send the latest state; the watch asks when it opens.
     case refresh
 }
@@ -78,6 +78,8 @@ enum WatchAction: Codable, Equatable, Sendable {
 enum WatchWire {
     static let stateKey = "state"
     static let actionKey = "action"
+    /// When the watch sent it (seconds since 1970). Queued messages can arrive minutes late.
+    static let sentAtKey = "sentAt"
 
     static func encode<T: Encodable>(_ value: T) -> Data? { try? JSONEncoder().encode(value) }
     static func decode<T: Decodable>(_ type: T.Type, from any: Any?) -> T? {

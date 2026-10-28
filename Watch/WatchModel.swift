@@ -29,8 +29,35 @@ final class WatchModel: NSObject, WCSessionDelegate, UNUserNotificationCenterDel
     // MARK: Rest timer
     // Each button changes the screen right away; the phone's reply then confirms it.
 
+    enum RestPhase: Equatable {
+        case idle
+        case running(end: Date)
+        /// Rest ran out; count up how long ago.
+        case over(end: Date)
+    }
+
+    /// Overtime shows for up to 10 minutes, then the timer goes back to ready.
+    func phase(at now: Date) -> RestPhase {
+        guard let end = state.restEndsAt else { return .idle }
+        if end > now { return .running(end: end) }
+        return now.timeIntervalSince(end) < 600 ? .over(end: end) : .idle
+    }
+
+    /// What Start uses: the length picked with the Crown, else the rest for the set you're on
+    /// (2:00 for a warm-up, that exercise's rest otherwise), else the phone's default.
+    var startSeconds: Int { picked ?? state.workout?.current?.restSeconds ?? state.restDefault ?? 180 }
+
+    /// Set with the Crown before Start; cleared once a rest starts.
+    var picked: Int?
+
+    func pick(_ steps: Int) {
+        picked = min(600, max(15, startSeconds + 15 * steps))
+        WKInterfaceDevice.current().play(.click)
+    }
+
     func addRest(_ seconds: Int) {
-        guard let end = state.restEndsAt, end > .now else { return }
+        guard let end = state.restEndsAt, end > .now,
+              end.addingTimeInterval(TimeInterval(seconds)) > .now.addingTimeInterval(5) else { return }
         WKInterfaceDevice.current().play(.click)
         var s = state
         s.restEndsAt = end.addingTimeInterval(TimeInterval(seconds))
@@ -55,12 +82,13 @@ final class WatchModel: NSObject, WCSessionDelegate, UNUserNotificationCenterDel
     func startRest() {
         guard Date.now.timeIntervalSince(skippedAt) > 1 else { return }
         WKInterfaceDevice.current().play(.start)
-        let seconds = state.restDefault ?? 180
+        let seconds = startSeconds
+        picked = nil
         var s = state
         s.restEndsAt = .now.addingTimeInterval(TimeInterval(seconds))
         s.restTotal = seconds
         apply(s, local: true)
-        send(.startRest)
+        send(.startRest(seconds: seconds))
     }
 
     /// Ask the phone for fresh state. Wakes the iPhone app in the background if it isn't running.
@@ -84,7 +112,7 @@ final class WatchModel: NSObject, WCSessionDelegate, UNUserNotificationCenterDel
     func send(_ action: WatchAction) {
         guard WCSession.isSupported(), let data = WatchWire.encode(action) else { return }
         let session = WCSession.default
-        let payload = [WatchWire.actionKey: data]
+        let payload: [String: Any] = [WatchWire.actionKey: data, WatchWire.sentAtKey: Date().timeIntervalSince1970]
         guard session.isReachable else {
             session.transferUserInfo(payload)
             return
@@ -132,7 +160,10 @@ final class WatchModel: NSObject, WCSessionDelegate, UNUserNotificationCenterDel
             w.save()
             WidgetCenter.shared.reloadAllTimelines()
         }
-        if new.restEndsAt != old.restEndsAt { scheduleRestHaptic(new.restEndsAt) }
+        if new.restEndsAt != old.restEndsAt {
+            scheduleRestHaptic(new.restEndsAt)
+            if new.restEndsAt != nil { picked = nil }   // a rest started (here or on the phone)
+        }
         WorkoutManager.shared.follow(new)
     }
 

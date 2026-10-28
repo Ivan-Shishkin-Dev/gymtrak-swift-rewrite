@@ -750,3 +750,18 @@ struct WarmupTests {
         #expect(snap.warmups?.isEmpty == true)
     }
 }
+
+struct WatchWireTests {
+    @Test func lateRestTapsAreDropped() {
+        let skip = WatchWire.encode(WatchAction.skipRest)!
+        let now = Date()
+        let late: [String: Any] = [WatchWire.actionKey: skip, WatchWire.sentAtKey: now.timeIntervalSince1970 - 60]
+        let onTime: [String: Any] = [WatchWire.actionKey: skip, WatchWire.sentAtKey: now.timeIntervalSince1970 - 2]
+        #expect(WatchBridge.fresh(late, now: now) == nil)
+        #expect(WatchBridge.fresh(onTime, now: now) == .skipRest)
+        // Set taps still count when late; they're not tied to a moment.
+        let tick: [String: Any] = [WatchWire.actionKey: WatchWire.encode(WatchAction.toggle(setId: "a"))!,
+                                   WatchWire.sentAtKey: now.timeIntervalSince1970 - 600]
+        #expect(WatchBridge.fresh(tick, now: now) == .toggle(setId: "a"))
+    }
+}

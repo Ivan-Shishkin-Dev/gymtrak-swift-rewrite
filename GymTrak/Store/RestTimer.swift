@@ -30,7 +30,7 @@ final class RestTimer {
         if let saved = UserDefaults.standard.dictionary(forKey: Self.activeKey),
            let start = saved["startedAt"] as? Double, let target = saved["targetSec"] as? Int {
             let age = Date().timeIntervalSince1970 - start
-            if age >= 0 && age < Double(target + 60) {
+            if age >= 0 && age < Double(target) + Self.overtimeSec {
                 startedAt = Date(timeIntervalSince1970: start)
                 targetSec = target
             }
@@ -38,6 +38,9 @@ final class RestTimer {
     }
 
     static func clamp(_ s: Int) -> Int { min(maxSec, max(minSec, s)) }
+
+    /// How long a finished rest keeps counting up (here and on the watch) before it clears.
+    static let overtimeSec: Double = 600
 
     /// Start rest automatically when a set is ticked done. Defaults on.
     static let autoKey = "gt_rest_auto"
