@@ -801,6 +801,15 @@ struct RunBriefTests {
         #expect(cues[1].body.hasPrefix("HR cap \(rx.hrHardCap)"))
     }
 
+    @Test func segmentsMatchTheCues() {
+        let easy = db(run: makeRun(.easy, minutes: 30, timing: .standalone, strides: true)).runSegments(now: DateKey.date("2026-10-27"))
+        #expect(easy.map(\.name) == ["Easy", "Strides"])
+        #expect(easy.map(\.to) == [27, 30])
+        let tempo = db(run: makeRun(.tempo, minutes: 35, timing: .standalone)).runSegments(now: DateKey.date("2026-10-27"))
+        #expect(tempo.map(\.name) == ["Warm-up", "Tempo", "Cool-down"])
+        #expect(tempo.map(\.from) == [0, 10, 30])
+    }
+
     @Test func noRunPlannedStaysEasy() {
         let b = db(run: nil).runBrief(now: DateKey.date("2026-10-27"))
         #expect(b.title == "No run planned")

@@ -1,4 +1,5 @@
 import Foundation
+import HealthKit
 import WatchConnectivity
 
 extension Snapshot {
@@ -77,7 +78,8 @@ extension Snapshot {
         return .init(title: rx.map { "\($0.label.rawValue) · \(Int(total)) min" } ?? "Free Run",
                      detail: easy ? "HR \(zoneLabel(lo, hi)), cap \(cap)" : "HR cap \(cap)",
                      minutes: total, zoneMin: lo, zoneMax: hi, cap: cap, easy: easy,
-                     cues: rx == nil ? [] : cues.map { .init(at: $0.at, title: $0.title, body: $0.body) })
+                     cues: rx == nil ? [] : cues.map { .init(at: $0.at, title: $0.title, body: $0.body) },
+                     segments: runSegments(now: now, runs: runs).map { .init(name: $0.name, from: $0.from, to: $0.to, aim: $0.aim) })
     }
 }
 
@@ -96,6 +98,18 @@ final class WatchBridge: NSObject, WCSessionDelegate {
         WCSession.isSupported() && WCSession.default.activationState == .activated
             && WCSession.default.isPaired && WCSession.default.isWatchAppInstalled
     }
+
+    /// Open the watch app and start its strength workout, so heart rate records the whole lift
+    /// and the workout lands in Apple Health (and Strava) without opening the watch app first.
+    func launchWatchWorkout() {
+        guard watchRecordsWorkouts, HKHealthStore.isHealthDataAvailable() else { return }
+        let config = HKWorkoutConfiguration()
+        config.activityType = .traditionalStrengthTraining
+        config.locationType = .indoor
+        health.startWatchApp(with: config) { _, _ in }
+    }
+
+    private let health = HKHealthStore()
 
     func start(store: Store, rest: RestTimer) {
         self.store = store

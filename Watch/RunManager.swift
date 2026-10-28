@@ -123,6 +123,18 @@ final class RunManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBuilder
         WKInterfaceDevice.current().play(.success)
     }
 
+    /// Throw the run away: nothing is saved to Apple Health.
+    func discard() {
+        guard let session, let builder, phase != .saving else { return }
+        loop?.cancel()
+        location.stopUpdatingLocation()
+        session.end()
+        builder.discardWorkout()
+        lastRun = nil
+        reset()
+        WKInterfaceDevice.current().play(.click)
+    }
+
     private func reset() {
         loop?.cancel()
         session = nil

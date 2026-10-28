@@ -45,6 +45,15 @@ struct WatchState: Codable, Equatable, Sendable {
         var cap: Int
         var easy: Bool
         var cues: [Cue]
+        /// What you're doing when: "Warm-up" 0–10, "Tempo" 10–30… Optional so older saved states still read.
+        var segments: [Segment]?
+
+        struct Segment: Codable, Equatable, Sendable {
+            var name: String
+            var from: Double    // minutes
+            var to: Double      // minutes; 0 = open-ended
+            var aim: String     // "HR 120–140"
+        }
     }
 
     var todayTitle: String          // "Upper A", "Long Run", "Rest Day"

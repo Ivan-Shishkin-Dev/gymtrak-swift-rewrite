@@ -70,6 +70,38 @@ extension Snapshot {
     }
 }
 
+/// One part of a run: what you're doing from one minute to another, and the heart rate to aim for.
+struct RunSegment: Equatable {
+    var name: String        // "Warm-up", "Easy", "Strides", "Tempo", "Cool-down"
+    var from: Double        // minutes
+    var to: Double          // minutes; 0 = open-ended (no run planned)
+    var aim: String         // "HR 120–140", "HR under 175", "Fast and relaxed"
+}
+
+extension Snapshot {
+    /// Today's run split into its parts, matching `runCues`.
+    func runSegments(now: Date = Date(), runs: [RunActivity] = []) -> [RunSegment] {
+        let (lo, hi, _) = defaultHR(.easy)
+        let week = scheduleWeek(now)
+        guard let rx = week?.slot(DateKey.dow(now))?.run else {
+            return [RunSegment(name: "Easy", from: 0, to: 0, aim: "HR \(zoneLabel(lo, hi))")]
+        }
+        let total = runCues(now: now, runs: runs).last?.at ?? Double(rx.durationMin)
+        let name = rx.label.rawValue.replacingOccurrences(of: " Run", with: "")
+        if rx.label.isEasy {
+            let zone = "HR \(zoneLabel(rx.hrZoneMin, rx.hrZoneMax))"
+            guard rx.strides && total >= 10 else { return [RunSegment(name: name, from: 0, to: total, aim: zone)] }
+            return [RunSegment(name: name, from: 0, to: total - 3, aim: zone),
+                    RunSegment(name: "Strides", from: total - 3, to: total, aim: "20 s fast, 40 s easy")]
+        }
+        let warm = min(10, total / 3), cool = min(5, total / 5)
+        let work = max(0, total - warm - cool)
+        return [RunSegment(name: "Warm-up", from: 0, to: warm, aim: "HR \(zoneLabel(lo, hi))"),
+                RunSegment(name: name, from: warm, to: warm + work, aim: "HR under \(rx.hrHardCap)"),
+                RunSegment(name: "Cool-down", from: warm + work, to: total, aim: "HR under \(hi)")]
+    }
+}
+
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
 }

@@ -124,6 +124,7 @@ struct TodayView: View {
             ForEach(store.db.activeDays) { d in
                 Button {
                     store.mutate { $0.startSession(day: d) }
+                    WatchBridge.shared.launchWatchWorkout()
                     nav.showWorkout = true
                 } label: {
                     Label(d.name, systemImage: "play").foregroundStyle(Page.text)
@@ -280,6 +281,7 @@ struct StartButton: View {
 
     private func proceed() {
         store.mutate { $0.startSession(day: day, options: StartOptions(scheduledDate: date, coach: Coach.autoApply)) }
+        WatchBridge.shared.launchWatchWorkout()
         nav.showWorkout = true
     }
 }

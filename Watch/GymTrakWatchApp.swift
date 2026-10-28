@@ -1,8 +1,18 @@
+import HealthKit
 import SwiftUI
 import WatchKit
 
+/// The phone's Start Workout opens the app this way, with a strength workout to record.
+final class WatchAppDelegate: NSObject, WKApplicationDelegate {
+    func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
+        WorkoutManager.shared.startFromPhone()
+        WatchModel.shared.refresh()
+    }
+}
+
 @main
 struct GymTrakWatchApp: App {
+    @WKApplicationDelegateAdaptor private var delegate: WatchAppDelegate
     @State private var model = WatchModel.shared
     @State private var workout = WorkoutManager.shared
     @Environment(\.scenePhase) private var phase

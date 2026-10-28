@@ -34,7 +34,8 @@ struct RunStartView: View {
     }
 
     static let freeRun = WatchState.RunPlan(title: "Free Run", detail: "HR 120–140, cap 145", minutes: 0,
-                                            zoneMin: 120, zoneMax: 140, cap: 145, easy: true, cues: [])
+                                            zoneMin: 120, zoneMax: 140, cap: 145, easy: true, cues: [],
+                                            segments: [.init(name: "Easy", from: 0, to: 0, aim: "HR 120–140")])
 }
 
 /// During a run: swipe right for Pause and End, like the Workout app.
@@ -53,17 +54,40 @@ struct RunActiveView: View {
 /// Time, heart rate with its zone, distance and pace. A cue or warning shows on top for 10 s.
 struct RunMetricsView: View {
     @Environment(RunManager.self) private var run
+    @State private var confirmEnd = false
 
     var body: some View {
+        NavigationStack { metrics }
+    }
+
+    private var metrics: some View {
         TimelineView(.periodic(from: .now, by: 1)) { ctx in
+            let t = run.elapsed(at: ctx.date)
+            let seg = segment(at: t)
             VStack(alignment: .leading, spacing: 0) {
-                Text(clock(run.elapsed(at: ctx.date)))
-                    .font(.system(size: 46, weight: .semibold, design: .rounded)).monospacedDigit()
-                    .foregroundStyle(run.phase == .paused ? Color.secondary : .yellow)
-                    .lineLimit(1).minimumScaleFactor(0.6)
+                // What you're doing now and how long it lasts.
+                Text(seg.line)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .foregroundStyle(.green).lineLimit(1).minimumScaleFactor(0.7)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(clock(t))
+                        .font(.system(size: 36, weight: .semibold, design: .rounded)).monospacedDigit()
+                        .foregroundStyle(run.phase == .paused ? Color.secondary : .yellow)
+                    Spacer(minLength: 4)
+                    if let total = run.plan?.minutes, total > 0 {
+                        Text(t < total * 60 ? "\(clock(total * 60 - t)) left" : "done")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .lineLimit(1).minimumScaleFactor(0.6)
                 heartRow
-                metric(String(format: "%.2f", run.miles), unit: "MI")
-                metric(paceText(run.pace), unit: "/MI")
+                Text("Aim \(seg.aim)").font(.system(size: 13, weight: .medium, design: .rounded)).foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline) {
+                    metric(String(format: "%.2f", run.miles), unit: "MI")
+                    Spacer(minLength: 4)
+                    metric(paceText(run.pace), unit: "/MI")
+                }
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -76,6 +100,36 @@ struct RunMetricsView: View {
             }
             .animation(.snappy, value: run.banner)
         }
+        // Pause and End at the very bottom; swiping right still works too.
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Button { run.phase == .paused ? run.resume() : run.pause() } label: {
+                    Image(systemName: run.phase == .paused ? "play.fill" : "pause.fill")
+                }
+                .tint(.yellow)
+                .accessibilityLabel(run.phase == .paused ? "Resume" : "Pause")
+                Spacer()
+                Button { confirmEnd = true } label: { Image(systemName: "xmark") }
+                    .tint(.red)
+                    .accessibilityLabel("End run")
+            }
+        }
+        .confirmationDialog("End run?", isPresented: $confirmEnd) {
+            Button("End and Save") { Task { await run.end() } }
+            Button("Discard Run", role: .destructive) { run.discard() }
+            Button("Keep Running", role: .cancel) {}
+        }
+    }
+
+    /// The part of the run you're in: "Warm-up · 6:12 left", and its heart-rate aim.
+    private func segment(at t: TimeInterval) -> (line: String, aim: String) {
+        let parts = run.plan?.segments ?? []
+        let min = t / 60
+        if let s = parts.first(where: { min >= $0.from && ($0.to == 0 || min < $0.to) }) {
+            return (s.to == 0 ? s.name : "\(s.name) · \(clock(s.to * 60 - t)) left", s.aim)
+        }
+        if let last = parts.last, last.to > 0, min >= last.to { return ("Done · walk it off", last.aim) }
+        return ("Run", "HR \(run.plan.map { "\($0.zoneMin)–\($0.zoneMax)" } ?? "120–140")")
     }
 
     private var heartRow: some View {
@@ -83,7 +137,7 @@ struct RunMetricsView: View {
         let zone = hr.map { run.zone(for: $0) }
         return HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(hr.map { "\(Int($0))" } ?? "--")
-                .font(.system(size: 34, weight: .semibold, design: .rounded)).monospacedDigit()
+                .font(.system(size: 30, weight: .semibold, design: .rounded)).monospacedDigit()
             Image(systemName: "heart.fill").font(.system(size: 14)).foregroundStyle(.red)
             Spacer(minLength: 4)
             ZoneBar(zone: zone)
@@ -93,7 +147,7 @@ struct RunMetricsView: View {
 
     private func metric(_ value: String, unit: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text(value).font(.system(size: 34, weight: .semibold, design: .rounded)).monospacedDigit()
+            Text(value).font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
             Text(unit).font(.system(size: 14, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
         }
         .lineLimit(1).minimumScaleFactor(0.6)
@@ -172,6 +226,7 @@ struct RunControlsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .confirmationDialog("End run?", isPresented: $confirmEnd) {
             Button("End and Save") { Task { await run.end() } }
+            Button("Discard Run", role: .destructive) { run.discard() }
             Button("Keep Running", role: .cancel) {}
         }
     }

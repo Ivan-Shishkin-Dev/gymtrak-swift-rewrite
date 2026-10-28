@@ -18,17 +18,30 @@ final class WorkoutManager: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBui
     private var builder: HKLiveWorkoutBuilder?
     private var sessionId: String?
     private var setsDone = 0
+    /// Started by the phone's Start Workout before the phone's state (with the workout's id) arrives.
+    private static let pending = "pending"
+    private var pendingSince = Date.distantPast
 
     /// Start or end the Health session to match the phone's workout.
     func follow(_ state: WatchState) {
         guard !RunManager.shared.isActive else { return }   // one session at a time; the run wins
         if let w = state.workout {
             setsDone = w.done
-            if sessionId != w.sessionId { Task { await start(w.sessionId, at: w.startedAt) } }
+            if sessionId == Self.pending { sessionId = w.sessionId }       // the phone's workout we were launched for
+            else if sessionId != w.sessionId { Task { await start(w.sessionId, at: w.startedAt) } }
+        } else if sessionId == Self.pending, Date.now.timeIntervalSince(pendingSince) < 60 {
+            // Launched by the phone; its state with the workout hasn't arrived yet.
         } else if sessionId != nil {
             let keep = setsDone > 0
             Task { await end(save: keep) }
         }
+    }
+
+    /// The phone's Start Workout launched the watch app: start recording now.
+    func startFromPhone() {
+        guard sessionId == nil, !RunManager.shared.isActive else { return }
+        pendingSince = .now
+        Task { await start(Self.pending, at: .now) }
     }
 
     /// End the lift session before a run starts (saved if any sets were logged).
