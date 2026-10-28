@@ -10,7 +10,7 @@ import WidgetKit
 final class WatchModel: NSObject, WCSessionDelegate {
     static let shared = WatchModel()
 
-    private(set) var state: WatchState = .empty
+    private(set) var state: WatchState = WatchModel.cached() ?? .empty
     private(set) var reachable = false
     private var restTask: Task<Void, Never>?
     /// Sets ticked on the watch that the phone hasn't confirmed yet.
@@ -21,6 +21,23 @@ final class WatchModel: NSObject, WCSessionDelegate {
         guard WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
+    }
+
+    /// Ask the phone for fresh state. Wakes the iPhone app in the background if it isn't running.
+    func refresh() {
+        guard WCSession.isSupported(), WCSession.default.activationState == .activated else { return }
+        send(.refresh)
+    }
+
+    // The last state from the phone, so the watch never opens blank.
+    private static let cacheKey = "gt_watch_state"
+
+    private static func cached() -> WatchState? {
+        WatchWire.decode(WatchState.self, from: UserDefaults.standard.data(forKey: cacheKey))
+    }
+
+    private static func cache(_ state: WatchState) {
+        if let data = WatchWire.encode(state) { UserDefaults.standard.set(data, forKey: cacheKey) }
     }
 
     /// Ask the phone to do something. Live message when the phone is reachable, queued otherwise.
@@ -70,6 +87,7 @@ final class WatchModel: NSObject, WCSessionDelegate {
         if !local { new = mergingPending(incoming) }
         let old = state
         state = new
+        if !local { Self.cache(incoming) }
         if let w = new.widget, w != old.widget {
             w.save()
             WidgetCenter.shared.reloadAllTimelines()
@@ -117,6 +135,7 @@ final class WatchModel: NSObject, WCSessionDelegate {
         Task { @MainActor in
             self.reachable = reachable
             if let state { self.apply(state) }
+            self.refresh()
         }
     }
 
@@ -127,6 +146,9 @@ final class WatchModel: NSObject, WCSessionDelegate {
 
     nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
         let reachable = session.isReachable
-        Task { @MainActor in self.reachable = reachable }
+        Task { @MainActor in
+            self.reachable = reachable
+            if reachable { self.refresh() }
+        }
     }
 }

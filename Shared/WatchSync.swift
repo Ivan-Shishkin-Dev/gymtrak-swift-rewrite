@@ -64,6 +64,8 @@ enum WatchAction: Codable, Equatable, Sendable {
     case skipRest
     case addRest(seconds: Int)
     case finish
+    /// Send the latest state; the watch asks when it opens.
+    case refresh
 }
 
 /// WatchConnectivity carries plist dictionaries; these wrap the Codable payloads.

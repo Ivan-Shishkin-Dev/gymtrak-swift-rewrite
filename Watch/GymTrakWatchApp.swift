@@ -5,6 +5,7 @@ import WatchKit
 struct GymTrakWatchApp: App {
     @State private var model = WatchModel.shared
     @State private var workout = WorkoutManager.shared
+    @Environment(\.scenePhase) private var phase
 
     var body: some Scene {
         WindowGroup {
@@ -13,6 +14,7 @@ struct GymTrakWatchApp: App {
                 .environment(workout)
                 .task { model.activate() }
         }
+        .onChange(of: phase) { if phase == .active { model.refresh() } }
     }
 }
 

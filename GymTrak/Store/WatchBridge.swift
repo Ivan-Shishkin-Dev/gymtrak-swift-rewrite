@@ -129,6 +129,8 @@ final class WatchBridge: NSObject, WCSessionDelegate {
         case .finish:
             rest?.stop()
             if let open = store.db.openLift() { store.mutate { $0.finishSession(open.id) } }
+        case .refresh:
+            lastSent = nil      // send it even if nothing changed
         }
         push()
     }
