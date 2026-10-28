@@ -65,12 +65,12 @@ struct RunMetricsView: View {
             let t = run.elapsed(at: ctx.date)
             let p = run.planTime(at: ctx.date)
             let seg = segment(at: p)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 partCard(seg)
                 // Time running, and time left in the whole run.
                 HStack(alignment: .lastTextBaseline) {
                     Text(clock(t))
-                        .font(.system(size: 32, weight: .semibold, design: .rounded)).monospacedDigit()
+                        .font(.system(size: 28, weight: .semibold, design: .rounded)).monospacedDigit()
                         .foregroundStyle(run.phase == .paused ? Color.secondary : .yellow)
                         .fixedSize()
                     Spacer(minLength: 4)
@@ -95,8 +95,7 @@ struct RunMetricsView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.horizontal, 6)
-            .padding(.top, -10)     // use the space under the clock
-            .padding(.bottom, 4)
+            .padding(.top, -4)      // use a little of the space under the clock
             .overlay(alignment: .top) {
                 if let b = run.banner, ctx.date.timeIntervalSince(b.shownAt) < 10 {
                     BannerView(banner: b).onTapGesture { run.banner = nil }
@@ -122,9 +121,8 @@ struct RunMetricsView: View {
                 }
                 round("xmark", fill: .red, ink: .white, label: "End run") { confirmEnd = true }
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 14)   // clear of the screen's rounded corners
         }
-        .ignoresSafeArea(.container, edges: .bottom)
         .confirmationDialog("End run?", isPresented: $confirmEnd) {
             Button("End and Save") { Task { await run.end() } }
             Button("Discard Run", role: .destructive) { run.discard() }
@@ -135,7 +133,7 @@ struct RunMetricsView: View {
     private func round(_ icon: String, fill: Color, ink: Color, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon).font(.system(size: 15, weight: .bold)).foregroundStyle(ink)
-                .frame(width: 38, height: 38)
+                .frame(width: 34, height: 34)
                 .background(fill, in: Circle())
         }
         .buttonStyle(.plain)
@@ -186,7 +184,7 @@ struct RunMetricsView: View {
             }
             .frame(height: 3)
         }
-        .padding(.horizontal, 10).padding(.vertical, 6)
+        .padding(.horizontal, 10).padding(.vertical, 5)
         .background(.green.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
@@ -201,7 +199,7 @@ struct RunMetricsView: View {
         return HStack(alignment: .center) {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(hr.map { "\(Int($0))" } ?? "--")
-                    .font(.system(size: 26, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .font(.system(size: 22, weight: .semibold, design: .rounded)).monospacedDigit()
                     .foregroundStyle(zone.map(zoneColor) ?? .primary)
                 Image(systemName: "heart.fill").font(.system(size: 12)).foregroundStyle(.red)
             }
@@ -220,7 +218,7 @@ struct RunMetricsView: View {
         VStack(alignment: alignment, spacing: 0) {
             Text(label).font(.system(size: 9, weight: .bold, design: .rounded)).foregroundStyle(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(value).font(.system(size: 20, weight: .semibold, design: .rounded)).monospacedDigit()
+                Text(value).font(.system(size: 18, weight: .semibold, design: .rounded)).monospacedDigit()
                 Text(unit).font(.system(size: 11, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
             }
             .lineLimit(1).minimumScaleFactor(0.6)
