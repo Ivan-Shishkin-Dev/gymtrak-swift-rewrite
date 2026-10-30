@@ -29,8 +29,16 @@ Targets come from your own history, not a fixed program (`GymTrak/Model/Coach.sw
 - After a dip, it works back up toward a weight you've already lifted.
 - A top-set jump of over 30% between sessions counts as a new machine or setup, so it starts fresh.
 - During a workout it nudges the next set up or down.
-- Runs: +10% time while your heart rate stayed in zone.
 - With **Auto-Set Weights** on (Settings), new workouts start already filled with the coach's targets.
+
+### Runs
+
+Record runs with the Apple Watch Workout app (or Strava synced to Apple Health). GymTrak reads them from Apple Health and sets each planned run from the ones before it (`RunCoach` in `Coach.swift`). A run counts as the type planned on its weekday.
+
+- **Easy and long runs**: +10% time (at most +10 min) when your heart rate stayed in zone last time. Same length if it ran high or this week's miles are already 20% over last week's.
+- **Pace**: from your recent easy runs that stayed in zone. After a run where HR ran high, the target pace slows.
+- **Tempo, intervals, time trial**: the plan's length; pace from your last run of that type (about 5 s/mi faster if HR stayed under the cap), or from your easy pace.
+- **Deload weeks**: about 80% of the time.
 
 Each exercise has a **Step** (Plan → exercise): how much one tap of − / + changes the weight.
 
@@ -118,10 +126,10 @@ Or use **Settings → Export Backup / Import Backup**.
 
 ## Tests
 
-Swift Testing, in `GymTrakTests/GymTrakTests.swift`. They cover the pure logic: loads, the coach, history, the adherence calendar, notifications.
+Swift Testing, in `GymTrakTests/GymTrakTests.swift`. They cover the pure logic: loads, the coach, warm-ups, history, the adherence calendar, notifications.
 
 ```bash
-xcodebuild test -scheme GymTrak -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild test -scheme GymTrak -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max'
 ```
 
 ## How it's built
@@ -152,6 +160,3 @@ project.yml         XcodeGen spec (run `xcodegen generate` after adding or remov
 - Short labels, no filler text.
 - Add a test for any new pure logic.
 - Small commits, one change each.
-
-## Not done yet
-
