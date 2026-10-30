@@ -43,10 +43,41 @@ struct KisiSetupView: View {
     @State private var password = ""
     @State private var code = ""
     @State private var busy = false
+    @State private var failed = 0
+    @State private var succeeded = 0
 
     var body: some View {
         Form {
+            // The result, at the top so it's visible above the keyboard.
+            if let error = kisi.error {
+                Section {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(kisi.signedIn ? "Something went wrong" : "Couldn't sign in").font(.headline)
+                            Text(error).font(.subheadline)
+                        }
+                    } icon: {
+                        Image(systemName: "xmark.octagon.fill").font(.title2)
+                    }
+                    .foregroundStyle(.red)
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(Color.red.opacity(0.15))
+            }
             if kisi.signedIn {
+                Section {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Signed in").font(.headline)
+                            Text([kisi.account, kisi.door?.name].compactMap { $0 }.joined(separator: " · "))
+                                .font(.subheadline).foregroundStyle(Page.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(.green)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(Color.green.opacity(0.15))
                 Section {
                     if kisi.doors.isEmpty {
                         Text(kisi.door?.name ?? "No doors yet").foregroundStyle(.secondary)
@@ -70,6 +101,7 @@ struct KisiSetupView: View {
                         .textContentType(.username).keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                     SecureField("Password", text: $password).textContentType(.password)
+                        .submitLabel(.go).onSubmit(signIn)
                     if kisi.needsCode {
                         TextField("Code", text: $code).textContentType(.oneTimeCode).keyboardType(.numberPad)
                     }
@@ -77,26 +109,35 @@ struct KisiSetupView: View {
                     Text("The email and password you use in the Kisi app. If you sign in to Kisi with a link or Google, set a password there first (Forgot password). Only Kisi's sign-in token is kept, in the Keychain.")
                 }
                 Section {
-                    Button {
-                        busy = true
-                        Task {
-                            await kisi.signIn(email: email, password: password, code: code)
-                            busy = false
-                            if kisi.signedIn { password = "" }   // keep it after a failed try, so you can fix a typo
-                        }
-                    } label: {
+                    Button(action: signIn) {
                         HStack { Text("Sign In"); Spacer(); if busy { ProgressView() } }
                     }
                     .disabled(busy || email.isEmpty || password.isEmpty)
                 }
             }
-            if let error = kisi.error {
-                Text(error).font(.footnote).foregroundStyle(Theme.warning)
-            }
         }
+        .animation(.snappy, value: kisi.signedIn)
+        .animation(.snappy, value: kisi.error)
+        .sensoryFeedback(.error, trigger: failed)
+        .sensoryFeedback(.success, trigger: succeeded)
         .pageBackground()
         .navigationTitle("Kisi")
         .navigationBarTitleDisplayMode(.inline)
         .task { if kisi.signedIn { await kisi.loadDoors() } }
+    }
+
+    private func signIn() {
+        guard !busy, !email.isEmpty, !password.isEmpty else { return }
+        busy = true
+        Task {
+            await kisi.signIn(email: email, password: password, code: code)
+            busy = false
+            if kisi.signedIn {
+                password = ""
+                succeeded += 1
+            } else {
+                failed += 1                  // keep the password so you can fix a typo
+            }
+        }
     }
 }

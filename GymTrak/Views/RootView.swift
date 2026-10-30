@@ -72,7 +72,11 @@ struct RootView: View {
             }
             .tint(Theme.lift)
         }
-        .onChange(of: Kisi.shared.door) { if Kisi.shared.door != nil { nav.showKisi = false } }   // signed in, door picked
+        .onChange(of: Kisi.shared.door) {
+            // Signed in and a door picked: leave "Signed in" on screen a moment, then close.
+            guard Kisi.shared.door != nil, nav.showKisi else { return }
+            Task { try? await Task.sleep(for: .seconds(1.5)); nav.showKisi = false }
+        }
         .fullScreenCover(isPresented: $nav.showWorkout) {
             WorkoutView().environment(nav).tint(Theme.lift)
         }

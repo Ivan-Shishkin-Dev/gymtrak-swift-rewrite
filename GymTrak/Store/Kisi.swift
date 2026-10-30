@@ -25,6 +25,10 @@ final class Kisi {
 
     private static let base = URL(string: "https://api.kisi.io")!
     private static let doorKey = "gt_kisi_door"
+    private static let accountKey = "gt_kisi_email"
+
+    /// The email you signed in with, shown as "Signed in as …".
+    private(set) var account: String? = UserDefaults.standard.string(forKey: "gt_kisi_email")
 
     private init() {
         signedIn = Keychain.read() != nil
@@ -45,6 +49,8 @@ final class Kisi {
             let login = try JSONDecoder().decode(Login.self, from: data)
             Keychain.save(login.secret)
             signedIn = true
+            account = email.trimmingCharacters(in: .whitespaces)
+            UserDefaults.standard.set(account, forKey: Self.accountKey)
             needsCode = false
             await loadDoors()
         } catch let e as KisiError {
@@ -60,6 +66,8 @@ final class Kisi {
     func signOut() {
         Keychain.delete()
         UserDefaults.standard.removeObject(forKey: Self.doorKey)
+        UserDefaults.standard.removeObject(forKey: Self.accountKey)
+        account = nil
         signedIn = false
         door = nil
         doors = []
