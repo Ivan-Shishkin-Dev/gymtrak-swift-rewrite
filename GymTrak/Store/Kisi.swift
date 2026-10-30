@@ -39,20 +39,53 @@ final class Kisi {
 
     // MARK: Account
 
+    /// Domain (SSO) sign-in, like the Kisi app's "email, then your organization's domain": open this page,
+    /// sign in with your organization, and Kisi sends the browser back to its web app with `auth_code`.
+    static func ssoURL(domain: String) -> URL? {
+        let d = domain.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !d.isEmpty, let encoded = d.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              var c = URLComponents(string: "https://api.kisi.io/login/\(encoded)") else { return nil }
+        c.queryItems = [URLQueryItem(name: "RelayState", value: #"{"origin":"https://web.kisi.io"}"#)]
+        return c.url
+    }
+
+    /// The domain used last, to fill the field next time.
+    var lastDomain: String {
+        get { UserDefaults.standard.string(forKey: "gt_kisi_domain") ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: "gt_kisi_domain") }
+    }
+
+    /// Trade the one-time `auth_code` from the domain sign-in for a login.
+    func resolve(code: String, domain: String) async {
+        error = nil
+        do {
+            let data = try await send("POST", "/logins/resolve", body: ["login": ["resolution_token": code]], secret: nil)
+            try await finishSignIn(data, account: domain)
+        } catch let e as KisiError {
+            error = e.text
+        } catch {
+            self.error = "Couldn't reach Kisi."
+        }
+    }
+
+    private func finishSignIn(_ data: Data, account: String) async throws {
+        struct Login: Decodable { var secret: String }
+        let login = try JSONDecoder().decode(Login.self, from: data)
+        Keychain.save(login.secret)
+        signedIn = true
+        self.account = account
+        UserDefaults.standard.set(account, forKey: Self.accountKey)
+        needsCode = false
+        await loadDoors()
+    }
+
     func signIn(email: String, password: String, code: String) async {
         error = nil
         var user = ["email": email.trimmingCharacters(in: .whitespaces), "password": password]
         if !code.isEmpty { user["otp_attempt"] = code }
         do {
             let data = try await send("POST", "/logins", body: ["user": user], secret: nil)
-            struct Login: Decodable { var secret: String }
-            let login = try JSONDecoder().decode(Login.self, from: data)
-            Keychain.save(login.secret)
-            signedIn = true
-            account = email.trimmingCharacters(in: .whitespaces)
-            UserDefaults.standard.set(account, forKey: Self.accountKey)
-            needsCode = false
-            await loadDoors()
+            try await finishSignIn(data, account: email.trimmingCharacters(in: .whitespaces))
         } catch let e as KisiError {
             if case .server(_, let message) = e, message.range(of: "otp|two.factor|2fa|verification", options: [.regularExpression, .caseInsensitive]) != nil {
                 needsCode = true
