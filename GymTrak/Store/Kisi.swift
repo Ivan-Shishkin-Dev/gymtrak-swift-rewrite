@@ -55,6 +55,56 @@ final class Kisi {
         set { UserDefaults.standard.set(newValue, forKey: "gt_kisi_domain") }
     }
 
+    /// Sign in with the link from Kisi's "sign-in link" email (no password). The link carries an
+    /// authentication-info token, which Kisi accepts in place of domain, email and password.
+    func signIn(link text: String) async {
+        error = nil
+        guard let token = Self.linkToken(in: text) else {
+            error = "That doesn't look like a Kisi sign-in link. In the email, press and hold your gym's link and choose Copy Link."
+            return
+        }
+        let device: [String: Any] = ["type": "device", "name": "GymTrak", "device_brand": "Apple",
+                                     "device_model": "iPhone", "os_name": "iOS"]
+        do {
+            let data = try await send("POST", "/logins", body: ["login": device, "user": ["authentication_info": token]], secret: nil)
+            try await finishSignIn(data, account: "Kisi")
+        } catch let first as KisiError {
+            // Some links carry a one-time sign-in code instead; try that before giving up.
+            do {
+                let data = try await send("POST", "/logins/resolve", body: ["login": ["resolution_token": token]], secret: nil)
+                try await finishSignIn(data, account: "Kisi")
+            } catch {
+                self.error = first.text + " The link may be used up: request a new one in the Kisi app and copy it without opening it."
+            }
+        } catch {
+            self.error = "Couldn't reach Kisi."
+        }
+    }
+
+    /// The token in a Kisi sign-in link (or in a whole pasted email). Nil when there isn't one.
+    nonisolated static func linkToken(in text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        let urls = (detector?.matches(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)) ?? []).compactMap(\.url)
+        let names = ["authentication_info", "authenticationinfo", "auth_info", "token", "auth_code", "code", "t"]
+        for url in urls {
+            let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            for name in names {
+                if let v = items.first(where: { $0.name.lowercased() == name })?.value, v.count >= 8 { return v }
+            }
+            let parts = url.pathComponents.filter { $0 != "/" }
+            if let i = parts.firstIndex(where: { $0.lowercased().contains("authentication_info") }), i + 1 < parts.count {
+                return parts[i + 1]
+            }
+            if let last = parts.last, last.count >= 16, last.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }) {
+                return last
+            }
+        }
+        // A bare token pasted on its own.
+        if urls.isEmpty, trimmed.count >= 16, !trimmed.contains(where: \.isWhitespace) { return trimmed }
+        return nil
+    }
+
     /// Trade the one-time `auth_code` from the domain sign-in for a login.
     func resolve(code: String, domain: String) async {
         error = nil

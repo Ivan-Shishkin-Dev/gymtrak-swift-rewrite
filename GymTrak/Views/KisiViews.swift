@@ -44,7 +44,8 @@ struct KisiSetupView: View {
     @State private var password = ""
     @State private var code = ""
     @State private var busy = false
-    @State private var method = Method.domain
+    @State private var method = Method.link
+    @State private var linkText = ""
     @State private var domain = Kisi.shared.lastDomain
     @State private var webLogin: URL?
     @State private var failed = 0
@@ -108,13 +109,28 @@ struct KisiSetupView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
                 }
-                if method == .domain {
+                if method == .link {
+                    Section {
+                        Button {
+                            linkText = UIPasteboard.general.string ?? ""
+                            useLink()
+                        } label: {
+                            HStack { Label("Paste Sign-in Link", systemImage: "doc.on.clipboard"); Spacer(); if busy { ProgressView() } }
+                        }
+                        .disabled(busy)
+                        TextField("Or paste the link here", text: $linkText)
+                            .textInputAutocapitalization(.never).autocorrectionDisabled()
+                            .submitLabel(.go).onSubmit(useLink)
+                    } footer: {
+                        Text("1. In the Kisi app, request a sign-in link.\n2. In the email, press and hold your gym's link and choose Copy Link. Don't open it.\n3. Tap Paste Sign-in Link.")
+                    }
+                } else if method == .domain {
                     Section {
                         TextField("Organization domain", text: $domain)
                             .textInputAutocapitalization(.never).autocorrectionDisabled()
                             .submitLabel(.go).onSubmit(openDomain)
                     } footer: {
-                        Text("The domain you type in the Kisi app after your email. You'll sign in on your organization's page.")
+                        Text("Only if your organization uses single sign-on (Google, Microsoft, Okta). Enter its Kisi domain.")
                     }
                     Section {
                         Button(action: openDomain) {
@@ -166,7 +182,17 @@ struct KisiSetupView: View {
         .task { if kisi.signedIn { await kisi.loadDoors() } }
     }
 
-    enum Method: String, CaseIterable { case domain = "Domain", password = "Password" }
+    enum Method: String, CaseIterable { case link = "Email Link", password = "Password", domain = "SSO" }
+
+    private func useLink() {
+        guard !busy, !linkText.isEmpty else { return }
+        busy = true
+        Task {
+            await kisi.signIn(link: linkText)
+            busy = false
+            if kisi.signedIn { succeeded += 1 } else { failed += 1 }
+        }
+    }
 
     private func openDomain() {
         let d = domain.trimmingCharacters(in: .whitespaces)
