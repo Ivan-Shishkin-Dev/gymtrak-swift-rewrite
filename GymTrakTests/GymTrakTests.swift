@@ -582,7 +582,7 @@ struct DotTests {
     }
 }
 
-@Suite struct WatchStateTests {
+@Suite struct NextSetTests {
     /// Upper A on Mondays: Bench (2 sets) then Row (1 set).
     func snap() -> Snapshot {
         Snapshot(days: [Day(id: 1, name: "Upper A", focus: "")],
@@ -596,38 +596,23 @@ struct DotTests {
     }
     let monday = DateKey.date("2026-10-26").addingTimeInterval(9 * 3600)
 
-    @Test func todayWithoutWorkout() {
-        let s = snap().watchState(now: monday)
-        #expect(s.todayTitle == "Upper A" && s.todayDetail == "2 lifts" && s.canStart)
-        #expect(s.workout == nil && s.weekPlanned == 1 && s.weekDone == 0)
+    @Test func noneWithoutWorkout() {
+        #expect(snap().nextSet() == nil)
     }
 
     @Test func walksThroughSetsInOrder() {
         var db = snap()
-        let id = db.startSession(day: db.days[0], options: StartOptions(scheduledDate: "2026-10-26"))
-        var w = db.watchState(now: monday).workout
-        #expect(w?.sessionId == id && w?.total == 3 && w?.done == 0)
-        #expect(w?.current?.exercise == "Bench" && w?.current?.setNumber == 1 && w?.current?.setCount == 2)
-        #expect(w?.current?.weight == "200 lb" && w?.current?.reps == "6")
-        #expect(w?.next == "190 lb × 8")
-        #expect(w?.queue.map(\.exercise) == ["Bench", "Bench", "Row"] && w?.queue.first == w?.current)
-
-        db.toggleSet(w!.current!.setId)
-        w = db.watchState(now: monday).workout
-        #expect(w?.done == 1 && w?.current?.setNumber == 2 && w?.next == "Row")
-
-        db.toggleSet(w!.current!.setId)
-        db.toggleSet(db.watchState(now: monday).workout!.current!.setId)
-        w = db.watchState(now: monday).workout
-        #expect(w?.done == 3 && w?.current == nil && w?.next == nil)
-    }
-
-    @Test func roundTripsOverTheWire() {
-        let s = snap().watchState(now: monday)
-        let back = WatchWire.decode(WatchState.self, from: WatchWire.encode(s))
-        #expect(back == s)
-        let a = WatchAction.stepLoad(setId: "x", direction: -1)
-        #expect(WatchWire.decode(WatchAction.self, from: WatchWire.encode(a)) == a)
+        db.startSession(day: db.days[0], options: StartOptions(scheduledDate: "2026-10-26"))
+        func next() -> NextSet? { db.nextSet() }
+        // Bench is the first exercise of its muscle, so its warm-ups come first.
+        while next()?.warmup == true { db.toggleSet(db.pendingItems(db.openLift()!).first!.set.id) }
+        #expect(next()?.workout == "Upper A" && next()?.exercise == "Bench" && next()?.load == "200 lb × 6")
+        db.toggleSet(db.pendingItems(db.openLift()!).first!.set.id)
+        #expect(next()?.load == "190 lb × 8")
+        db.toggleSet(db.pendingItems(db.openLift()!).first!.set.id)
+        #expect(next()?.exercise == "Row")
+        db.toggleSet(db.pendingItems(db.openLift()!).first!.set.id)
+        #expect(next() == nil)
     }
 }
 
@@ -706,10 +691,7 @@ struct WarmupTests {
         let session = snap.sessions[0]
         let firstTwo = snap.pendingItems(session).prefix(2).map(\.warmup)
         #expect(firstTwo == [true, true])
-        let state = snap.watchState(now: Date())
-        #expect(state.workout?.total == 3)
-        #expect(state.workout?.current?.warmup == true)
-        #expect(state.workout?.current?.restSeconds == warmupRestSec)
+        #expect(snap.nextSet()?.warmup == true)
     }
 
     @Test func warmupsAreOptional() {
@@ -758,68 +740,3 @@ struct WarmupTests {
     }
 }
 
-struct WatchWireTests {
-    @Test func lateRestTapsAreDropped() {
-        let skip = WatchWire.encode(WatchAction.skipRest)!
-        let now = Date()
-        let late: [String: Any] = [WatchWire.actionKey: skip, WatchWire.sentAtKey: now.timeIntervalSince1970 - 60]
-        let onTime: [String: Any] = [WatchWire.actionKey: skip, WatchWire.sentAtKey: now.timeIntervalSince1970 - 2]
-        #expect(WatchBridge.fresh(late, now: now) == nil)
-        #expect(WatchBridge.fresh(onTime, now: now) == .skipRest)
-        // Set taps still count when late; they're not tied to a moment.
-        let tick: [String: Any] = [WatchWire.actionKey: WatchWire.encode(WatchAction.toggle(setId: "a"))!,
-                                   WatchWire.sentAtKey: now.timeIntervalSince1970 - 600]
-        #expect(WatchBridge.fresh(tick, now: now) == .toggle(setId: "a"))
-    }
-}
-
-struct RunBriefTests {
-    func db(run: RunPrescription?) -> Snapshot {
-        let slots = Dow.allCases.map { ProgramSlot(dow: $0, liftDayId: nil, run: $0 == .tue ? run : nil) }
-        return Snapshot(programWeeks: [ProgramWeek(id: 1, phase: "", startDate: "2026-10-26", isDeload: false, slots: slots, updatedAt: 0)])
-    }
-
-    @Test func easyRunGivesZoneAndCap() {
-        let rx = makeRun(.easy, minutes: 30, timing: .standalone, strides: true)
-        let b = db(run: rx).runBrief(now: DateKey.date("2026-10-27"))
-        #expect(b.title == "Easy Run · 30 min")
-        #expect(b.body.hasPrefix("HR \(zoneLabel(rx.hrZoneMin, rx.hrZoneMax)), cap \(rx.hrHardCap)"))
-    }
-
-    @Test func hardRunStartsWithWarmup() {
-        let rx = makeRun(.tempo, minutes: 35, timing: .standalone)
-        let b = db(run: rx).runBrief(now: DateKey.date("2026-10-27"))
-        #expect(b.title == "Warm-up · 10 min")
-        #expect(b.body.contains("Tempo Run after: 20 min"))
-    }
-
-    @Test func stridesCueComesThreeMinutesBeforeTheEnd() {
-        let rx = makeRun(.easy, minutes: 30, timing: .standalone, strides: true)
-        let cues = db(run: rx).runCues(now: DateKey.date("2026-10-27"))
-        #expect(cues.map(\.at) == [0, 15, 27, 30])
-        #expect(cues[2].title == "Strides now")
-    }
-
-    @Test func hardRunHasWarmupWorkCooldown() {
-        let rx = makeRun(.tempo, minutes: 35, timing: .standalone)
-        let cues = db(run: rx).runCues(now: DateKey.date("2026-10-27"))
-        #expect(cues.map(\.at) == [0, 10, 30, 35])
-        #expect(cues[1].title == "Tempo Run · 20 min")
-        #expect(cues[1].body.hasPrefix("HR cap \(rx.hrHardCap)"))
-    }
-
-    @Test func segmentsMatchTheCues() {
-        let easy = db(run: makeRun(.easy, minutes: 30, timing: .standalone, strides: true)).runSegments(now: DateKey.date("2026-10-27"))
-        #expect(easy.map(\.name) == ["Easy", "Strides"])
-        #expect(easy.map(\.to) == [27, 30])
-        let tempo = db(run: makeRun(.tempo, minutes: 35, timing: .standalone)).runSegments(now: DateKey.date("2026-10-27"))
-        #expect(tempo.map(\.name) == ["Warm-up", "Tempo", "Cool-down"])
-        #expect(tempo.map(\.from) == [0, 10, 30])
-    }
-
-    @Test func noRunPlannedStaysEasy() {
-        let b = db(run: nil).runBrief(now: DateKey.date("2026-10-27"))
-        #expect(b.title == "No run planned")
-        #expect(b.body.contains("HR 120–140"))
-    }
-}

@@ -9,7 +9,7 @@ enum LiveRest {
         Activity<RestActivityAttributes>.activities.first
     }
 
-    static func sync(startedAt: Date?, endsAt: Date?, workout: String?, next: WatchState.Current?) {
+    static func sync(startedAt: Date?, endsAt: Date?, workout: String?, next: NextSet?) {
         guard let startedAt, let endsAt, endsAt > Date() else {
             end()
             return
@@ -17,7 +17,7 @@ enum LiveRest {
         let state = RestActivityAttributes.ContentState(
             startedAt: startedAt, endsAt: endsAt,
             nextExercise: next?.exercise,
-            nextLoad: next.map { n in n.weight.isEmpty ? "× \(n.reps)" : "\(n.weight) × \(n.reps)" })
+            nextLoad: next?.load)
         // Drop it from the lock screen a minute after rest is over.
         let content = ActivityContent(state: state, staleDate: endsAt.addingTimeInterval(60))
 

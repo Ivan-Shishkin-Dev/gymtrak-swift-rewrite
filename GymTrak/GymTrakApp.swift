@@ -12,7 +12,6 @@ struct GymTrakApp: App {
                 .environment(store)
                 .environment(rest)
                 .environment(connections)
-                .task { WatchBridge.shared.start(store: store, rest: rest) }
         }
     }
 }

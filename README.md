@@ -1,6 +1,6 @@
 # GymTrak
 
-A personal lifting and running tracker for iPhone and Apple Watch, written in SwiftUI. It's the native rewrite of the [GymTrak web app](https://github.com/Ivan-Shishkin-Dev/GymTrak). Built for one person: no accounts, no server, and all data stays on the phone.
+A personal lifting and running tracker for iPhone, written in SwiftUI. It's the native rewrite of the [GymTrak web app](https://github.com/Ivan-Shishkin-Dev/GymTrak). Built for one person: no accounts, no server, and all data stays on the phone.
 
 ## What it does
 
@@ -63,15 +63,13 @@ Planned 7 days ahead and rebuilt every time the data changes (`GymTrak/Store/Not
 ### Beyond the app
 
 - **Live Activity**: the rest countdown and the next set, on the lock screen and in the Dynamic Island.
-- **Apple Watch**: Home has two buttons. **Run** shows today's run and a Start button; during the run: time, heart rate with Apple-style zones (from resting and max HR), distance and pace, saved to Apple Health with the GPS route. The plan's cues buzz at their minute, and it warns when HR stays over the plan for 30 s. The top line shows the part you're in (Warm-up, Tempo, Strides…) and its time left, with the HR to aim for. At the bottom: Pause, back / next part (going back resumes where you left that part), and End (Save or Discard). **Lift** is the rest timer, laid out like the Clock app's timer: ring, time left, end time, **+15** and **Skip** (or **Start** when no rest is running). Turn the Digital Crown to add or remove 15 s, or to pick the length before Start. Start uses the rest for the set you're on (2:00 before a warm-up, that exercise's rest otherwise). After 0:00 it counts up in green ("+0:23") for up to 10 minutes. It follows the phone's timer both ways and buzzes three times when rest is over. While a workout is open on the phone, the watch records it to Apple Health (heart rate, calories). Watch complications too.
 - **Apple Health**: reads runs, steps, calories and sleep. Saves lifts.
 - **Kisi**: Unlock Door on Today opens the gym door through Kisi's API (`Store/Kisi.swift`). Sign in under Settings → Connections → Kisi; only Kisi's login token is kept, in the Keychain. Doors that only open when you're standing at the reader won't open from here.
-- **Run Reminder**: a Shortcuts action (`Store/RunReminderIntent.swift`) that sends today's run as a notification: type and minutes, HR zone and cap, pace, cues. Set it up once: Shortcuts → Automation → + → Apple Watch Workout → Outdoor Run → Is Started → Run Immediately → add GymTrak's **Run Reminder**. Starting a run on the watch then puts the brief on your wrist.
 - **Strava**: not connected directly. Turn on Strava → Settings → Applications, Services and Devices → Health, and Strava runs reach GymTrak through Apple Health.
 
 ## Requirements
 
-- macOS with **Xcode 27** or newer. The app targets iOS 26 and watchOS 26.
+- macOS with **Xcode 27** or newer. The app targets iOS 26.
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
 - A paid Apple Developer team, for Apple Health, the App Group, and installing on a phone
 
@@ -132,23 +130,17 @@ xcodebuild test -scheme GymTrak -destination 'platform=iOS Simulator,name=iPhone
 - **One snapshot.** The whole database is one `Snapshot` value (`Model/Models.swift`): days, exercises, the schedule, sessions and sets. Its JSON shape matches the web app's `gt_state`.
 - **One store.** `Store/Store.swift` holds the snapshot in memory and writes `Documents/gymtrak.json` after every change. The iPhone's iCloud Backup includes that file.
 - **Pure changes.** Every edit is a plain function on `Snapshot` in `Model/Actions.swift`, run through `store.mutate { … }`. Reads work the same way: the coach, history, stats and notification plans are pure functions, which keeps them easy to test.
-- **The phone is in charge.** The watch and the Live Activity never touch the store. The app sends each one a small summary:
-  - watch: `WatchState`, over WatchConnectivity (`Store/WatchBridge.swift`)
-  - Live Activity: `RestActivityAttributes` (`Store/LiveRest.swift`)
-
-  `RootView.refreshOutputs()` resends them, and replans notifications, whenever the data changes.
+- **The store is in charge.** The Live Activity never touches the store; the app sends it a small summary, `RestActivityAttributes` (`Store/LiveRest.swift`). `RootView.refreshOutputs()` resends it, and replans notifications, whenever the data changes.
 
 ## Project layout
 
 ```
 GymTrak/            iPhone app
   Model/            Snapshot types, actions, coach, history, loads, dates and schedule
-  Store/            Store, rest timer, Live Activity, notifications, Apple Health, watch bridge
+  Store/            Store, rest timer, Live Activity, notifications, Apple Health
   Views/            Screens; Theme.swift has the colors and shared pieces
-Shared/             Code used by more than one target (day summary, watch messages, Live Activity)
+Shared/             Code used by more than one target (day summary, Live Activity)
 Widgets/            The rest-timer Live Activity
-Watch/              Apple Watch app
-WatchWidgets/       Watch complications
 GymTrakTests/       Unit tests
 scripts/            make-icon.swift (draws the app icon)
 docs/NEXT.md        Feature briefs
@@ -164,4 +156,3 @@ project.yml         XcodeGen spec (run `xcodegen generate` after adding or remov
 
 ## Not done yet
 
-- The watch app hasn't been installed on a real watch.

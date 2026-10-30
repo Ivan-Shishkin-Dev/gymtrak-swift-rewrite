@@ -490,9 +490,7 @@ struct WorkoutView: View {
         rest.stop()
         store.mutate { $0.finishSession(session.id) }
         let start = Date(timeIntervalSince1970: session.startedAt / 1000)
-        // The watch app records its own workout with heart rate; don't save a second copy.
-        // The watch saves the lift (with heart rate) only if it said it's recording; otherwise save it here.
-        if !WatchBridge.shared.watchIsRecording(session.id) { Task { await connections.saveLift(start: start, end: Date()) } }
+        Task { await connections.saveLift(start: start, end: Date()) }
         nav.completed = (session.id, day.name)
         dismiss()
     }
