@@ -3,13 +3,13 @@ import SwiftUI
 /// "Unlock Door" under Start Workout. Before Kisi is set up, it opens the sign-in instead.
 struct DoorButton: View {
     @State private var kisi = Kisi.shared
-    @State private var setup = false
+    @Environment(AppNav.self) private var nav
     @State private var opened = 0
 
     var body: some View {
         let ready = kisi.signedIn && kisi.door != nil
         Button {
-            if ready { Task { if await kisi.unlock() { opened += 1 } } } else { setup = true }
+            if ready { Task { if await kisi.unlock() { opened += 1 } } } else { nav.showKisi = true }
         } label: {
             HStack(spacing: 8) {
                 if kisi.phase == .working {
@@ -27,18 +27,11 @@ struct DoorButton: View {
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.success, trigger: opened)
-        .alert("Door didn't open", isPresented: Binding(get: { ready && kisi.error != nil && !setup },
+        .alert("Door didn't open", isPresented: Binding(get: { ready && kisi.error != nil && !nav.showKisi },
                                                         set: { if !$0 { kisi.error = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(kisi.error ?? "")
-        }
-        .onChange(of: kisi.door) { if kisi.door != nil { setup = false } }   // signed in and a door picked
-        .sheet(isPresented: $setup) {
-            NavigationStack {
-                KisiSetupView()
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { setup = false } } }
-            }
         }
     }
 }
@@ -80,11 +73,17 @@ struct KisiSetupView: View {
                     if kisi.needsCode {
                         TextField("Code", text: $code).textContentType(.oneTimeCode).keyboardType(.numberPad)
                     }
-                } footer: { Text("Your Kisi account. Only Kisi's sign-in token is kept, in the Keychain.") }
+                } footer: {
+                    Text("The email and password you use in the Kisi app. If you sign in to Kisi with a link or Google, set a password there first (Forgot password). Only Kisi's sign-in token is kept, in the Keychain.")
+                }
                 Section {
                     Button {
                         busy = true
-                        Task { await kisi.signIn(email: email, password: password, code: code); busy = false; password = "" }
+                        Task {
+                            await kisi.signIn(email: email, password: password, code: code)
+                            busy = false
+                            if kisi.signedIn { password = "" }   // keep it after a failed try, so you can fix a typo
+                        }
                     } label: {
                         HStack { Text("Sign In"); Spacer(); if busy { ProgressView() } }
                     }

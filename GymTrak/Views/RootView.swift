@@ -13,6 +13,9 @@ final class AppNav {
     var reopenAfterSummary = false
     /// Height of the workout bar above the tabs (0 when hidden). Today leaves this much room so nothing sits under it.
     var dockHeight: CGFloat = 0
+    /// Kisi sign-in, opened from the Unlock Door button. Presented here, not by the button: Today rebuilds
+    /// that button when its layout changes (e.g. the keyboard opens), which closed the sheet mid-typing.
+    var showKisi = false
 }
 
 struct RootView: View {
@@ -62,6 +65,14 @@ struct RootView: View {
         .tint(Theme.lift)
         .environment(nav)
         .preferredColorScheme(Appearance.shared.matteBackground ? .dark : nil)
+        .sheet(isPresented: $nav.showKisi) {
+            NavigationStack {
+                KisiSetupView()
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { nav.showKisi = false } } }
+            }
+            .tint(Theme.lift)
+        }
+        .onChange(of: Kisi.shared.door) { if Kisi.shared.door != nil { nav.showKisi = false } }   // signed in, door picked
         .fullScreenCover(isPresented: $nav.showWorkout) {
             WorkoutView().environment(nav).tint(Theme.lift)
         }
