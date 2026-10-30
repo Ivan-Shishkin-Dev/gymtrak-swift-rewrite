@@ -83,7 +83,6 @@ struct TodayView: View {
             if let liftDay {
                 StartButton(day: liftDay, date: todayKey).padding(.top, 10)
             }
-            DoorButton().padding(.top, liftDay == nil ? 10 : 8)
 
             if connections.healthConnected {
                 VStack(spacing: 0) {

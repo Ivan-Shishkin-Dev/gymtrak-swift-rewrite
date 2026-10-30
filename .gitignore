@@ -64,5 +64,3 @@ fastlane/test_output
 Secrets.xcconfig
 build/
 build-sim/
-build-watch/
-build-watchdev/

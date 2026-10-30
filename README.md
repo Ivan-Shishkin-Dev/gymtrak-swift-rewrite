@@ -6,7 +6,7 @@ A personal lifting and running tracker for iPhone, written in SwiftUI. It's the 
 
 | Screen | What's on it |
 | --- | --- |
-| **Today** | Greeting and date. Today's Lift and Run tiles, Start Workout, Unlock Door (Kisi), Steps, Calories and Sleep from Apple Health. Adherence calendar. |
+| **Today** | Greeting and date. Today's Lift and Run tiles, Start Workout, Steps, Calories and Sleep from Apple Health. Adherence calendar. |
 | **Workout** | The live workout. One set at a time with big − / + controls, or every exercise in a list. Rest timer, coach targets, PRs. |
 | **History** | One Monday–Sunday week at a time, lit up on a month calendar (tap a day to jump to its week): workouts, runs, miles, average workout time, and each finished session. |
 | **Plan** | Lift days and their exercises (the source of truth for weights), plus the weekly schedule of lifts and runs. |
@@ -64,7 +64,6 @@ Planned 7 days ahead and rebuilt every time the data changes (`GymTrak/Store/Not
 
 - **Live Activity**: the rest countdown and the next set, on the lock screen and in the Dynamic Island.
 - **Apple Health**: reads runs, steps, calories and sleep. Saves lifts.
-- **Kisi**: Unlock Door on Today opens the gym door through Kisi's API (`Store/Kisi.swift`). Sign in under Settings → Connections → Kisi; only Kisi's login token is kept, in the Keychain. Doors that only open when you're standing at the reader won't open from here.
 - **Strava**: not connected directly. Turn on Strava → Settings → Applications, Services and Devices → Health, and Strava runs reach GymTrak through Apple Health.
 
 ## Requirements

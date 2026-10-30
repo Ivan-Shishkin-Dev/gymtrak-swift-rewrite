@@ -648,21 +648,6 @@ struct DotTests {
     }
 }
 
-struct KisiTests {
-    @Test func findsTheTokenInASignInLink() {
-        #expect(Kisi.linkToken(in: "https://web.kisi.io/sign_in?authentication_info=abc123def456ghi&domain=rawirongymocllc") == "abc123def456ghi")
-        #expect(Kisi.linkToken(in: "Raw Iron Gym\nhttps://kisi.app/authentication_infos/Zx9kQ2mN8pL4vR7tY1wE") == "Zx9kQ2mN8pL4vR7tY1wE")
-        #expect(Kisi.linkToken(in: "https://web.kisi.io/x?token=TOKEN12345678") == "TOKEN12345678")
-        #expect(Kisi.linkToken(in: "hello there") == nil)
-    }
-
-    @Test func errorTextIsFoundWhereverKisiPutsIt() {
-        #expect(Kisi.message(in: Data(#"{"message":"Invalid email or password"}"#.utf8)) == "Invalid email or password")
-        #expect(Kisi.message(in: Data(#"{"errors":{"base":["Too far from the door"]}}"#.utf8)) == "Too far from the door")
-        #expect(Kisi.message(in: Data("not json".utf8)) == "")
-    }
-}
-
 struct WarmupTests {
     func fixture(warmup: Bool = true) -> (Snapshot, Day) {
         let day = Day(id: 1, order: 1, name: "Upper A", focus: "Press", updatedAt: 0)
