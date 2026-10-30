@@ -212,7 +212,10 @@ struct ExerciseEditorView: View {
                         Label("Add Set", systemImage: "plus")
                     }
                 } }
-                Section("Workout") {
+                Section {
+                    Toggle("Compound", isOn: Binding(get: { ex.isCompound }, set: { v in
+                        store.mutate { $0.updateExercise(exerciseId) { $0.compound = v } }
+                    }))
                     Stepper(value: Binding(get: { ex.effectiveIncrement }, set: { v in
                         store.mutate { $0.updateExercise(exerciseId) { $0.loadIncrement = v } }
                     }), in: 0.5...50, step: ex.effectiveIncrement >= 5 ? 2.5 : 0.5) {
@@ -223,7 +226,7 @@ struct ExerciseEditorView: View {
                     }), in: 15...600, step: 15) {
                         LabeledContent("Rest", value: fmtClock(Double(ex.restSeconds ?? 180)))
                     }
-                }
+                } header: { Text("Workout") } footer: { Text("Aim for \(ex.repGoal) reps. Compound lifts aim for 6, others 8.") }
                 Section {
                     Toggle("Warm-ups", isOn: Binding(get: { ex.warmup == true }, set: { v in
                         store.mutate { $0.updateExercise(exerciseId) { $0.warmup = v ? true : nil } }

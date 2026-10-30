@@ -99,6 +99,14 @@ extension Snapshot {
         return nowDone
     }
 
+    /// Reps left on a set; nil clears it.
+    mutating func setRIR(_ id: String, _ rir: Int?, now: EpochMs = nowMs()) {
+        editSet(id) {
+            $0.rir = rir.map { min(3, max(0, $0)) }
+            $0.updatedAt = now
+        }
+    }
+
     mutating func updateSetLoad(_ id: String, weight: String, reps: String, now: EpochMs = nowMs()) {
         let w = weight.trimmingCharacters(in: .whitespaces)
         let r = reps.trimmingCharacters(in: .whitespaces)

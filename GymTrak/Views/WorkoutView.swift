@@ -262,6 +262,10 @@ struct WorkoutView: View {
                                  canStep: (bareReps(active.row.reps).isEmpty || Int(bareReps(active.row.reps)) != nil),
                                  onStep: { stepReps(active.row, $0) },
                                  onTap: { repsTarget = SetEdit(row: active.row, ex: group.ex) })
+                        if !warm && index == 1 {
+                            Rectangle().fill(Page.divider).frame(height: 1)
+                            rirRow(active.row)
+                        }
                     }
                     .overlay(alignment: .top) { Rectangle().fill(Page.divider).frame(height: 1) }
                     .overlay(alignment: .bottom) { Rectangle().fill(Page.divider).frame(height: 1) }
@@ -299,6 +303,31 @@ struct WorkoutView: View {
                 .transition(.opacity)
             }
         }
+    }
+
+    /// How many more reps the top set had in it. The coach uses it to pace weight jumps.
+    private func rirRow(_ st: WorkoutSet) -> some View {
+        HStack(spacing: 8) {
+            Text("Reps left").foregroundStyle(Page.secondary)
+            Spacer()
+            ForEach(0..<4, id: \.self) { n in
+                let on = st.rir == n
+                Button {
+                    store.mutate { $0.setRIR(st.id, on ? nil : n) }
+                    stepTick += 1
+                } label: {
+                    Text(n == 3 ? "3+" : "\(n)")
+                        .font(.subheadline.weight(on ? .semibold : .regular)).monospacedDigit()
+                        .foregroundStyle(on ? Page.bg : Page.text)
+                        .frame(width: 44, height: 32)
+                        .background(on ? Page.text : Page.fill, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(n == 3 ? "3 or more reps left" : "\(n) reps left")
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(.vertical, 14)
     }
 
     /// One dot per set: filled when done, ringed for the current one. Tap a done dot to undo it.
@@ -377,6 +406,14 @@ struct WorkoutView: View {
                             ForEach(Array(g.sets.enumerated()), id: \.element.id) { n, st in
                                 setRow(st, label: "Set \(n + 1)", ex: g.ex, isActive: st.id == activeId)
                                     .contextMenu {
+                                        if n == 0 {
+                                            Picker("Reps Left", selection: Binding(get: { st.rir ?? -1 }, set: { v in
+                                                store.mutate { $0.setRIR(st.id, v < 0 ? nil : v) }
+                                            })) {
+                                                Text("Not set").tag(-1)
+                                                ForEach(0..<4, id: \.self) { Text($0 == 3 ? "3+ left" : "\($0) left").tag($0) }
+                                            }
+                                        }
                                         if g.sets.count > 1 {
                                             Button("Delete Set", systemImage: "trash", role: .destructive) { store.mutate { $0.removeSet(st.id) } }
                                         }

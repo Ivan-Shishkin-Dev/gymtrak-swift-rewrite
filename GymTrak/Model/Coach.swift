@@ -3,8 +3,10 @@ import Foundation
 // The coach: reads what you actually did and suggests what to aim for next.
 // Nothing here is pre-planned — every target comes from your last sessions and runs.
 //
-// Lifts use double progression: hit every rep → add one increment; crush it → add two;
-// just miss → same weight, get the reps; miss twice → back off ~5% and rebuild.
+// Lifts aim for a fixed rep goal: 6 on compound lifts, 8 on everything else (built for size, not strength).
+// Reps left (RIR) on the top set sets the pace: 3+ left → add two steps; 2 left → add one;
+// 1 left → add one after two clean sessions; 0 left → repeat. With no RIR logged: add one after two clean sessions.
+// Just miss → same weight, get the reps; miss twice → back off ~5% and rebuild.
 // Runs grow ~10% at a time while heart rate stays in zone, and hold when it doesn't.
 
 enum Coach {
@@ -54,7 +56,7 @@ struct LiftAdvice: Equatable {
 
 /// One past session's working sets for an exercise.
 struct LiftPerformance {
-    struct Done { var weight: String; var score: Double?; var reps: Int; var target: Int }
+    struct Done { var weight: String; var score: Double?; var reps: Int; var target: Int; var rir: Int? = nil }
     var date: String
     var deload: Bool
     var sets: [Done]
@@ -125,7 +127,7 @@ extension Snapshot {
                 .compactMap { st -> LiftPerformance.Done? in
                     guard let reps = numericReps(st.reps).map(Int.init) else { return nil }
                     let target = numericReps(st.targetReps ?? st.reps).map(Int.init) ?? reps
-                    return .init(weight: st.weight, score: loadScore(st.weight, type: type), reps: reps, target: target)
+                    return .init(weight: st.weight, score: loadScore(st.weight, type: type), reps: reps, target: target, rir: st.rir)
                 }
             if !done.isEmpty { out.append(LiftPerformance(date: s.slotDate, deload: s.deload ?? false, sets: done)) }
             if out.count == limit { break }
@@ -174,8 +176,11 @@ extension Snapshot {
         let history = liftHistory(for: ex, before: nil, limit: 6)
         // Only compare against sessions on the same setup: a big jump in load means a new machine.
         let (real, switched) = sameSetup(history.filter { !$0.deload })
-        let baseReps = real.first?.sets.first?.target ?? numericReps(base.reps).map(Int.init)
-        let goals = real.first.map { last in rows.indices.map { i in last.sets[min(i, last.sets.count - 1)].target } }
+        // The rep goal (6 compound, 8 other), unless the plan's reps aren't a number (a timed hold, say).
+        let goal = base.reps.isEmpty || numericReps(base.reps) != nil ? ex.repGoal : nil
+        let baseReps = goal ?? real.first?.sets.first?.target ?? numericReps(base.reps).map(Int.init)
+        let goals = goal.map { g in rows.map { _ in g } }
+            ?? real.first.map { last in rows.indices.map { i in last.sets[min(i, last.sets.count - 1)].target } }
 
         func load(_ steps: Int) -> String { coachShift(base.weight, ex: ex, steps: steps) }
         func target(_ steps: Int, reps: Int? = baseReps) -> String {
@@ -214,6 +219,14 @@ extension Snapshot {
 
         let gap = DateKey.calendar.dateComponents([.day], from: DateKey.date(last.date), to: DateKey.date(today)).day ?? 0
         let top = last.sets[0]
+        // New rep goal: move the weight so the goal lands about as hard as last time (Epley).
+        if let goal, top.target != goal, let cur = top.score, cur > 0, cur < 10_000 {
+            let want = cur * (1 + Double(top.reps) / 30) / (1 + Double(goal) / 30)
+            let s = Int(((want - cur) / incScore).rounded())
+            return LiftAdvice(kind: s > 0 ? .push : s < 0 ? .backoff : .hold, steps: s, target: target(s),
+                              range: loadRange(min(s, 0), max(s, 0)),
+                              why: "New goal: \(goal) reps.", trend: trend, reps: goals, explain: true)
+        }
         let hitAll = last.sets.allSatisfy { $0.reps >= $0.target }
         let missedSets = last.sets.filter { $0.reps < $0.target }.count
 
@@ -238,6 +251,18 @@ extension Snapshot {
         let cleanTwice = hitAll && prev.map { p in
             p.sets.allSatisfy { $0.reps >= $0.target } && p.sets.first?.score == top.score
         } == true
+        // Reps left on the top set decides how fast to add weight.
+        if hitAll, let rir = top.rir {
+            let s = rir >= 3 ? 2 : rir == 2 ? 1 : rir == 1 && cleanTwice ? 1 : 0
+            let why = switch rir {
+            case 3...: "3+ left. Add \(incLabel(type, inc * 2))."
+            case 2: "2 left. Add \(incLabel(type, inc))."
+            case 1: s > 0 ? "1 left twice. Add \(incLabel(type, inc))." : "1 left. Once more, then add."
+            default: "To failure. Repeat it."
+            }
+            return LiftAdvice(kind: s > 0 ? .push : .hold, steps: s, target: target(s), range: s > 0 ? loadRange(0, s) : nil,
+                              why: why, trend: trend, reps: goals)
+        }
         if cleanTwice {
             return LiftAdvice(kind: .push, steps: 1, target: target(1), range: loadRange(0, 1),
                               why: "Clean twice. Add \(incLabel(type, inc)).", trend: trend, reps: goals)
@@ -339,6 +364,23 @@ extension Snapshot {
         if pct == 0 { return "Flat for \(tops.count) sessions" }
         return "\(pct > 0 ? "↑" : "↓") \(abs(pct))% in \(tops.count) sessions"
     }
+}
+
+extension Exercise {
+    /// Compound lifts aim for 6 reps; everything else for 8.
+    var isCompound: Bool { compound ?? guessCompound(name) }
+    var repGoal: Int { isCompound ? 6 : 8 }
+}
+
+/// Multi-joint lifts by name. Isolation words win ("Tricep Press" is isolation).
+func guessCompound(_ name: String) -> Bool {
+    let n = name.lowercased()
+    let isolation = ["pec dec", "fly", "flye", "raise", "curl", "extension", "tricep", "pushdown", "kickback",
+                     "crunch", "adductor", "abductor", "calf", "shrug", "face pull"]
+    if isolation.contains(where: n.contains) { return false }
+    let compound = ["press", "bench", "row", "t-bar", "pulldown", "pull-up", "pullup", "chin", "squat", "deadlift",
+                    "sldl", "rdl", "lunge", "dip", "hip thrust", "hack"]
+    return compound.contains(where: n.contains)
 }
 
 func incLabel(_ type: LoadType, _ inc: Double) -> String {

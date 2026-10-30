@@ -63,6 +63,8 @@ struct Exercise: Codable, Identifiable, Hashable, Sendable {
     var warmup: Bool?
     /// The warm-up loads used last time; nil means start from `defaultWarmups`.
     var warmupRows: [SetRow]?
+    /// Compound lift (aims for 6 reps) or not (8). nil = guessed from the name.
+    var compound: Bool?
     var updatedAt: EpochMs
 
     /// Per-set loads; falls back to `sets` copies of weight/reps for legacy rows.
@@ -254,6 +256,8 @@ struct WorkoutSet: Codable, Identifiable, Hashable, Sendable {
     var repsNum: Double?
     var completedAt: EpochMs?
     var updatedAt: EpochMs
+    /// Reps left in the tank (0, 1, 2, 3 = 3 or more). Logged on each exercise's top set.
+    var rir: Int?
 
     var isDone: Bool { completedAt != nil }
 
@@ -272,6 +276,7 @@ struct WorkoutSet: Codable, Identifiable, Hashable, Sendable {
         try c.encode(repsNum, forKey: .repsNum)
         try c.encode(completedAt, forKey: .completedAt)
         try c.encode(updatedAt, forKey: .updatedAt)
+        try c.encodeIfPresent(rir, forKey: .rir)
     }
 }
 

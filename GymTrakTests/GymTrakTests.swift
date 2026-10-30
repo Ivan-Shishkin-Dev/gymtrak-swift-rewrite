@@ -197,6 +197,52 @@ struct CoachTests {
         #expect(points.first.map { DateKey.key($0.date) } == "2026-10-01")
     }
 
+    @Test func compoundLiftsAreGuessedByName() {
+        let compound = ["Plate Loaded Machine Press", "Plate Loaded T-Bar", "Machine Lat Pulldown", "Dumbbell Shoulder Press",
+                        "Plate Loaded Leg Press", "SLDL", "Bench"]
+        let isolation = ["Machine Single-Arm Pec Dec", "Machine Lateral Raise", "Machine Preacher Curl", "Single-Arm Rope Tricep",
+                         "Machine Single-Leg Curl", "Machine Single-Leg Extension", "Machine Adductor", "Machine Cable Crunch"]
+        #expect(compound.allSatisfy(guessCompound))
+        #expect(!isolation.contains(where: guessCompound))
+        var ex = bench
+        #expect(ex.repGoal == 6)
+        ex.compound = false
+        #expect(ex.repGoal == 8)
+    }
+
+    /// One clean session at 200 × 6 with this many reps left on the top set.
+    func withRIR(_ rir: Int?, history: [[Int]] = [[6, 6]], start: String = "2026-10-18") -> LiftAdvice {
+        var s = db(history, start: start)
+        if let i = s.sets.lastIndex(where: { $0.setIndex == 0 }) { s.sets[i].rir = rir }
+        return s.liftAdvice(for: bench, today: today)
+    }
+
+    @Test func repsLeftPacesTheJump() {
+        #expect(withRIR(3).target == "210 lb × 6")
+        #expect(withRIR(2).target == "205 lb × 6")
+        #expect(withRIR(1).target == "200 lb × 6")
+        #expect(withRIR(1, history: [[6, 6], [6, 6]], start: "2026-10-15").target == "205 lb × 6")
+        #expect(withRIR(0).kind == .hold && withRIR(0).target == "200 lb × 6")
+        #expect(withRIR(nil).target == "200 lb × 6")
+    }
+
+    @Test func repsLeftIsSavedOnTheSet() {
+        var s = db([[6, 6]])
+        s.setRIR("s0-0", 7)
+        #expect(s.sets[0].rir == 3)
+        s.setRIR("s0-0", nil)
+        #expect(s.sets[0].rir == nil)
+    }
+
+    @Test func newRepGoalMovesTheWeight() {
+        // An isolation lift done at 200 × 3 now aims for 8: about 13% lighter.
+        var s = db([[3, 3]], start: "2026-10-18")
+        s.exercises[0].compound = false
+        for i in s.sets.indices { s.sets[i].targetReps = "× 3" }
+        let a = s.liftAdvice(for: s.exercises[0], today: today)
+        #expect(a.kind == .backoff && a.target == "175 lb × 8" && a.reps == [8, 8])
+    }
+
     @Test func noHistoryKeepsWeight() {
         let a = db([]).liftAdvice(for: bench, today: today)
         #expect(a.kind == .new && a.steps == 0 && a.target == "200 lb × 6")

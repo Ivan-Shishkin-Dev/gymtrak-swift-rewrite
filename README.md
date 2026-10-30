@@ -25,7 +25,10 @@ A month at a time, Sunday to Saturday. Tap a colored day to open it.
 
 Targets come from your own history, not a fixed program (`GymTrak/Model/Coach.swift`).
 
-- Double progression: hit the top of the rep goal on every set, then the weight goes up one step.
+- Built for size, not max strength. Compound lifts aim for **6 reps**, everything else for **8** (Plan → exercise → Compound; guessed from the name).
+- Log **Reps left** (0, 1, 2, 3+) on each exercise's top set. Hit every rep and it sets the pace: 3+ left adds two steps, 2 left adds one, 1 left adds one after two clean sessions, 0 left repeats. With nothing logged it adds one step after two clean sessions.
+- Changing the rep goal moves the weight to match (Epley estimate).
+- Miss a rep or so: same weight, get the reps. Miss twice: drop about 5%.
 - After a dip, it works back up toward a weight you've already lifted.
 - A top-set jump of over 30% between sessions counts as a new machine or setup, so it starts fresh.
 - During a workout it nudges the next set up or down.
