@@ -32,12 +32,18 @@ struct RootView: View {
             }
         }
         .task {
-            // Show one rep of the splash.
-            try? await Task.sleep(for: .seconds(1.3))
             // Launch with -holdLoading to keep the splash up (for tweaking it).
             if ProcessInfo.processInfo.arguments.contains("-holdLoading") { return }
-            withAnimation(.easeInOut(duration: 0.4)) { loading = false }
-            await connections.refresh()
+            // Health loads while the splash shows, not after it.
+            async let refreshed: Void = connections.refresh()
+            // Mid-workout there's no splash: straight back to the bar.
+            if store.db.openLift() != nil {
+                loading = false
+            } else {
+                try? await Task.sleep(for: .seconds(0.6))
+                withAnimation(.easeInOut(duration: 0.3)) { loading = false }
+            }
+            await refreshed
             refreshOutputs()
         }
     }
@@ -90,6 +96,8 @@ struct RootView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await connections.refresh() } }
+            // Changes are written a moment after each tap; leaving the app writes whatever is waiting.
+            if phase != .active { store.flush() }
             if phase == .background { refreshOutputs() }
         }
     }

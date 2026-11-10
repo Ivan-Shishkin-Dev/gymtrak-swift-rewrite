@@ -498,3 +498,45 @@ enum RunCoach {
         "\(fmtClock((pace + lo) * 60))–\(fmtClock((pace + hi) * 60)) /mi"
     }
 }
+
+// MARK: - Cache
+
+/// Remembers coach targets between redraws. A target only changes when the exercise is edited,
+/// a workout is finished, reopened or deleted, or the date moves on, so those make up the key.
+@MainActor
+final class CoachCache {
+    static let shared = CoachCache()
+
+    private struct Key: Hashable {
+        var ex: String
+        var stamp: EpochMs
+        var deload: Bool
+        var today: String
+        var finished: Int
+        var lastFinish: EpochMs
+    }
+    private var items: [Key: LiftAdvice] = [:]
+
+    func advice(_ db: Snapshot, for ex: Exercise, deload: Bool = false, today: String = DateKey.key(Date())) -> LiftAdvice {
+        var finished = 0
+        var last: EpochMs = 0
+        for s in db.sessions where !s.isDeleted && !s.isRun {
+            if let f = s.finishedAt { finished += 1; last = max(last, f) }
+        }
+        let key = Key(ex: ex.id, stamp: ex.updatedAt, deload: deload, today: today, finished: finished, lastFinish: last)
+        if let hit = items[key] { return hit }
+        if items.count > 300 { items.removeAll() }
+        let a = db.liftAdvice(for: ex, deload: deload, today: today)
+        items[key] = a
+        return a
+    }
+}
+
+extension Snapshot {
+    /// What you did on set `index` of this exercise the last time before `date`: "225 lb × 6".
+    func lastTime(for ex: Exercise, setIndex: Int, before date: String) -> String? {
+        guard let last = liftHistory(for: ex, before: date, limit: 1).first, last.sets.indices.contains(setIndex) else { return nil }
+        let s = last.sets[setIndex]
+        return s.weight.isEmpty ? "× \(s.reps)" : "\(s.weight) × \(s.reps)"
+    }
+}

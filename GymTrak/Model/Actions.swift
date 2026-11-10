@@ -187,6 +187,28 @@ extension Snapshot {
         sessions.removeAll { $0.id == id }
     }
 
+    /// Remove a finished workout from History and the coach. The Plan's loads stay as they are.
+    mutating func deleteSession(_ id: String, now: EpochMs = nowMs()) {
+        guard let i = sessions.firstIndex(where: { $0.id == id }) else { return }
+        sessions[i].deleted = true
+        sessions[i].updatedAt = now
+    }
+
+    /// "Do later": push an exercise to the end of this workout only. The Plan's order doesn't change.
+    mutating func deferExercise(_ sessionId: String, exerciseId: String, now: EpochMs = nowMs()) {
+        guard let i = sessions.firstIndex(where: { $0.id == sessionId }) else { return }
+        sessions[i].deferred = (sessions[i].deferred ?? []).filter { $0 != exerciseId } + [exerciseId]
+        sessions[i].updatedAt = now
+    }
+
+    /// The day's exercises in the order this workout runs them: the Plan's order, with deferred ones last.
+    func sessionExercises(_ session: Session) -> [Exercise] {
+        let all = exercises(of: session.dayId)
+        guard let later = session.deferred, !later.isEmpty else { return all }
+        return all.filter { !later.contains($0.id) }
+            + later.compactMap { id in all.first { $0.id == id } }
+    }
+
     /// Finish a session and carry each exercise's sets back to the Plan as its new loads.
     /// Done sets carry what you did; unticked sets keep their start-of-session target.
     mutating func finishSession(_ id: String, now: EpochMs = nowMs()) {

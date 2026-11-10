@@ -45,7 +45,7 @@ struct WorkoutView: View {
     private func groups(_ session: Session, _ day: Day) -> [ExGroup] {
         let sets = store.db.sets(of: session.id)
         let warm = store.db.warmups(of: session.id)
-        return store.db.exercises(of: day.id).compactMap { ex in
+        return store.db.sessionExercises(session).compactMap { ex in
             let s = sets.filter { $0.exerciseId == ex.id }.sorted { $0.setIndex < $1.setIndex }
             let w = warm.filter { $0.exerciseId == ex.id }.sorted { $0.setIndex < $1.setIndex }
             return s.isEmpty ? nil : ExGroup(ex: ex, sets: s, warmups: w)
@@ -219,7 +219,22 @@ struct WorkoutView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(group.ex.name).font(.system(size: 30, weight: .bold)).foregroundStyle(Page.text)
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(group.ex.name).font(.system(size: 30, weight: .bold)).foregroundStyle(Page.text)
+                            Spacer(minLength: 0)
+                            // Machine taken: push this exercise to the end of today's workout.
+                            if groups.contains(where: { $0.ex.id != group.ex.id && !$0.isDone }) {
+                                Button("Later") { doLater(group.ex) }
+                                    .font(.subheadline).foregroundStyle(Page.text)
+                                    .padding(.horizontal, 12).padding(.vertical, 6)
+                                    .background(Page.fill, in: Capsule())
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("Do \(group.ex.name) later")
+                            }
+                        }
+                        if let note = group.ex.note, !note.isEmpty {
+                            Text(note).font(.subheadline).foregroundStyle(Page.secondary)
+                        }
                         HStack(spacing: 10) {
                             Text("\(warm ? "Warm-up" : "Set") \(index) of \(list.count)").foregroundStyle(Page.secondary)
                             setDots(list, current: active.row.id)
@@ -272,7 +287,11 @@ struct WorkoutView: View {
                 }
                 .padding(.horizontal, 20).padding(.vertical, 16)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .id(active.row.id)
+                .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                        removal: .move(edge: .leading).combined(with: .opacity)))
             }
+            .animation(.snappy(duration: 0.28), value: active.row.id)
             .background(Page.bg)
         } else {
             VStack(alignment: .leading, spacing: 6) {
@@ -290,8 +309,11 @@ struct WorkoutView: View {
     private func coachRows(_ ex: Exercise, setIndex: Int) -> some View {
         let db = store.db
         if let session = db.sessions.first(where: { $0.isOpen && !$0.isRun }) {
-            let a = db.liftAdvice(for: ex, deload: session.deload ?? false, today: session.slotDate)
+            let a = CoachCache.shared.advice(db, for: ex, deload: session.deload ?? false, today: session.slotDate)
             let tip = db.liveTip(sessionId: session.id, ex: ex)
+            if let last = db.lastTime(for: ex, setIndex: setIndex, before: session.slotDate) {
+                PropertyRow(icon: "clock.arrow.circlepath", label: "Last time") { Text(last) }
+            }
             PropertyRow(icon: a.icon.replacingOccurrences(of: ".fill", with: ""), label: "Shoot for") {
                 Text(a.target(forSet: setIndex)).fontWeight(.semibold)
             }
@@ -355,6 +377,8 @@ struct WorkoutView: View {
             Button(action: onTap) {
                 VStack(spacing: 0) {
                     Text(value).font(.number(52, weight: .bold)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(Page.text)
+                        .contentTransition(.numericText())
+                        .animation(.snappy(duration: 0.2), value: value)
                     Text(label).font(.footnote).foregroundStyle(Page.secondary)
                 }
                 .frame(maxWidth: .infinity)
@@ -373,6 +397,7 @@ struct WorkoutView: View {
                 .background(Page.fill, in: Circle())
         }
         .buttonStyle(.plain)
+        .buttonRepeatBehavior(.enabled)
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0)
         .accessibilityLabel(label)
@@ -392,7 +417,7 @@ struct WorkoutView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 ForEach(Array(groups.enumerated()), id: \.element.id) { i, g in
-                    let a = store.db.liftAdvice(for: g.ex, deload: session.deload ?? false, today: session.slotDate)
+                    let a = CoachCache.shared.advice(store.db, for: g.ex, deload: session.deload ?? false, today: session.slotDate)
                     PageSection(g.ex.name, trailing: { exerciseMenu(g.ex, session: session, index: i, count: groups.count) }) {
                         Button { historyTarget = g.ex } label: {
                             Text("Shoot for \(a.target)")
@@ -510,6 +535,12 @@ struct WorkoutView: View {
     private func skipWarmups(_ ex: Exercise) {
         guard let session = store.db.openLift() else { return }
         store.mutate { $0.skipWarmups(session.id, exerciseId: ex.id) }
+    }
+
+    private func doLater(_ ex: Exercise) {
+        guard let session = store.db.openLift() else { return }
+        store.mutate { $0.deferExercise(session.id, exerciseId: ex.id) }
+        stepTick += 1
     }
 
     private func startRename(_ ex: Exercise) {

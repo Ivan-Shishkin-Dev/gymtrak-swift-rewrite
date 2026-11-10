@@ -214,6 +214,8 @@ struct Session: Codable, Identifiable, Hashable, Sendable {
     var weekNumber: Int?
     var deload: Bool?
     var run: RunLog?
+    /// Exercises pushed to the end of this workout ("Do later"), in the order they were pushed.
+    var deferred: [String]?
 
     var isRun: Bool { (type ?? .lift) == .run }
     var isDeleted: Bool { deleted ?? false }
@@ -238,6 +240,7 @@ struct Session: Codable, Identifiable, Hashable, Sendable {
         try c.encodeIfPresent(weekNumber, forKey: .weekNumber)
         try c.encodeIfPresent(deload, forKey: .deload)
         try c.encodeIfPresent(run, forKey: .run)
+        try c.encodeIfPresent(deferred, forKey: .deferred)
     }
 }
 

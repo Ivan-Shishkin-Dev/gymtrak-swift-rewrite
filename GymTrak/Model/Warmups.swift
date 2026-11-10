@@ -53,7 +53,7 @@ extension Snapshot {
     func workoutItems(_ session: Session) -> [WorkoutItem] {
         let working = sets(of: session.id)
         let warm = warmups(of: session.id)
-        return exercises(of: session.dayId).flatMap { ex in
+        return sessionExercises(session).flatMap { ex in
             warm.filter { $0.exerciseId == ex.id }.sorted { $0.setIndex < $1.setIndex }.map { WorkoutItem(set: $0, ex: ex, warmup: true) }
             + working.filter { $0.exerciseId == ex.id }.sorted { $0.setIndex < $1.setIndex }.map { WorkoutItem(set: $0, ex: ex, warmup: false) }
         }

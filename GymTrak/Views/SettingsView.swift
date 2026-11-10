@@ -39,7 +39,8 @@ struct SettingsView: View {
                 }
                 dataSection
                 Section("About") {
-                                        LabeledContent("Lift days", value: "\(store.db.activeDays.count)")
+                    LabeledContent("Version", value: appVersion)
+                    LabeledContent("Lift days", value: "\(store.db.activeDays.count)")
                     LabeledContent("Workouts", value: "\(store.db.sessions.filter { $0.finishedAt != nil && !$0.isDeleted }.count)")
                     Link("GitHub", destination: URL(string: "https://github.com/Ivan-Shishkin-Dev/gymtrak-swift-rewrite")!)
                 }
@@ -47,6 +48,11 @@ struct SettingsView: View {
             .pageBackground()
             .topLeftTitle("Settings")
         }
+    }
+
+    private var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        return "\(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
     }
 
     // MARK: Sections
@@ -84,8 +90,9 @@ struct SettingsView: View {
 
     @ViewBuilder private var dataSection: some View {
         Section {
-            if let url = exportURL() {
-                ShareLink(item: url) { Label { Text("Export Backup") } icon: { IconBadge(systemName: "square.and.arrow.up", color: .indigo) } }
+            // The file is only written when you tap, not every time Settings redraws.
+            ShareLink(item: BackupExport(db: store.db), preview: SharePreview("GymTrak Backup")) {
+                Label { Text("Export Backup") } icon: { IconBadge(systemName: "square.and.arrow.up", color: .indigo) }
             }
             Button { importing = true } label: {
                 Label { Text("Import Backup") } icon: { IconBadge(systemName: "square.and.arrow.down", color: .indigo) }
@@ -93,6 +100,9 @@ struct SettingsView: View {
             .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
                 do { try store.importBackup(from: result.get()); importError = nil }
                 catch { importError = "Not a GymTrak backup." }
+            }
+            NavigationLink { BackupsView() } label: {
+                Label { Text("Daily Backups") } icon: { IconBadge(systemName: "clock.arrow.circlepath", color: .indigo) }
             }
             if let error = importError ?? store.loadError ?? store.saveError {
                 Text(error).font(.footnote).foregroundStyle(Theme.warning)
@@ -104,12 +114,60 @@ struct SettingsView: View {
         }
     }
 
-    private func exportURL() -> URL? {
-        let url = URL.temporaryDirectory.appending(path: "gymtrak-backup-\(DateKey.key(Date())).json")
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        guard let data = try? encoder.encode(store.db), (try? data.write(to: url)) != nil else { return nil }
-        return url
+}
+
+/// The backup file for the share sheet, written when it's asked for.
+struct BackupExport: Transferable {
+    let db: Snapshot
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .json) { item in
+            let url = URL.temporaryDirectory.appending(path: "gymtrak-backup-\(DateKey.key(Date())).json")
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try encoder.encode(item.db).write(to: url)
+            return SentTransferredFile(url)
+        }
+    }
+}
+
+/// The automatic daily copies. Tap one to go back to it.
+struct BackupsView: View {
+    @Environment(Store.self) private var store
+    @State private var copies: [BackupCopy] = []
+    @State private var target: BackupCopy?
+    @State private var error: String?
+
+    var body: some View {
+        List {
+            Section {
+                if copies.isEmpty { Text("None yet.").foregroundStyle(.secondary) }
+                ForEach(copies) { copy in
+                    Button { target = copy } label: {
+                        HStack {
+                            Text(DateKey.label(copy.date, "EEEE, MMM d")).foregroundStyle(Page.text)
+                            Spacer()
+                            Text("Restore").foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                if let error { Text(error).font(.footnote).foregroundStyle(Theme.warning) }
+            } footer: {
+                Text("One copy a day, last \(Store.backupsKept) kept. Each is your data from the first time you opened the app that day.")
+            }
+        }
+        .pageBackground()
+        .navigationTitle("Daily Backups")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { copies = store.backups() }
+        .confirmationDialog("Go back to \(target.map { DateKey.label($0.date, "MMM d") } ?? "this copy")?",
+                            isPresented: Binding(get: { target != nil }, set: { if !$0 { target = nil } }), titleVisibility: .visible) {
+            Button("Restore", role: .destructive) {
+                guard let t = target else { return }
+                do { try store.importBackup(from: t.url); error = nil }
+                catch { self.error = "Couldn't read that copy." }
+            }
+        } message: { Text("Replaces everything since then.") }
     }
 }
 

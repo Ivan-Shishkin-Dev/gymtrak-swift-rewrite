@@ -2,6 +2,8 @@ import SwiftUI
 
 /// Opens a finished workout from anywhere (Today's recent list, History).
 struct SessionRef: Hashable { let id: String }
+/// Opens a recorded run.
+struct RunRef: Hashable { let id: String }
 
 /// Home, Notion-style: a greeting, today's numbers as properties, the week, recent activity, the schedule.
 struct TodayView: View {
@@ -142,7 +144,7 @@ struct HistoryRow: View {
         case .lift(let id):
             NavigationLink(value: SessionRef(id: id)) { label }.buttonStyle(.plain)
         case .run:
-            label
+            NavigationLink(value: RunRef(id: String(entry.id.dropFirst(4)))) { label }.buttonStyle(.plain)
         }
     }
 
@@ -207,7 +209,7 @@ struct DayScreen: View {
                     PageSection("Exercises") {
                         VStack(spacing: 0) {
                             ForEach(exercises) { ex in
-                                let a = db.liftAdvice(for: ex, today: date)
+                                let a = CoachCache.shared.advice(db, for: ex, today: date)
                                 // Two columns: name left, target right. Every row lines up the same way.
                                 HStack(alignment: .firstTextBaseline, spacing: 12) {
                                     Text(ex.name).foregroundStyle(Page.text).lineLimit(1).minimumScaleFactor(0.8)

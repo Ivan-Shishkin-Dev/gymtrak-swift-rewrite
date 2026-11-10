@@ -172,6 +172,7 @@ struct ExerciseEditorView: View {
     @Environment(Store.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
+    @State private var note = ""
     @State private var loadEdit: Int?
     @State private var repsEdit: Int?
 
@@ -183,6 +184,10 @@ struct ExerciseEditorView: View {
                     TextField("Name", text: $name)
                         .onSubmit { commitName() }
                 }
+                Section {
+                    TextField("Seat, pin, grip", text: $note, axis: .vertical)
+                        .lineLimit(1...4)
+                } header: { Text("Note") } footer: { Text("Shows under the name during a workout.") }
                 Section {
                     Picker("Weight type", selection: Binding(get: { ex.effectiveLoadType }, set: { t in
                         store.mutate { $0.updateExercise(exerciseId) { $0.loadType = t } }
@@ -243,8 +248,8 @@ struct ExerciseEditorView: View {
             .toolbar {
                 if !showsSets { ToolbarItem(placement: .topBarLeading) { BackButton() } }
             }
-            .onAppear { name = ex.name }
-            .onDisappear(perform: commitName)
+            .onAppear { name = ex.name; note = ex.note ?? "" }
+            .onDisappear { commitName(); commitNote() }
             .sheet(item: Binding(get: { loadEdit.map(IndexBox.init) }, set: { loadEdit = $0?.i })) { box in
                 LoadEditorSheet(title: "\(ex.name) · set \(box.i + 1)", loadType: ex.effectiveLoadType, initial: rows[box.i].weight) { w in
                     var r = rows; r[box.i].weight = w
@@ -264,6 +269,12 @@ struct ExerciseEditorView: View {
         let n = name.trimmingCharacters(in: .whitespaces)
         guard !n.isEmpty, n != store.db.exercises.first(where: { $0.id == exerciseId })?.name else { return }
         store.mutate { $0.updateExercise(exerciseId) { $0.name = n } }
+    }
+
+    private func commitNote() {
+        let n = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard n != (store.db.exercises.first(where: { $0.id == exerciseId })?.note ?? "") else { return }
+        store.mutate { $0.updateExercise(exerciseId) { $0.note = n.isEmpty ? nil : n } }
     }
 
     private func loadTypeHelp(_ t: LoadType) -> String {

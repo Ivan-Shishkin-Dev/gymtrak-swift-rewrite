@@ -771,3 +771,127 @@ struct WarmupTests {
     }
 }
 
+
+@Suite struct QoLTests {
+    /// Upper A: Bench (2 sets) then Row (1 set) then Curl (1 set).
+    func snap() -> Snapshot {
+        Snapshot(days: [Day(id: 1, name: "Upper A", focus: "")],
+                 exercises: [Exercise(id: "b", dayId: 1, order: 0, name: "Bench", sets: 2, weight: "200 lb", reps: "× 6",
+                                      setRows: [SetRow(weight: "200 lb", reps: "× 6"), SetRow(weight: "190 lb", reps: "× 8")],
+                                      loadType: .weight, updatedAt: 0),
+                             Exercise(id: "r", dayId: 1, order: 1, name: "Row", sets: 1, weight: "150 lb", reps: "× 10",
+                                      loadType: .weight, updatedAt: 0),
+                             Exercise(id: "c", dayId: 1, order: 2, name: "Curl", sets: 1, weight: "40 lb", reps: "× 8",
+                                      loadType: .weight, updatedAt: 0)],
+                 programWeeks: [])
+    }
+
+    @Test func doLaterMovesTheExerciseToTheEndOfThisWorkoutOnly() {
+        var db = snap()
+        let id = db.startSession(day: db.days[0])
+        db.deferExercise(id, exerciseId: "b")
+        var open = db.openLift()!
+        #expect(db.sessionExercises(open).map(\.id) == ["r", "c", "b"])
+        #expect(db.pendingItems(open).first?.ex.id == "r")
+        // Deferring a second one puts it after the first; deferring the same one again just moves it last.
+        db.deferExercise(id, exerciseId: "r")
+        db.deferExercise(id, exerciseId: "b")
+        open = db.openLift()!
+        #expect(db.sessionExercises(open).map(\.id) == ["c", "r", "b"])
+        // The Plan keeps its order.
+        #expect(db.exercises(of: 1).map(\.id) == ["b", "r", "c"])
+    }
+
+    @Test func deferredOrderSurvivesSaving() throws {
+        var db = snap()
+        let id = db.startSession(day: db.days[0])
+        db.deferExercise(id, exerciseId: "b")
+        let back = try JSONDecoder().decode(Snapshot.self, from: JSONEncoder().encode(db))
+        #expect(back.sessions.first?.deferred == ["b"])
+    }
+
+    @Test func deletedWorkoutLeavesHistoryAndTheCoach() {
+        var db = snap()
+        let id = db.startSession(day: db.days[0], options: StartOptions(scheduledDate: "2026-10-26"))
+        for s in db.sets(of: id) { db.toggleSet(s.id) }
+        db.finishSession(id)
+        let bench = db.exercises.first { $0.id == "b" }!
+        #expect(db.finishedLifts.count == 1)
+        #expect(db.lastTime(for: bench, setIndex: 0, before: "2026-11-02") == "200 lb × 6")
+        #expect(db.lastTime(for: bench, setIndex: 1, before: "2026-11-02") == "190 lb × 8")
+        #expect(db.lastTime(for: bench, setIndex: 2, before: "2026-11-02") == nil)
+        // Same-day and earlier dates don't count as "last time".
+        #expect(db.lastTime(for: bench, setIndex: 0, before: "2026-10-26") == nil)
+        db.deleteSession(id)
+        #expect(db.finishedLifts.isEmpty)
+        #expect(db.lastTime(for: bench, setIndex: 0, before: "2026-11-02") == nil)
+        #expect(db.historyEntries(synced: []).isEmpty)
+    }
+
+    @Test @MainActor func coachCacheFollowsEditsAndFinishes() {
+        var db = snap()
+        let bench = db.exercises.first { $0.id == "b" }!
+        let first = CoachCache.shared.advice(db, for: bench, today: "2026-11-02")
+        #expect(first == db.liftAdvice(for: bench, today: "2026-11-02"))
+        let id = db.startSession(day: db.days[0], options: StartOptions(scheduledDate: "2026-10-26"))
+        for s in db.sets(of: id) { db.toggleSet(s.id) }
+        db.finishSession(id)
+        let after = db.exercises.first { $0.id == "b" }!
+        #expect(CoachCache.shared.advice(db, for: after, today: "2026-11-02") == db.liftAdvice(for: after, today: "2026-11-02"))
+    }
+
+    @MainActor func tempStore() throws -> (Store, URL, URL) {
+        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appending(path: "gymtrak.json")
+        return (Store(fileURL: url, seedIfEmpty: false), url, dir)
+    }
+
+    @Test @MainActor func flushWritesWaitingChanges() throws {
+        let (store, url, _) = try tempStore()
+        store.mutate { $0.addDay() }
+        store.flush()
+        let onDisk = try JSONDecoder().decode(Snapshot.self, from: Data(contentsOf: url))
+        #expect(onDisk.days.count == 1)
+        #expect(store.saveError == nil)
+    }
+
+    @Test @MainActor func changesSaveThemselvesShortlyAfter() async throws {
+        let (store, url, _) = try tempStore()
+        store.mutate { $0.addDay() }
+        store.mutate { $0.addDay() }
+        try await Task.sleep(for: .milliseconds(900))
+        let onDisk = try JSONDecoder().decode(Snapshot.self, from: Data(contentsOf: url))
+        #expect(onDisk.days.count == 2)
+    }
+
+    @Test @MainActor func dailyBackupsKeepTheNewestSeven() throws {
+        let (store, url, dir) = try tempStore()
+        let backups = dir.appending(path: "Backups")
+        try FileManager.default.createDirectory(at: backups, withIntermediateDirectories: true)
+        for day in 1...9 { try Data("{}".utf8).write(to: backups.appending(path: "gymtrak-2026-01-0\(day).json")) }
+        try Data("{}".utf8).write(to: backups.appending(path: "gymtrak-before-restore.json"))
+        store.mutate { $0.addDay() }
+        store.flush()
+        let copies = store.backups()
+        #expect(copies.count == Store.backupsKept)
+        #expect(copies.first?.date == DateKey.key(Date()))
+        #expect(!copies.contains { $0.date == "2026-01-01" })
+        #expect(FileManager.default.fileExists(atPath: backups.appending(path: "gymtrak-before-restore.json").path()))
+        // Reopening the same day doesn't make a second copy.
+        #expect(Store(fileURL: url, seedIfEmpty: false).backups().count == Store.backupsKept)
+    }
+
+    @Test @MainActor func restoringKeepsWhatWasThere() throws {
+        let (store, _, dir) = try tempStore()
+        store.mutate { $0.addDay() }
+        store.flush()
+        let copy = try #require(store.backups().first)
+        store.mutate { $0.addDay() }
+        #expect(store.db.days.count == 2)
+        try store.importBackup(from: copy.url)
+        #expect(store.db.days.count == 1)
+        let kept = try JSONDecoder().decode(Snapshot.self, from: Data(contentsOf: dir.appending(path: "Backups/gymtrak-before-restore.json")))
+        #expect(kept.days.count == 2)
+    }
+}

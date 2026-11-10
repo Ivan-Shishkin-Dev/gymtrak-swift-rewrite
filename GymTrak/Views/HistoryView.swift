@@ -56,6 +56,7 @@ struct HistoryView: View {
             .background(Page.bg)
             .topLeftTitle("History")
             .navigationDestination(for: SessionRef.self) { SessionDetailView(sessionId: $0.id) }
+            .navigationDestination(for: RunRef.self) { RunDetailView(runId: $0.id) }
             .navigationDestination(for: String.self) { DayScreen(date: $0) }
             .refreshable { await connections.refresh() }
         }
@@ -87,6 +88,8 @@ struct HistoryView: View {
 struct SessionDetailView: View {
     let sessionId: String
     @Environment(Store.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmDelete = false
 
     var body: some View {
         let db = store.db
@@ -138,8 +141,75 @@ struct SessionDetailView: View {
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(removing: .title)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button("Delete Workout", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                    } label: { Image(systemName: "ellipsis") }
+                }
+            }
+            .confirmationDialog("Delete this workout?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete Workout", role: .destructive) {
+                    store.mutate { $0.deleteSession(sessionId) }
+                    dismiss()
+                }
+            } message: { Text("It leaves History and the coach. Your plan stays the same.") }
         } else {
             ContentUnavailableView("Workout not found", systemImage: "questionmark")
+        }
+    }
+}
+
+/// One recorded run as a page: distance, time, pace, heart rate, and what was planned that day.
+struct RunDetailView: View {
+    let runId: String
+    @Environment(Store.self) private var store
+    @Environment(Connections.self) private var connections
+
+    var body: some View {
+        let db = store.db
+        if let run = db.allRuns(synced: connections.runs).first(where: { $0.id == runId }) {
+            let d = DateKey.date(run.date)
+            let planned = db.scheduleWeek(d)?.slot(DateKey.dow(d))?.run
+            let title = planned?.label.rawValue ?? run.name
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(title).font(.system(size: 34, weight: .bold)).foregroundStyle(Page.text).padding(.bottom, 10)
+                    PropertyRow(icon: "calendar", label: "Date") { Text(DateKey.label(run.date, "EEEE, MMMM d")) }
+                    if run.miles > 0 {
+                        PropertyRow(icon: "location", label: "Distance") { Text(String(format: "%.2f mi", run.miles)) }
+                    }
+                    PropertyRow(icon: "clock", label: "Time") { Text("\(Int(run.minutes.rounded())) min") }
+                    if let pace = run.paceMinPerMile {
+                        PropertyRow(icon: "speedometer", label: "Pace") { Text(fmtPace(pace)) }
+                    }
+                    if let hr = run.avgHR {
+                        PropertyRow(icon: "heart", label: "Heart rate") {
+                            HStack(spacing: 8) {
+                                Text("\(Int(hr.rounded())) bpm")
+                                if let planned {
+                                    Tag(text: hr > Double(planned.hrZoneMax) ? "Above zone" : hr < Double(planned.hrZoneMin) ? "Below zone" : "In zone")
+                                }
+                            }
+                        }
+                    }
+                    if let planned {
+                        PropertyRow(icon: "list.bullet", label: "Planned") {
+                            Text("\(planned.durationMin) min · \(zoneLabel(planned.hrZoneMin, planned.hrZoneMax)) bpm")
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 60)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(Page.bg)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(removing: .title)
+        } else {
+            ContentUnavailableView("Run not found", systemImage: "questionmark")
         }
     }
 }
